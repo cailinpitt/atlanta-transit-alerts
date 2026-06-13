@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)" />
+    <!-- Apply the saved/preferred color scheme synchronously, before first
+         paint, so full-page navigations don't flash a light frame before the
+         app's JS mounts and toggles the class (dark-mode FOUC). Mirrors the
+         initial-state logic in src/hooks/useDarkMode.js; that hook still owns
+         the class once React mounts. -->
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem('darkMode');
+          const dark =
+            stored === null
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              : stored === 'true';
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch {
+          /* localStorage blocked (private mode) — fall back to light. */
+        }
+      })();
+    </script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Chicago Transit Alerts" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Chicago Transit Alerts</title>
+    <meta name="description" content="Major CTA & Metra alerts and service observations." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://chicagotransitalerts.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Chicago Transit Alerts" />
+    <meta property="og:title" content="Chicago Transit Alerts" />
+    <meta
+      property="og:description"
+      content="A public archive of CTA and Metra service alerts and bot-detected disruptions, with a 90-day heatmap of incident frequency."
+    />
+    <meta property="og:url" content="https://chicagotransitalerts.app/" />
+    <meta property="og:image" content="https://chicagotransitalerts.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Chicago Transit Alerts — a public archive of CTA and Metra service alerts and bot-detected disruptions, with a 90-day heatmap."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Chicago Transit Alerts" />
+    <meta
+      name="twitter:description"
+      content="A public archive of CTA and Metra service alerts and bot-detected disruptions, with a 90-day heatmap of incident frequency."
+    />
+    <meta name="twitter:image" content="https://chicagotransitalerts.app/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Chicago Transit Alerts — a public archive of CTA and Metra service alerts and bot-detected disruptions, with a 90-day heatmap."
+    />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Chicago Transit Alerts"
+      href="/feed.xml"
+    />
+    <link
+      rel="alternate"
+      type="application/feed+json"
+      title="Chicago Transit Alerts"
+      href="/feed.json"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://chicagotransitalerts.app/#website",
+            "url": "https://chicagotransitalerts.app/",
+            "name": "Chicago Transit Alerts",
+            "description": "A public archive of CTA and Metra service alerts and bot-detected disruptions, with a 90-day heatmap of incident frequency.",
+            "inLanguage": "en-US",
+            "publisher": { "@id": "https://chicagotransitalerts.app/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://chicagotransitalerts.app/#org",
+            "name": "Chicago Transit Alerts (unofficial)",
+            "url": "https://chicagotransitalerts.app/"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <!-- Cloudflare Web Analytics — cookieless, privacy-first page-view counts.
+         Loaded as a manual beacon (not Cloudflare's automatic injection)
+         because the site is served by GitHub Pages and its DNS records are
+         DNS-only / grey-cloud, so traffic isn't proxied through Cloudflare.
+         The token is public by design (it ships in page source on every CF
+         Analytics site). Disclosed on /privacy. Replace the placeholder with
+         the token from Cloudflare dashboard → Web Analytics → add a site. -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "19c543b1fee842128be4be2916903e6c"}'
+    ></script>
+    <!-- Speculation Rules: pages use full-page navigation (no client router),
+         so prefetching same-origin links on hover makes clicks much faster,
+         and prerendering the hub pages makes them feel instant. /data/* (the
+         JSON/CSV API) is excluded from document prefetch. -->
+    <script type="speculationrules">
+      {
+        "prefetch": [
+          {
+            "source": "document",
+            "where": {
+              "and": [
+                { "href_matches": "/*" },
+                { "not": { "href_matches": "/data/*" } }
+              ]
+            },
+            "eagerness": "moderate"
+          }
+        ],
+        "prerender": [
+          {
+            "source": "list",
+            "urls": ["/", "/calendar", "/stats"],
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
+  </body>
+</html>

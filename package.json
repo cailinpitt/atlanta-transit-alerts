@@ -1,0 +1,35 @@
+{
+  "name": "atlanta-transit-alerts",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/fetch-data.js",
+    "build": "vite build",
+    "postbuild": "node scripts/prerender-events.js && node scripts/prerender-pages.js && node scripts/prerender-static.js && node scripts/generate-feed.js && node scripts/generate-sitemap.js && node scripts/generate-csv.js",
+    "preview": "vite preview",
+    "test": "vitest",
+    "lint": "biome check",
+    "format": "biome check --write",
+    "og": "rm -f /tmp/og-render.html.png && cp scripts/og-template.html /tmp/og-render.html && qlmanage -t -s 1200 -o /tmp /tmp/og-render.html >/dev/null && sips --cropToHeightWidth 630 1200 /tmp/og-render.html.png --out public/og-image.png >/dev/null && echo 'Wrote public/og-image.png (1200x630)'"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.14",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.59.1",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.3.4",
+    "vitest": "^4.1.5"
+  }
+}
