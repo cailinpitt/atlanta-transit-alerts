@@ -50,6 +50,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npx playwright install --with-deps chromium
+
       # Gate only real code changes. Data-driven rebuilds (repository_dispatch /
       # schedule / manual) re-run already-green code with fresh data, so the
       # tests/lint would just be wasted minutes — same reasoning as the old
