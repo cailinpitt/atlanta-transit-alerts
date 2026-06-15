@@ -1,18 +1,24 @@
 import {
   botSummaryText,
   incidentHeadlineText,
+  legacyKind,
   officialAlert,
   splitObservations,
 } from '../../lib/incidents.js';
 import { displayStationName } from '../../lib/stations.js';
+import { normalizeTrainLine } from '../../lib/trainLines.js';
 import StationName from '../StationName.jsx';
 
 // Pull the routes/line out of an incident in a uniform shape. Alerts/merged
 // records carry plural `routes`; standalone observations carry singular `line`.
 export function incidentRoutes(incident) {
-  if (Array.isArray(incident?.routes) && incident.routes.length > 0) return incident.routes;
-  if (incident?.line) return [incident.line];
-  return [];
+  const routes =
+    Array.isArray(incident?.routes) && incident.routes.length > 0
+      ? incident.routes
+      : incident?.line
+        ? [incident.line]
+        : [];
+  return legacyKind(incident) === 'train' ? routes.map(normalizeTrainLine) : routes;
 }
 
 // Plain-string variant of `describe` for places that can't render JSX —

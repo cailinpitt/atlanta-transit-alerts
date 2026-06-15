@@ -30,10 +30,12 @@ import {
   incidentCategory,
   incidentHeadlineText,
   isPlannedIncident,
+  legacyKind,
   modeLabel,
   observationSignals,
   searchFilterIncidents,
 } from '../lib/incidents.js';
+import { incident as v2Incident } from './v2TestHelpers.js';
 
 // ---------------------------------------------------------------------------
 // formatDuration
@@ -70,6 +72,17 @@ describe('formatDuration', () => {
 // ---------------------------------------------------------------------------
 const NOW = 1_000_000_000_000;
 const DAY = 24 * 60 * 60 * 1000;
+
+describe('legacyKind', () => {
+  it('treats exported MARTA rail and streetcar modes as train incidents', () => {
+    expect(legacyKind(v2Incident({ mode: 'rail', routes: ['RED'] }))).toBe('train');
+    expect(legacyKind(v2Incident({ mode: 'streetcar', routes: ['streetcar'] }))).toBe('train');
+  });
+
+  it('treats MARTA route A as streetcar even when the feed mode is bus', () => {
+    expect(legacyKind(v2Incident({ kind: 'bus', mode: 'bus', routes: ['A'] }))).toBe('train');
+  });
+});
 
 // Official/detection record builders — still used by the analytics tests below
 // (computeSummaryStats, computeYearOverYear, groupIncidentRecords, …), which

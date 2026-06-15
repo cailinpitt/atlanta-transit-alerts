@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { compareBusRoutes } from '../lib/busRoutes.js';
+import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
 import { buildStationIndex } from '../lib/stations.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
+import { isStreetcarRoute, TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 90;
 const BUS_ROUTE_LIMIT = 15;
+const BUS_ROUTE_ROSTER = Object.keys(BUS_ROUTE_NAMES)
+  .filter((route) => !isStreetcarRoute(route))
+  .sort(compareBusRoutes)
+  .slice(0, BUS_ROUTE_LIMIT)
+  .map((id) => ({ id, count: null }));
 // Stations are trimmed to the busiest few so the menu doesn't end in a wall of
 // ~30 uniform rows; the long tail lives on /stations. Each shown row carries its
 // 90d incident count, so the list reads as "most affected" rather than a flat
@@ -25,6 +30,7 @@ function topBusRoutes(alerts, observations, now) {
   const bump = (route, ts) => {
     if (ts == null || ts < cutoff) return;
     const key = String(route);
+    if (isStreetcarRoute(key)) return;
     counts.set(key, (counts.get(key) || 0) + 1);
   };
   for (const a of alerts) {
@@ -122,6 +128,7 @@ export default function BrowseMenu({ alerts, observations, align = 'right' }) {
     () => topBusRoutes(alerts, observations, now),
     [alerts, observations, now],
   );
+  const busRouteLinks = busRoutes.length > 0 ? busRoutes : BUS_ROUTE_ROSTER;
   const stations = useMemo(
     () => topStations(alerts, observations, now),
     [alerts, observations, now],
@@ -250,20 +257,28 @@ export default function BrowseMenu({ alerts, observations, align = 'right' }) {
                 </div>
               </div>
 
-              {busRoutes.length > 0 && (
+              {busRouteLinks.length > 0 && (
                 <div className="mt-3">
-                  <p className={SUB_LABEL}>Bus routes (last 90d)</p>
+                  <p className={SUB_LABEL}>
+                    {busRoutes.length > 0 ? 'Bus routes (last 90d)' : 'Bus routes'}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {busRoutes.map((r) => (
+                    {busRouteLinks.map((r) => (
                       <a
                         key={r.id}
                         href={`/route/${r.id}`}
                         role="menuitem"
-                        title={`${r.count} incident${r.count === 1 ? '' : 's'} in the last 90 days`}
+                        title={
+                          r.count == null
+                            ? `Route ${r.id}`
+                            : `${r.count} incident${r.count === 1 ? '' : 's'} in the last 90 days`
+                        }
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-gh-subtle text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-gh-border transition-colors"
                       >
                         #{r.id}
-                        <span className="font-normal tabular-nums opacity-60">{r.count}</span>
+                        {r.count != null && (
+                          <span className="font-normal tabular-nums opacity-60">{r.count}</span>
+                        )}
                       </a>
                     ))}
                   </div>

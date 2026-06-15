@@ -4,7 +4,7 @@
 
 import { BUS_ROUTE_NAMES } from './busRoutes.js';
 import { atlantaDayUTC } from './format.js';
-import { TRAIN_LINES } from './trainLines.js';
+import { isStreetcarRoute, normalizeTrainLine, TRAIN_LINES } from './trainLines.js';
 
 export function incidentAgency(incident) {
   return incident?.agency ?? null;
@@ -16,6 +16,16 @@ export function incidentMode(incident) {
 
 export function legacyKind(incidentOrMode) {
   const mode = typeof incidentOrMode === 'string' ? incidentOrMode : incidentMode(incidentOrMode);
+  if (mode === 'rail' || mode === 'streetcar') return 'train';
+  if (
+    mode === 'bus' &&
+    typeof incidentOrMode === 'object' &&
+    incidentOrMode &&
+    Array.isArray(incidentOrMode.routes) &&
+    incidentOrMode.routes.some(isStreetcarRoute)
+  ) {
+    return 'train';
+  }
   return mode;
 }
 
@@ -529,7 +539,10 @@ export function modeLabel(kind) {
 export function formatRoutesLabel(kind, routes) {
   if (!routes || routes.length === 0) return kind === 'bus' ? 'this route' : 'this line';
   if (kind === 'train') {
-    const labels = routes.map((r) => TRAIN_LINES[r]?.label ?? r);
+    const labels = routes.map((r) => {
+      const key = normalizeTrainLine(r);
+      return TRAIN_LINES[key]?.label ?? r;
+    });
     if (labels.length === 1) return `${labels[0]} Line`;
     if (labels.length === 2) return `${labels[0]} and ${labels[1]} Lines`;
     if (labels.length === 3) return `${labels[0]}, ${labels[1]}, and ${labels[2]} Lines`;

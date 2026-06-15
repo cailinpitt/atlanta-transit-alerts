@@ -13,6 +13,8 @@ export const TRAIN_LINES = {
 export const TRAIN_LINE_ORDER = ['blue', 'gold', 'green', 'red', 'streetcar'];
 
 const LINE_ALIAS = {
+  A: 'streetcar',
+  a: 'streetcar',
   BLUE: 'blue',
   GOLD: 'gold',
   GREEN: 'green',
@@ -31,4 +33,8 @@ const LINE_ALIAS = {
 export function normalizeTrainLine(key) {
   if (key == null) return key;
   return LINE_ALIAS[key] ?? key;
+}
+
+export function isStreetcarRoute(key) {
+  return normalizeTrainLine(key) === 'streetcar';
 }

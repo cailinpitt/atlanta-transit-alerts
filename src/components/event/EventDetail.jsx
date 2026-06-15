@@ -376,7 +376,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   return (
     <article className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-6">
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <LinePill kind={kind} routes={incident.routes} />
+        <LinePill kind={kind} routes={routes} />
         {isMerged && (
           <>
             <span className="text-xs text-slate-500 dark:text-slate-400 italic">

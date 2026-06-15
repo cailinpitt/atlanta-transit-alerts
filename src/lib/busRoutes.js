@@ -100,15 +100,16 @@ export function busRouteName(routeId) {
  */
 export function formatBusRoute(routeId) {
   const name = busRouteName(routeId);
-  const prefix = String(routeId).toUpperCase() === 'ATLSC' ? 'Streetcar' : `#${routeId}`;
+  const upper = String(routeId).toUpperCase();
+  const prefix = upper === 'ATLSC' || upper === 'A' ? 'Streetcar' : `#${routeId}`;
   return name ? `${prefix} ${name}` : prefix;
 }
 
 export function compareBusRoutes(a, b) {
   const sa = String(a);
   const sb = String(b);
-  if (sa.toUpperCase() === 'ATLSC') return 1;
-  if (sb.toUpperCase() === 'ATLSC') return -1;
+  if (sa.toUpperCase() === 'ATLSC' || sa.toUpperCase() === 'A') return 1;
+  if (sb.toUpperCase() === 'ATLSC' || sb.toUpperCase() === 'A') return -1;
   const ma = sa.match(/\d+/);
   const mb = sb.match(/\d+/);
   const na = ma ? parseInt(ma[0], 10) : Number.NaN;
