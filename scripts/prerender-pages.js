@@ -74,7 +74,7 @@ const INDEX_TPL = resolve(__dirname, 'og-index-template.html');
 const CACHE = resolve(ROOT, '.og-cache-pages');
 const CONCURRENCY = Number(process.env.PRERENDER_CONCURRENCY ?? 6);
 
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 const BUS_ACCENT = { color: '#475569', soft: 'rgba(71, 85, 105, 0.18)', text: '#fff' };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -254,8 +254,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'calendar'),
       url: `${SITE}/calendar`,
       path: '/calendar',
-      ogTitle: '12-Month Calendar · Chicago Transit Alerts',
-      desc: 'A 12-month heatmap of daily CTA service alerts and bot-detected disruptions — archived on chicagotransitalerts.app.',
+      ogTitle: '12-Month Calendar · Atlanta Transit Alerts',
+      desc: 'A 12-month heatmap of daily MARTA service alerts and bot-detected disruptions — archived on atlantatransitalerts.app.',
       subtitle,
       gridHtml,
     });
@@ -272,8 +272,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'compare'),
       url: `${SITE}/compare`,
       path: '/compare',
-      ogTitle: 'Compare CTA lines · Chicago Transit Alerts',
-      desc: 'Side-by-side reliability, signal mix, and resolution time for up to 3 CTA train lines or bus routes — archived on chicagotransitalerts.app.',
+      ogTitle: 'Compare CTA lines · Atlanta Transit Alerts',
+      desc: 'Side-by-side reliability, signal mix, and resolution time for up to 3 CTA train lines or bus routes — archived on atlantatransitalerts.app.',
       subtitle: '',
     });
   }
@@ -319,8 +319,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'system', 'trains'),
       url: `${SITE}/system/trains`,
       path: '/system/trains',
-      ogTitle: 'Train system health · Chicago Transit Alerts',
-      desc: 'System-wide health for the L: active disruptions, per-line incident counts, disruption hours, and 30-day trends — archived on chicagotransitalerts.app.',
+      ogTitle: 'Train system health · Atlanta Transit Alerts',
+      desc: 'System-wide health for the L: active disruptions, per-line incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
       title: 'Train system health',
       subtitle:
         'All eight L lines at a glance — active disruptions, recent activity, and 30-day disruption time.',
@@ -340,8 +340,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'system', 'buses'),
       url: `${SITE}/system/buses`,
       path: '/system/buses',
-      ogTitle: 'Bus system health · Chicago Transit Alerts',
-      desc: 'System-wide health for CTA buses: active disruptions, per-route incident counts, disruption hours, and 30-day trends — archived on chicagotransitalerts.app.',
+      ogTitle: 'Bus system health · Atlanta Transit Alerts',
+      desc: 'System-wide health for CTA buses: active disruptions, per-route incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
       title: 'Bus system health',
       subtitle:
         totalBusRoutes > 0
@@ -371,8 +371,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'system', 'metra'),
       url: `${SITE}/system/metra`,
       path: '/system/metra',
-      ogTitle: 'Metra system health · Chicago Transit Alerts',
-      desc: 'System-wide health for Metra commuter rail: active disruptions, per-line cancellations and delays, and 30-day trends — archived on chicagotransitalerts.app.',
+      ogTitle: 'Metra system health · Atlanta Transit Alerts',
+      desc: 'System-wide health for Metra commuter rail: active disruptions, per-line cancellations and delays, and 30-day trends — archived on atlantatransitalerts.app.',
       title: 'Metra system health',
       subtitle:
         'Every Metra line at a glance — active disruptions, cancellations, and delays over the last 30 days.',
@@ -401,8 +401,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     outDir: resolve(DIST, 'stats'),
     url: `${SITE}/stats`,
     path: '/stats',
-    ogTitle: 'Stats · Chicago Transit Alerts',
-    desc: 'Worst days, hours, stations, and longest incidents on the CTA — archived on chicagotransitalerts.app.',
+    ogTitle: 'Stats · Atlanta Transit Alerts',
+    desc: 'Worst days, hours, stations, and longest incidents on the CTA — archived on atlantatransitalerts.app.',
     subtitle: statsSubtitle(payload),
     statsHtml,
   });
@@ -425,8 +425,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     url: `${SITE}/stations`,
     path: '/stations',
     title: 'All stations',
-    ogTitle: 'All stations · Chicago Transit Alerts',
-    desc: `A–Z index of all ${trainStations.length} CTA 'L' stations, each linking to its service-alert and disruption history — archived on chicagotransitalerts.app.`,
+    ogTitle: 'All stations · Atlanta Transit Alerts',
+    desc: `A–Z index of all ${trainStations.length} CTA 'L' stations, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
     subtitle: `Every CTA 'L' station, A–Z — ${trainStations.length} stops across the eight lines, each with its full alert history.`,
     pillHtml: indexTrainPills,
   });
@@ -437,8 +437,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     url: `${SITE}/routes`,
     path: '/routes',
     title: 'All routes',
-    ogTitle: 'All routes · Chicago Transit Alerts',
-    desc: `Index of every CTA train line and bus route, each linking to its service-alert and disruption history — archived on chicagotransitalerts.app.`,
+    ogTitle: 'All routes · Atlanta Transit Alerts',
+    desc: `Index of every CTA train line and bus route, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
     subtitle: `Every CTA line and route in one place — 8 train lines and ${busRouteCount} bus routes, each with its full alert history.`,
     pillHtml:
       indexTrainPills +
@@ -466,8 +466,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       // Train pill already says "Red Line"; an additional headline would
       // be redundant. Leave the title empty so the template hides it.
       title: '',
-      ogTitle: `${info.label} Line · Chicago Transit Alerts`,
-      desc: `Service alerts and bot-detected disruptions on the ${info.label} Line — archived on chicagotransitalerts.app.`,
+      ogTitle: `${info.label} Line · Atlanta Transit Alerts`,
+      desc: `Service alerts and bot-detected disruptions on the ${info.label} Line — archived on atlantatransitalerts.app.`,
       subtitle: active
         ? 'Active disruption right now — see live status.'
         : 'Service alerts and bot-detected disruptions, archived.',
@@ -493,8 +493,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       label: lineId.toUpperCase(),
       crumbLabel: `${info.label} (Metra)`,
       title: info.label,
-      ogTitle: `${info.label} · Metra · Chicago Transit Alerts`,
-      desc: `Cancellations, delays, and service alerts on the Metra ${info.label} line — archived on chicagotransitalerts.app.`,
+      ogTitle: `${info.label} · Metra · Atlanta Transit Alerts`,
+      desc: `Cancellations, delays, and service alerts on the Metra ${info.label} line — archived on atlantatransitalerts.app.`,
       subtitle: active
         ? 'Active disruption right now — see live status.'
         : 'Cancellations, delays, and service alerts, archived.',
@@ -530,8 +530,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       feedPath: `/feed/route/${route}.xml`,
       label: `#${route}`,
       title: name ?? '',
-      ogTitle: `${ogLabel} · Chicago Transit Alerts`,
-      desc: `Service alerts and bot-detected disruptions on the ${ogLabel} bus route — archived on chicagotransitalerts.app.`,
+      ogTitle: `${ogLabel} · Atlanta Transit Alerts`,
+      desc: `Service alerts and bot-detected disruptions on the ${ogLabel} bus route — archived on atlantatransitalerts.app.`,
       subtitle: active
         ? 'Active disruption right now — see live status.'
         : 'Service alerts and bot-detected disruptions, archived.',
@@ -595,8 +595,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       url: `${SITE}/day/${isoDate}`,
       path: `/day/${isoDate}`,
       dayUtc,
-      ogTitle: `${formatChicagoDay(dayUtc)} · Chicago Transit Alerts`,
-      desc: `CTA service alerts and bot-detected disruptions on ${formatChicagoDay(dayUtc)} — archived on chicagotransitalerts.app.`,
+      ogTitle: `${formatChicagoDay(dayUtc)} · Atlanta Transit Alerts`,
+      desc: `MARTA service alerts and bot-detected disruptions on ${formatChicagoDay(dayUtc)} — archived on atlantatransitalerts.app.`,
       title: formatChicagoDay(dayUtc),
       subtitle: `${entry.count} incident${entry.count === 1 ? '' : 's'} across ${entry.trainLines.size + entry.busRoutes.size} line${entry.trainLines.size + entry.busRoutes.size === 1 ? '' : 's'}/route${entry.trainLines.size + entry.busRoutes.size === 1 ? '' : 's'}`,
       pillHtml,
@@ -636,15 +636,15 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
         : `${summary.total} incident${summary.total === 1 ? '' : 's'} · ${summary.trainCount} train, ${summary.busCount} bus`;
     const desc =
       summary.total === 0
-        ? `Service alerts and bot-detected disruptions on the CTA for the week of ${range} (Sunday–Saturday) — archived on chicagotransitalerts.app.`
-        : `${summary.total} CTA incident${summary.total === 1 ? '' : 's'} during the week of ${range} (Sunday–Saturday) — ${summary.trainCount} train, ${summary.busCount} bus. Archived on chicagotransitalerts.app.`;
+        ? `Service alerts and bot-detected disruptions on the CTA for the week of ${range} (Sunday–Saturday) — archived on atlantatransitalerts.app.`
+        : `${summary.total} CTA incident${summary.total === 1 ? '' : 's'} during the week of ${range} (Sunday–Saturday) — ${summary.trainCount} train, ${summary.busCount} bus. Archived on atlantatransitalerts.app.`;
     const common = {
       kind: 'week',
       weekStartUtc,
       title: `Week of ${range}`,
       subtitle,
       pillHtml: weekPillsHtml(summary),
-      ogTitle: `Week of ${range} · Chicago Transit Alerts`,
+      ogTitle: `Week of ${range} · Atlanta Transit Alerts`,
       desc,
     };
     pages.push({
@@ -688,8 +688,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       path: `/station/${slug}`,
       stationName: rec.name,
       linePills,
-      ogTitle: `${rec.name} · Chicago Transit Alerts`,
-      desc: `Service alerts and bot-detected disruptions at ${rec.name} — archived on chicagotransitalerts.app.`,
+      ogTitle: `${rec.name} · Atlanta Transit Alerts`,
+      desc: `Service alerts and bot-detected disruptions at ${rec.name} — archived on atlantatransitalerts.app.`,
       subtitle: `Train station · ${rec.count} incident${rec.count === 1 ? '' : 's'} on record (90d)`,
     });
   }
@@ -723,8 +723,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       path: `/metra/station/${slug}`,
       stationName: rec.name,
       linePills,
-      ogTitle: `${rec.name} · Metra · Chicago Transit Alerts`,
-      desc: `Metra cancellations, delays, and service alerts at ${rec.name} — archived on chicagotransitalerts.app.`,
+      ogTitle: `${rec.name} · Metra · Atlanta Transit Alerts`,
+      desc: `Metra cancellations, delays, and service alerts at ${rec.name} — archived on atlantatransitalerts.app.`,
       subtitle: `Metra station · ${rec.count} incident${rec.count === 1 ? '' : 's'} on record (90d)`,
     });
   }

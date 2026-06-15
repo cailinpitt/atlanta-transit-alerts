@@ -45,7 +45,7 @@ const TEMPLATE = resolve(__dirname, 'og-event-template.html');
 const CACHE = resolve(ROOT, '.og-cache');
 const CONCURRENCY = Number(process.env.PRERENDER_CONCURRENCY ?? 6);
 
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 const BUS_ACCENT = { color: '#475569', soft: 'rgba(71, 85, 105, 0.18)', text: '#fff' };
 
 function postUrlRkey(url) {
@@ -185,7 +185,7 @@ function summarize(incident) {
     const agency = incident.kind === 'metra' ? 'Metra' : 'CTA';
     return {
       title: incident.headline,
-      subtitle: `${agency} service alert · archived on chicagotransitalerts.app`,
+      subtitle: `${agency} service alert · archived on atlantatransitalerts.app`,
     };
   }
   const accent = accentFor(incident);
@@ -281,7 +281,7 @@ function buildJsonLd(incident, { ogTitle, desc, url }) {
   }
   ld.organizer = {
     '@type': 'Organization',
-    name: 'Chicago Transit Alerts (unofficial)',
+    name: 'Atlanta Transit Alerts (unofficial)',
     url: SITE,
   };
   return JSON.stringify(ld);
@@ -319,7 +319,7 @@ function buildHtmlStub(shell, { id, title, subtitle, accent, incident, variant =
   // canonical always points at the bare URL even on the /resolved variant —
   // search engines should treat /resolved as a duplicate, not a separate page.
   let html = shell
-    .replace(/<title>[^<]*<\/title>/, `<title>${escHtml(ogTitle)} — Chicago Transit Alerts</title>`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${escHtml(ogTitle)} — Atlanta Transit Alerts</title>`)
     .replace(
       /<link rel="canonical"[^>]*>/,
       `<link rel="canonical" href="${escAttr(canonicalUrl)}" />`,

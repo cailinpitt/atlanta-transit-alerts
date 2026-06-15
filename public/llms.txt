@@ -1,34 +1,34 @@
-# Chicago Transit Alerts
+# Atlanta Transit Alerts
 
 > An unofficial public archive of Chicago Transit Authority (CTA) train and bus plus Metra commuter-rail service alerts and bot-detected disruptions, with a rolling incident heatmap. Not affiliated with the CTA or Metra.
 
 Each incident pairs an official alert with bot observations (gap, bunching, ghost-train, cold-platform, and related detections) into a single object, merged server-side. The same data the site renders is published at stable URLs as JSON, CSV, and feeds, with no auth. Every incident has a `kind` of `train`, `bus`, or `metra`. Train routes use full line names (`red`, `blue`, `green`, `brown`, `orange`, `pink`, `purple`, `yellow`); bus routes use route numbers (`66`, `X9`); Metra lines use lowercase route codes (`up-n`, `up-nw`, `md-w`, `bnsf`, `me`). Metra detections use the sources `cancellation`, `cancellation-inferred` (a scheduled train the bot never saw run), and `delay`. Timestamps are epoch milliseconds in JSON and ISO 8601 UTC in CSV.
 
 ## Data API
-- [Incidents (JSON)](https://data.chicagotransitalerts.app/alerts.json): Full archive. Top-level `incidents[]`, one object per real-world disruption; `cta` block is the official alert (null for bot-only), `observations[]` are bot detections (empty for CTA-only), `sources` lists which contributed.
-- [Daily counts (JSON)](https://data.chicagotransitalerts.app/daily-counts.json): Per-day train/bus incident counts behind the calendar heatmap.
-- [Incidents (CSV)](https://data.chicagotransitalerts.app/alerts.csv): Flat mirror, one row per alert or observation, with an explicit `type` column.
-- [Data changelog](https://chicagotransitalerts.app/data/CHANGELOG.md): Breaking changes to the data shape — check before pinning to the format.
-- [Atom feed](https://chicagotransitalerts.app/feed.xml) and [JSON feed](https://chicagotransitalerts.app/feed.json): Recent incidents. Per-line/route feeds live at `/feed/line/<line>.xml` and `/feed/route/<route>.xml`, each with a JSON-feed twin.
-- [API catalog](https://chicagotransitalerts.app/.well-known/api-catalog): Machine-readable index of these endpoints (RFC 9264 linkset).
+- [Incidents (JSON)](https://data.atlantatransitalerts.app/alerts.json): Full archive. Top-level `incidents[]`, one object per real-world disruption; `cta` block is the official alert (null for bot-only), `observations[]` are bot detections (empty for CTA-only), `sources` lists which contributed.
+- [Daily counts (JSON)](https://data.atlantatransitalerts.app/daily-counts.json): Per-day train/bus incident counts behind the calendar heatmap.
+- [Incidents (CSV)](https://data.atlantatransitalerts.app/alerts.csv): Flat mirror, one row per alert or observation, with an explicit `type` column.
+- [Data changelog](https://atlantatransitalerts.app/data/CHANGELOG.md): Breaking changes to the data shape — check before pinning to the format.
+- [Atom feed](https://atlantatransitalerts.app/feed.xml) and [JSON feed](https://atlantatransitalerts.app/feed.json): Recent incidents. Per-line/route feeds live at `/feed/line/<line>.xml` and `/feed/route/<route>.xml`, each with a JSON-feed twin.
+- [API catalog](https://atlantatransitalerts.app/.well-known/api-catalog): Machine-readable index of these endpoints (RFC 9264 linkset).
 
 ## Pages
-- [Homepage](https://chicagotransitalerts.app/): Active alerts, line/route filters, daily summary, and the incident feed.
-- [Calendar](https://chicagotransitalerts.app/calendar): 12-month daily incident heatmap.
-- [This week](https://chicagotransitalerts.app/week): Recap of the current Sun–Sat week — counts, per-day breakdown, most-affected lines, and the longest incident. Archived weeks live at `https://chicagotransitalerts.app/week/<YYYY-MM-DD>` (the week's Sunday).
-- [Stats](https://chicagotransitalerts.app/stats): Worst day, worst hour, most-affected station, longest incident, plus year-over-year.
-- [Compare](https://chicagotransitalerts.app/compare): Side-by-side reliability for up to 3 lines or routes (`?trains=red,blue` / `?buses=66,X9` / `?metra=up-n,bnsf`).
-- [Train system health](https://chicagotransitalerts.app/system/trains), [Bus system health](https://chicagotransitalerts.app/system/buses), and [Metra system health](https://chicagotransitalerts.app/system/metra): Mode-wide dashboards.
-- Line pages: `https://chicagotransitalerts.app/line/<line>` (e.g. `/line/red`).
-- Metra line pages: `https://chicagotransitalerts.app/metra/line/<line>` (e.g. `/metra/line/up-n`).
-- Route pages: `https://chicagotransitalerts.app/route/<routeId>` (e.g. `/route/66`).
-- Station pages: `https://chicagotransitalerts.app/station/<slug>` (kebab-case, e.g. `/station/howard`).
-- [All stations](https://chicagotransitalerts.app/stations): A–Z directory of every 'L' station, each linking to its station page.
-- [All routes](https://chicagotransitalerts.app/routes): Directory of every train line, bus route, and Metra line, each linking to its line/route page.
-- Day pages: `https://chicagotransitalerts.app/day/<YYYY-MM-DD>`.
-- Event pages: `https://chicagotransitalerts.app/event/<id>` (id = Bluesky post rkey; the incident permalink).
+- [Homepage](https://atlantatransitalerts.app/): Active alerts, line/route filters, daily summary, and the incident feed.
+- [Calendar](https://atlantatransitalerts.app/calendar): 12-month daily incident heatmap.
+- [This week](https://atlantatransitalerts.app/week): Recap of the current Sun–Sat week — counts, per-day breakdown, most-affected lines, and the longest incident. Archived weeks live at `https://atlantatransitalerts.app/week/<YYYY-MM-DD>` (the week's Sunday).
+- [Stats](https://atlantatransitalerts.app/stats): Worst day, worst hour, most-affected station, longest incident, plus year-over-year.
+- [Compare](https://atlantatransitalerts.app/compare): Side-by-side reliability for up to 3 lines or routes (`?trains=red,blue` / `?buses=66,X9` / `?metra=up-n,bnsf`).
+- [Train system health](https://atlantatransitalerts.app/system/trains), [Bus system health](https://atlantatransitalerts.app/system/buses), and [Metra system health](https://atlantatransitalerts.app/system/metra): Mode-wide dashboards.
+- Line pages: `https://atlantatransitalerts.app/line/<line>` (e.g. `/line/red`).
+- Metra line pages: `https://atlantatransitalerts.app/metra/line/<line>` (e.g. `/metra/line/up-n`).
+- Route pages: `https://atlantatransitalerts.app/route/<routeId>` (e.g. `/route/66`).
+- Station pages: `https://atlantatransitalerts.app/station/<slug>` (kebab-case, e.g. `/station/howard`).
+- [All stations](https://atlantatransitalerts.app/stations): A–Z directory of every 'L' station, each linking to its station page.
+- [All routes](https://atlantatransitalerts.app/routes): Directory of every train line, bus route, and Metra line, each linking to its line/route page.
+- Day pages: `https://atlantatransitalerts.app/day/<YYYY-MM-DD>`.
+- Event pages: `https://atlantatransitalerts.app/event/<id>` (id = Bluesky post rkey; the incident permalink).
 
 ## Notes
 - Source code and field-by-field documentation: https://github.com/cailinpitt/chicago-transit-alerts
-- Full data schema: [/llms-full.txt](https://chicagotransitalerts.app/llms-full.txt)
+- Full data schema: [/llms-full.txt](https://atlantatransitalerts.app/llms-full.txt)
 - Please be a courteous client: cache responses, don't poll faster than every few minutes, and credit the project if you build something public.

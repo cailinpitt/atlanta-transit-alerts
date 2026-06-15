@@ -30,11 +30,11 @@ const DATA = resolve(ROOT, 'dist', 'data', 'alerts.json');
 const OUT_ATOM = resolve(ROOT, 'dist', 'feed.xml');
 const OUT_JSON = resolve(ROOT, 'dist', 'feed.json');
 
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 // The 2026 here is the tag URI authority date (RFC 4151) — pinned forever,
 // not a "current year". Changing it would alter every entry/feed <id> and
 // re-mark every subscriber's read entries as unread.
-const TAG_AUTHORITY = 'tag:chicagotransitalerts.app,2026';
+const TAG_AUTHORITY = 'tag:atlantatransitalerts.app,2026';
 const ENTRY_LIMIT = 50;
 // Skip standalone observation-only incidents that resolved within this window
 // — almost always a transient detector hiccup (single missed snapshot, etc.)
@@ -376,7 +376,7 @@ export function emitAtom(records, feedUpdatedIso, meta) {
   <link rel="alternate" type="application/feed+json" href="${escapeXml(meta.selfJson)}"/>
   <link rel="hub" href="https://pubsubhubbub.superfeedr.com/"/>
   <updated>${feedUpdatedIso}</updated>
-  <author><name>chicago-transit-alerts</name></author>
+  <author><name>atlanta-transit-alerts</name></author>
 ${entries}
 </feed>
 `;
@@ -390,7 +390,7 @@ function emitJsonFeed(records, meta) {
     home_page_url: meta.homeUrl,
     feed_url: meta.selfJson,
     language: 'en-US',
-    authors: [{ name: 'chicago-transit-alerts' }],
+    authors: [{ name: 'atlanta-transit-alerts' }],
     hubs: [{ type: 'WebSub', url: 'https://pubsubhubbub.superfeedr.com/' }],
     items: records.map((r) => ({
       id: r.id,
@@ -479,7 +479,7 @@ function main() {
     globalRecords,
     feedMeta({
       idPath: 'feed',
-      title: 'Chicago Transit Alerts',
+      title: 'Atlanta Transit Alerts',
       subtitle: 'Chicago Transit Authority service alerts and bot-detected disruptions.',
       homePath: '/',
       selfBase: '/feed',
@@ -501,8 +501,8 @@ function main() {
       records,
       feedMeta({
         idPath: `feed/line/${line}`,
-        title: `Chicago Transit Alerts · ${label} Line`,
-        subtitle: `CTA service alerts and bot-detected disruptions on the ${label} Line.`,
+        title: `Atlanta Transit Alerts · ${label} Line`,
+        subtitle: `MARTA service alerts and bot-detected disruptions on the ${label} Line.`,
         homePath: `/line/${line}`,
         selfBase: `/feed/line/${line}`,
       }),
@@ -522,8 +522,8 @@ function main() {
       records,
       feedMeta({
         idPath: `feed/route/${route}`,
-        title: `Chicago Transit Alerts · ${label}`,
-        subtitle: `CTA service alerts and bot-detected disruptions on the ${label} bus.`,
+        title: `Atlanta Transit Alerts · ${label}`,
+        subtitle: `MARTA service alerts and bot-detected disruptions on the ${label} bus.`,
         homePath: `/route/${route}`,
         selfBase: `/feed/route/${route}`,
       }),
@@ -545,7 +545,7 @@ function main() {
       records,
       feedMeta({
         idPath: `feed/metra/line/${line}`,
-        title: `Chicago Transit Alerts · Metra ${label}`,
+        title: `Atlanta Transit Alerts · Metra ${label}`,
         subtitle: `Metra service alerts and bot-detected cancellations/delays on the ${label} line.`,
         homePath: `/metra/line/${line}`,
         selfBase: `/feed/metra/line/${line}`,

@@ -6,9 +6,9 @@
 //
 // Resilience: if the origin is unreachable but a local copy already exists
 // (e.g. during local development, or a transient R2 hiccup), we keep the
-// existing file rather than failing the build — "slightly stale" beats "no
-// deploy". We only hard-fail if there's no alerts.json at all, since the
-// prerender can't run without it.
+// existing file rather than failing the build. If alerts.json is not published
+// yet, seed an empty schema-v2 payload so the shell can deploy before data
+// publishing is online.
 //
 // Env:
 //   DATA_ORIGIN_URL   override the origin (default: the prod R2 custom domain)
@@ -17,12 +17,17 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = (process.env.DATA_ORIGIN_URL || 'https://data.chicagotransitalerts.app').replace(
+const ORIGIN = (process.env.DATA_ORIGIN_URL || 'https://data.atlantatransitalerts.app').replace(
   /\/$/,
   '',
 );
 const OUT_DIR = resolve(__dirname, '..', 'public', 'data');
 const FILES = ['alerts.json', 'daily-counts.json'];
+const EMPTY_ALERTS = {
+  schema_version: 2,
+  generated_at: Date.now(),
+  incidents: [],
+};
 
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -45,8 +50,7 @@ for (const file of FILES) {
 }
 
 if (!existsSync(resolve(OUT_DIR, 'alerts.json'))) {
-  console.error(
-    'fetch-data: no alerts.json available (origin down, no local copy) — aborting build',
-  );
-  process.exit(1);
+  const dest = resolve(OUT_DIR, 'alerts.json');
+  writeFileSync(dest, `${JSON.stringify(EMPTY_ALERTS, null, 2)}\n`);
+  console.warn(`fetch-data: seeded empty alerts payload at ${dest}`);
 }

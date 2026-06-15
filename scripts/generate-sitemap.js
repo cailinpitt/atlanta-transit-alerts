@@ -28,7 +28,7 @@ const DIST = resolve(ROOT, 'dist');
 const DATA = resolve(DIST, 'data', 'alerts.json');
 const OUT = resolve(DIST, 'sitemap.xml');
 
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 90;
 

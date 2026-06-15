@@ -1,6 +1,6 @@
-# Chicago Transit Alerts — full reference
+# Atlanta Transit Alerts — full reference
 
-> An unofficial public archive of Chicago Transit Authority (CTA) train and bus plus Metra commuter-rail service alerts and bot-detected disruptions. Not affiliated with the CTA or Metra. This file expands on [/llms.txt](https://chicagotransitalerts.app/llms.txt) with the complete data schema an agent needs to consume the API.
+> An unofficial public archive of Chicago Transit Authority (CTA) train and bus plus Metra commuter-rail service alerts and bot-detected disruptions. Not affiliated with the CTA or Metra. This file expands on [/llms.txt](https://atlantatransitalerts.app/llms.txt) with the complete data schema an agent needs to consume the API.
 
 ## What this site is
 
@@ -10,13 +10,13 @@ Every incident has a `kind` of `train`, `bus`, or `metra`. Train routes use full
 
 ## Endpoints
 
-- Incidents JSON: https://data.chicagotransitalerts.app/alerts.json
-- Daily counts JSON: https://data.chicagotransitalerts.app/daily-counts.json
-- Incidents CSV: https://data.chicagotransitalerts.app/alerts.csv
-- Data changelog: https://chicagotransitalerts.app/data/CHANGELOG.md
-- Atom feed: https://chicagotransitalerts.app/feed.xml (per-line/route: /feed/line/<line>.xml, /feed/route/<route>.xml)
-- JSON feed: https://chicagotransitalerts.app/feed.json
-- API catalog (RFC 9264 linkset): https://chicagotransitalerts.app/.well-known/api-catalog
+- Incidents JSON: https://data.atlantatransitalerts.app/alerts.json
+- Daily counts JSON: https://data.atlantatransitalerts.app/daily-counts.json
+- Incidents CSV: https://data.atlantatransitalerts.app/alerts.csv
+- Data changelog: https://atlantatransitalerts.app/data/CHANGELOG.md
+- Atom feed: https://atlantatransitalerts.app/feed.xml (per-line/route: /feed/line/<line>.xml, /feed/route/<route>.xml)
+- JSON feed: https://atlantatransitalerts.app/feed.json
+- API catalog (RFC 9264 linkset): https://atlantatransitalerts.app/.well-known/api-catalog
 
 Regenerated whenever the underlying data changes (typically every ~7 minutes when there's activity).
 

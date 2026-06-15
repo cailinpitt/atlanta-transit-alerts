@@ -54,7 +54,7 @@ describe('updatedTs (resolution bump)', () => {
 describe('entryId', () => {
   it('derives a stable tag URI from the Bluesky post rkey', () => {
     expect(entryId({ post_url: 'https://bsky.app/profile/x/post/abc123' })).toBe(
-      'tag:chicagotransitalerts.app,2026:event/abc123',
+      'tag:atlantatransitalerts.app,2026:event/abc123',
     );
   });
 
@@ -68,7 +68,7 @@ describe('entryId', () => {
       post_url: 'https://bsky.app/profile/x/post/alert',
       obs_post_url: 'https://bsky.app/profile/x/post/obs',
     });
-    expect(id).toBe('tag:chicagotransitalerts.app,2026:event/alert');
+    expect(id).toBe('tag:atlantatransitalerts.app,2026:event/alert');
   });
 });
 
@@ -105,18 +105,18 @@ describe('feedMeta', () => {
     expect(
       feedMeta({
         idPath: 'feed/line/red',
-        title: 'Chicago Transit Alerts · Red Line',
+        title: 'Atlanta Transit Alerts · Red Line',
         subtitle: 'Red Line disruptions.',
         homePath: '/line/red',
         selfBase: '/feed/line/red',
       }),
     ).toEqual({
-      id: 'tag:chicagotransitalerts.app,2026:feed/line/red',
-      title: 'Chicago Transit Alerts · Red Line',
+      id: 'tag:atlantatransitalerts.app,2026:feed/line/red',
+      title: 'Atlanta Transit Alerts · Red Line',
       subtitle: 'Red Line disruptions.',
-      homeUrl: 'https://chicagotransitalerts.app/line/red',
-      selfXml: 'https://chicagotransitalerts.app/feed/line/red.xml',
-      selfJson: 'https://chicagotransitalerts.app/feed/line/red.json',
+      homeUrl: 'https://atlantatransitalerts.app/line/red',
+      selfXml: 'https://atlantatransitalerts.app/feed/line/red.xml',
+      selfJson: 'https://atlantatransitalerts.app/feed/line/red.json',
     });
   });
 });
@@ -124,7 +124,7 @@ describe('feedMeta', () => {
 describe('buildEntryRecord', () => {
   it('carries the stable id, the resolution-bumped updated time, and a cache-busted thumbnail', () => {
     const rec = buildEntryRecord(alertInc());
-    expect(rec.id).toBe('tag:chicagotransitalerts.app,2026:event/r1');
+    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:event/r1');
     expect(rec.updatedMs).toBe(NOW); // resolved → bumped
     // The OG thumbnail is cache-busted on the same key, so it flips when the
     // entry's <updated> bumps (ongoing → resolved).
@@ -163,26 +163,26 @@ describe('scopedRecords', () => {
   it('selects only incidents on the scoped train line and preserves pool order', () => {
     const ids = scopedRecords(pool, 'train', 'red').map((r) => r.id);
     expect(ids).toEqual([
-      'tag:chicagotransitalerts.app,2026:event/red-new',
-      'tag:chicagotransitalerts.app,2026:event/redpurple', // multi-route red+purple still matches
+      'tag:atlantatransitalerts.app,2026:event/red-new',
+      'tag:atlantatransitalerts.app,2026:event/redpurple', // multi-route red+purple still matches
     ]);
   });
 
   it('matches a multi-route incident from any of its routes', () => {
     const ids = scopedRecords(pool, 'train', 'purple').map((r) => r.id);
-    expect(ids).toEqual(['tag:chicagotransitalerts.app,2026:event/redpurple']);
+    expect(ids).toEqual(['tag:atlantatransitalerts.app,2026:event/redpurple']);
   });
 
   it('scopes by kind so a bus route never picks up train incidents', () => {
     const ids = scopedRecords(pool, 'bus', '66').map((r) => r.id);
-    expect(ids).toEqual(['tag:chicagotransitalerts.app,2026:event/bus66']);
+    expect(ids).toEqual(['tag:atlantatransitalerts.app,2026:event/bus66']);
   });
 });
 
 describe('emitAtom', () => {
   const meta = feedMeta({
     idPath: 'feed/line/red',
-    title: 'Chicago Transit Alerts · Red Line',
+    title: 'Atlanta Transit Alerts · Red Line',
     subtitle: 'Red Line disruptions.',
     homePath: '/line/red',
     selfBase: '/feed/line/red',
@@ -190,9 +190,9 @@ describe('emitAtom', () => {
 
   it('renders the feed id, scoped self link, and one entry per record', () => {
     const xml = emitAtom([buildEntryRecord(alertInc())], '2026-01-01T00:00:00.000Z', meta);
-    expect(xml).toContain('<id>tag:chicagotransitalerts.app,2026:feed/line/red</id>');
+    expect(xml).toContain('<id>tag:atlantatransitalerts.app,2026:feed/line/red</id>');
     expect(xml).toContain(
-      '<link rel="self" type="application/atom+xml" href="https://chicagotransitalerts.app/feed/line/red.xml"/>',
+      '<link rel="self" type="application/atom+xml" href="https://atlantatransitalerts.app/feed/line/red.xml"/>',
     );
     expect(xml).toContain('<link rel="hub"');
     expect((xml.match(/<entry>/g) || []).length).toBe(1);
@@ -200,7 +200,7 @@ describe('emitAtom', () => {
 
   it('produces a valid empty feed (no entries) for a quiet route', () => {
     const xml = emitAtom([], '2026-01-01T00:00:00.000Z', meta);
-    expect(xml).toContain('<id>tag:chicagotransitalerts.app,2026:feed/line/red</id>');
+    expect(xml).toContain('<id>tag:atlantatransitalerts.app,2026:feed/line/red</id>');
     expect((xml.match(/<entry>/g) || []).length).toBe(0);
   });
 });
@@ -224,8 +224,8 @@ const metraInc = (over = {}) => ({
 describe('Metra incidents in the feed', () => {
   it('links a postless Metra record to its SPA event page by id', () => {
     const rec = buildEntryRecord(metraInc());
-    expect(rec.link).toBe('https://chicagotransitalerts.app/event/metra-678');
-    expect(rec.id).toBe('tag:chicagotransitalerts.app,2026:obs-metra-678');
+    expect(rec.link).toBe('https://atlantatransitalerts.app/event/metra-678');
+    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:obs-metra-678');
     expect(rec.thumb).toBe(null); // no OG card for postless Metra
   });
 

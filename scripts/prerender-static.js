@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(__dirname, '..', 'dist');
 const SHELL = resolve(DIST, 'index.html');
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 
 function escAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -27,7 +27,7 @@ const PAGES = [
   {
     path: '/about',
     title: 'About',
-    desc: 'About Chicago Transit Alerts — an unofficial public archive of CTA service alerts and bot-detected disruptions, and where the data comes from.',
+    desc: 'About Atlanta Transit Alerts — an unofficial public archive of MARTA service alerts and bot-detected disruptions, and where the data comes from.',
   },
   {
     path: '/subscribe',
@@ -37,7 +37,7 @@ const PAGES = [
   {
     path: '/privacy',
     title: 'Privacy',
-    desc: 'Privacy policy for Chicago Transit Alerts: no accounts, no cookies, no advertising, and only cookieless Cloudflare Web Analytics for aggregate page-view counts.',
+    desc: 'Privacy policy for Atlanta Transit Alerts: no accounts, no cookies, no advertising, and only cookieless Cloudflare Web Analytics for aggregate page-view counts.',
   },
   // Note: Metra line pages and /system/metra are prerendered by
   // prerender-pages.js (which runs before this step) with their own OG cards,
@@ -49,7 +49,7 @@ const shell = readFileSync(SHELL, 'utf8');
 
 for (const page of PAGES) {
   const url = `${SITE}${page.path}`;
-  const title = `${page.title} · Chicago Transit Alerts`;
+  const title = `${page.title} · Atlanta Transit Alerts`;
   const html = shell
     .replace(/<title>[^<]*<\/title>/, `<title>${escHtml(title)}</title>`)
     .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${escAttr(url)}" />`)
