@@ -12,8 +12,8 @@ const obsRecord = (over = {}) => ({
   id: 1,
   kind: 'train',
   line: 'red',
-  from_station: 'Jarvis',
-  to_station: '95th/Dan Ryan',
+  from_station: 'CIVIC CENTER Station',
+  to_station: 'FIVE POINTS Station',
   ts: NOW - 55 * 60_000,
   resolved_ts: NOW - 30 * 60_000,
   active: false,
@@ -100,8 +100,8 @@ describe('IncidentList', () => {
 
   it('shows the station segment for a merged incident', () => {
     render(<IncidentList incidents={[mergedInc()]} />);
-    expect(screen.getByText('Jarvis')).toBeInTheDocument();
-    expect(screen.getByText('95th/Dan Ryan')).toBeInTheDocument();
+    expect(screen.getByText('CIVIC CENTER Station')).toBeInTheDocument();
+    expect(screen.getByText('FIVE POINTS Station')).toBeInTheDocument();
   });
 
   it('shows "ongoing" badge for active incidents', () => {
@@ -116,70 +116,63 @@ describe('IncidentList', () => {
     expect(rightBadgeColumn).toBeNull();
   });
 
-  it('shows a "delayed" badge and leads with the train number for a Commuter delay', () => {
-    const delayInc = incident({
-      id: 'commuter-992',
-      kind: 'commuter',
-      routes: ['bnsf'],
+  it('shows a streetcar route pill for a streetcar observation', () => {
+    const streetcarInc = incident({
+      id: 'streetcar-1',
+      kind: 'train',
+      routes: ['streetcar'],
       first_seen_ts: NOW,
       resolved_ts: NOW,
       active: false,
       official: null,
       observations: [
         {
-          id: 'commuter-992',
-          kind: 'commuter',
-          line: 'bnsf',
-          train_number: '121',
-          from_station: 'Aurora',
-          to_station: 'Atlanta Union Station',
-          detection_source: 'delay',
+          id: 'streetcar-1',
+          kind: 'train',
+          line: 'streetcar',
+          from_station: 'Centennial Olympic Park',
+          to_station: 'King Historic District',
+          detection_source: 'bunching',
           ts: NOW,
           resolved_ts: NOW,
           active: false,
-          bot_description: '~57 min late — the 12:05 PM Atlanta Union Station train',
+          bot_description: 'Streetcars bunched downtown',
         },
       ],
     });
-    render(<IncidentList incidents={[delayInc]} />);
-    expect(screen.getByText('delayed')).toBeInTheDocument();
-    expect(screen.getByText('BNSF train #121 delayed')).toBeInTheDocument();
-    // The affected stretch moves to the secondary line.
-    expect(screen.getByText('Aurora')).toBeInTheDocument();
-    expect(screen.getByText('Atlanta Union Station')).toBeInTheDocument();
+    render(<IncidentList incidents={[streetcarInc]} />);
+    expect(screen.getByText('Streetcar')).toBeInTheDocument();
+    expect(screen.getByText('Centennial Olympic Park')).toBeInTheDocument();
+    expect(screen.getByText('King Historic District')).toBeInTheDocument();
   });
 
-  it('shows a "possible cancellation" badge for an inferred Commuter cancellation', () => {
-    const inferredInc = incident({
-      id: 'commuter-972',
-      kind: 'commuter',
-      routes: ['ri'],
+  it('shows a bus route name for a bus observation', () => {
+    const busInc = incident({
+      id: 'bus-66',
+      kind: 'bus',
+      routes: ['66'],
       first_seen_ts: NOW,
       resolved_ts: NOW,
       active: false,
       official: null,
       observations: [
         {
-          id: 'commuter-972',
-          kind: 'commuter',
-          line: 'ri',
-          from_station: 'LaSalle Street',
-          to_station: 'Joliet',
-          detection_source: 'cancellation-inferred',
+          id: 'bus-66',
+          kind: 'bus',
+          line: '66',
+          from_station: null,
+          to_station: null,
+          detection_source: 'gap',
           ts: NOW,
           resolved_ts: NOW,
           active: false,
-          bot_description: 'Scheduled train not seen running — the 9:55 AM Joliet train',
+          bot_description: 'Long gaps detected',
         },
       ],
     });
-    render(<IncidentList incidents={[inferredInc]} />);
-    expect(screen.getByText('possible cancellation')).toBeInTheDocument();
-    expect(
-      screen.getByText('Scheduled train not seen running — the 9:55 AM Joliet train'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('LaSalle Street')).toBeInTheDocument();
-    expect(screen.getByText('Joliet')).toBeInTheDocument();
+    render(<IncidentList incidents={[busInc]} />);
+    expect(screen.getByText('#66 Brownlee Road / Harbin Road')).toBeInTheDocument();
+    expect(screen.getByText('Long gaps')).toBeInTheDocument();
   });
 
   it('shows load more button when incidents exceed page size', () => {

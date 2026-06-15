@@ -49,8 +49,7 @@ export function shortCodeFor(lineKey) {
 
 // The projected terminus stations of a line (from LINE_TERMINALS). EventReplay
 // uses these to tell a train that cleanly ran off at the end of its line from
-// one the feed simply lost mid-route. Round-trip lines (Brown/Orange/Pink/
-// Purple) only list their outer terminal — the Loop end is a turnaround, handled
+// one the feed simply lost mid-route. Terminal turnarounds are handled
 // separately by the caller (a disappearance near downtown isn't "lost").
 export function terminalPointsFor(map, lineKey) {
   if (!map?.stations) return [];
@@ -72,7 +71,7 @@ function inBox(lat, lon, bbox) {
 // latitude-cosine correction so distances scale equivalently in x and y).
 //
 // `rotate: true` rotates the projection 90° counter-clockwise: north → left,
-// south → right. Used for very vertical lines (Red, Purple) so the SVG
+// south → right. Used for very vertical lines so the SVG
 // stays landscape-ish rather than becoming a tall narrow strip that demands
 // page scroll to get past.
 function makeProjection(points, { maxWidth, maxHeight, margin, minHeight = 200, rotate = false }) {
@@ -146,7 +145,7 @@ function makeProjection(points, { maxWidth, maxHeight, margin, minHeight = 200, 
 
 // Slice the highlighted stretch of track between two stations. Picks the
 // polyline in `tracks` that best covers both endpoints (the wrong branch —
-// Forest Park when the incident is on the O'Hare side — has one station far
+// when an incident is on one branch — has one station far
 // off and loses), slices it between the closest indices, then trims any
 // boundary point that sits past its station so the highlight doesn't overshoot.
 // Returns an SVG path string, or null when no polyline covers both. Shared by
@@ -191,8 +190,7 @@ export function sliceTrackBetween(tracks, a, b) {
       // Keep only the track vertices that fall *between* the two stations,
       // measured by their projection onto the start→end chord (parameter t in
       // [0, 1]). Track vertices are sparse on some stretches, so the nearest
-      // vertex to a station can sit past it — e.g. Brown Line Belmont→Fullerton,
-      // where the lone nearest vertex is south of Fullerton, so appending the
+      // vertex to a station can sit past it, so appending the
       // station after it drew a stub overshooting the dot. Curved runs keep
       // their bend vertices (those still project inside the chord), while
       // overshoot/undershoot vertices drop out regardless of how many the slice
@@ -215,8 +213,7 @@ export function sliceTrackBetween(tracks, a, b) {
 
 // Project a set of stations + track segments into a target SVG box. Thin
 // wrapper over makeProjection that also maps the station + track geometry
-// through the resulting projection. Exported so the parallel Commuter builder
-// (commuterLineMap.js) shares the exact same projection math.
+// through the resulting projection.
 export function projectInto(rawStations, segments, opts) {
   if (rawStations.length === 0) return null;
   const points = [];
@@ -252,7 +249,7 @@ export function projectInto(rawStations, segments, opts) {
 //   stationIndex — Map<slug, { count, ... }> from buildStationIndex.
 //                  Optional; missing entries → count 0.
 /**
- * @param {string} lineKey full-name line key ('red', 'brown', etc.)
+ * @param {string} lineKey normalized line key ('red', 'gold', etc.)
  * @param {Map<string, any> | null} [stationIndex]
  * @param {object} [options]
  * @param {number} [options.maxWidth]
@@ -418,7 +415,7 @@ export function buildLineMap(
 
 // Build a combined map covering several train lines in one shared coordinate
 // space — used by the multi-line event map so an incident touching the whole
-// Loop renders every affected line at once instead of one arbitrary line.
+// Multi-line incidents render every affected line at once instead of one arbitrary line.
 //
 // All requested lines' stations and tracks are projected through a single
 // projection (no rotation — the multi-line bbox spans the system and is
@@ -464,7 +461,7 @@ function cropProjectionPoints(stationNames, lineStations) {
 }
 
 // Loose station-name key for crop lookup: lowercase, strip trailing line
-// qualifiers ("Belmont (Red/Brown/Purple)" → "belmont"), trim whitespace.
+// qualifiers, trim whitespace.
 // Mirrors EventMap's `normalize` so callers can pass either the raw or
 // qualified form.
 function normalizeStationKey(name) {
@@ -476,7 +473,7 @@ function normalizeStationKey(name) {
 }
 
 /**
- * @param {string[]} lineKeys full-name line keys ('purple', 'pink', …)
+ * @param {string[]} lineKeys normalized line keys
  * @param {object} [options]
  * @param {number} [options.maxWidth]
  * @param {number} [options.maxHeight]

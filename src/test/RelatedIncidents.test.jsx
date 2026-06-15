@@ -5,12 +5,10 @@ import { incident } from './v2TestHelpers.js';
 
 const NOW = 1_000_000_000_000;
 
-// The event whose page we're on — a Rock Island incident so the related list
-// (same line, ±24h) picks up the rows below.
 const parent = incident({
   id: 'parent',
-  kind: 'commuter',
-  routes: ['ri'],
+  kind: 'train',
+  routes: ['red'],
   first_seen_ts: NOW,
   resolved_ts: NOW,
   active: false,
@@ -18,81 +16,92 @@ const parent = incident({
   observations: [
     {
       id: 'parent',
-      kind: 'commuter',
-      line: 'ri',
-      detection_source: 'delay',
-      from_station: 'Joliet',
-      to_station: 'LaSalle Street',
+      kind: 'train',
+      line: 'red',
+      detection_source: 'gap',
+      from_station: 'CIVIC CENTER Station',
+      to_station: 'FIVE POINTS Station',
       ts: NOW,
       resolved_ts: NOW,
       active: false,
-      bot_description: '~20 min late — the 1:25 PM LaSalle Street train',
+      bot_description: 'Red Line gaps downtown',
     },
   ],
 });
 
-const inferred = incident({
-  id: 'commuter-972',
-  kind: 'commuter',
-  routes: ['ri'],
+const related = incident({
+  id: 'related-red',
+  kind: 'train',
+  routes: ['red'],
   first_seen_ts: NOW - 60 * 60_000,
   resolved_ts: NOW - 60 * 60_000,
   active: false,
   official: null,
   observations: [
     {
-      id: 'commuter-972',
-      kind: 'commuter',
-      line: 'ri',
-      detection_source: 'cancellation-inferred',
-      from_station: 'LaSalle Street',
-      to_station: 'Joliet',
+      id: 'related-red',
+      kind: 'train',
+      line: 'red',
+      detection_source: 'bunching',
+      from_station: 'ARTS CENTER Station',
+      to_station: 'CIVIC CENTER Station',
       ts: NOW - 60 * 60_000,
       resolved_ts: NOW - 60 * 60_000,
       active: false,
-      bot_description: 'Scheduled train not seen running — the 9:55 AM Joliet train',
+      bot_description: 'Trains bunched north of downtown',
     },
   ],
 });
 
-// A Commuter alert that annuls one scheduled train carries a top-level
-// `cancellation` block (state 'cancelled') and renders as a stable train-title.
-const cancelled = incident({
-  id: 'rid413',
-  kind: 'commuter',
-  routes: ['ri'],
+const busRelated = incident({
+  id: 'bus-66',
+  kind: 'bus',
+  routes: ['66'],
   first_seen_ts: NOW - 30 * 60_000,
   resolved_ts: NOW - 30 * 60_000,
   active: false,
-  cancellation: {
-    state: 'cancelled',
-    scheduled_departure_ts: NOW - 90 * 60_000,
-    scheduled_arrival_ts: NOW - 30 * 60_000,
-    train_number: '413',
-    origin: 'LaSalle Street',
-  },
   official: {
-    alert_id: 'a413',
-    headline: 'RID #413 Will Not Operate',
+    alert_id: 'bus66',
+    headline: 'Route 66 detour',
     first_seen_ts: NOW - 30 * 60_000,
     post_url: 'https://bsky.app/x',
   },
   observations: [],
 });
 
+const busPeer = incident({
+  id: 'bus-66-peer',
+  kind: 'bus',
+  routes: ['66'],
+  first_seen_ts: NOW - 10 * 60_000,
+  resolved_ts: NOW,
+  active: false,
+  official: null,
+  observations: [
+    {
+      id: 'bus-66-peer',
+      kind: 'bus',
+      line: '66',
+      detection_source: 'gap',
+      ts: NOW - 10 * 60_000,
+      resolved_ts: NOW,
+      active: false,
+      bot_description: 'Long gaps detected',
+    },
+  ],
+});
+
 describe('RelatedIncidents', () => {
-  it('titles a bot-only point event with its sentence and shows the badge', () => {
-    render(<RelatedIncidents incident={parent} incidents={[parent, inferred]} />);
-    // Title matches the event page (the bot sentence), not the bare station pair.
-    expect(
-      screen.getByText('Scheduled train not seen running — the 9:55 AM Joliet train'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('possible cancellation')).toBeInTheDocument();
+  it('shows related incidents on the same rail line', () => {
+    render(<RelatedIncidents incident={parent} incidents={[parent, related, busRelated]} />);
+    expect(screen.getByText('ARTS CENTER Station')).toBeInTheDocument();
+    expect(screen.getByText('CIVIC CENTER Station')).toBeInTheDocument();
+    expect(screen.queryByText('Route 66 detour')).not.toBeInTheDocument();
   });
 
-  it('shows a cancelled badge for a single-train Commuter cancellation', () => {
-    render(<RelatedIncidents incident={parent} incidents={[parent, cancelled]} />);
-    expect(screen.getByText('Rock Island train #413 cancelled')).toBeInTheDocument();
-    expect(screen.getByText('cancelled')).toBeInTheDocument();
+  it('shows related incidents on the same bus route', () => {
+    render(<RelatedIncidents incident={busRelated} incidents={[parent, busRelated, busPeer]} />);
+    expect(screen.queryByText('Red Line gaps downtown')).not.toBeInTheDocument();
+    expect(screen.getByText('Long gaps')).toBeInTheDocument();
   });
 });

@@ -220,7 +220,7 @@ export default function App() {
     };
   }, []);
 
-  // The website is MARTA-only. Drop any inherited commuter-rail records from
+  // The website is MARTA-only. Drop any non-MARTA records from
   // downstream views if they are still present in an older shared data file.
   const agencyIncidents = useMemo(() => {
     if (!data) return [];

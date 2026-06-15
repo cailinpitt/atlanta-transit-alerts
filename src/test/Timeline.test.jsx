@@ -15,8 +15,11 @@ describe('Timeline', () => {
         onLineClick={noop}
       />,
     );
+    expect(screen.getByText('Blue')).toBeInTheDocument();
+    expect(screen.getByText('Gold')).toBeInTheDocument();
+    expect(screen.getByText('Green')).toBeInTheDocument();
     expect(screen.getByText('Red')).toBeInTheDocument();
-    expect(screen.getByText('Yellow')).toBeInTheDocument();
+    expect(screen.getByText('Streetcar')).toBeInTheDocument();
   });
 
   it('only renders selected lines when a filter is active', () => {
@@ -38,7 +41,7 @@ describe('Timeline', () => {
       <Timeline alerts={[]} observations={[]} selectedLines={[]} numDays={30} onLineClick={noop} />,
     );
     expect(screen.queryByText('Red')).not.toBeInTheDocument();
-    expect(screen.queryByText('Yellow')).not.toBeInTheDocument();
+    expect(screen.queryByText('Streetcar')).not.toBeInTheDocument();
   });
 
   it('renders line labels as links to /line/:id', () => {

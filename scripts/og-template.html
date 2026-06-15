@@ -5,24 +5,15 @@
     <title>OG card</title>
     <style>
       :root {
-        --red: #c60c30;
-        --blue: #00a1de;
-        --brn: #62361b;
-        --g: #009b3a;
-        --org: #f9461c;
-        --pink: #e27ea6;
-        --p: #522398;
-        --y: #f9e300;
-        --bus: #475569;
+        --red: #ce242b;
+        --blue: #0075b2;
+        --gold: #d4a723;
+        --green: #009d4b;
+        --streetcar: #8b5cf6;
       }
       * {
         box-sizing: border-box;
       }
-      /* macOS qlmanage scales HTML content by 75/64 (≈1.17×) and forces a
-         square 1200×1200 thumbnail. Sizing the body 1024×1024 with the card
-         1024×538 means it scales up to exactly 1200×1200 in output, with the
-         card centered at output rows 285..915 — which is what sips
-         --cropToHeightWidth 630 1200 extracts. */
       html,
       body {
         margin: 0;
@@ -41,18 +32,12 @@
         width: 1024px;
         height: 538px;
         background:
-          linear-gradient(
-            90deg,
-            rgba(198, 12, 48, 0.18) 0%,
-            rgba(82, 35, 152, 0.14) 35%,
-            rgba(0, 161, 222, 0.22) 100%
-          ),
-          radial-gradient(ellipse at top, rgba(0, 161, 222, 0.18) 0%, transparent 70%),
+          linear-gradient(90deg, rgba(206, 36, 43, 0.16), rgba(0, 117, 178, 0.2)),
+          radial-gradient(ellipse at top, rgba(212, 167, 35, 0.18), transparent 70%),
           #f8fafc;
         padding: 38px 56px 28px;
         display: flex;
         flex-direction: column;
-        position: relative;
       }
       .badge {
         display: inline-flex;
@@ -91,22 +76,20 @@
         line-height: 1;
         font-weight: 800;
         color: #0f172a;
-        letter-spacing: -0.025em;
         margin: 0 0 14px;
       }
       .subtitle {
         font-size: 19px;
         line-height: 1.4;
         color: #475569;
-        font-weight: 400;
         margin: 0;
       }
       .heatmap {
         display: grid;
-        grid-template-columns: 48px repeat(12, 1fr);
+        grid-template-columns: 58px repeat(12, 1fr);
         gap: 4px;
         align-items: center;
-        width: 392px;
+        width: 410px;
         flex-shrink: 0;
       }
       .heatmap .label {
@@ -131,7 +114,6 @@
         font-size: 19px;
         font-weight: 600;
         color: #0f172a;
-        letter-spacing: -0.01em;
       }
       .url .scheme {
         color: #94a3b8;
@@ -147,7 +129,6 @@
   <body>
     <div class="card">
       <div class="badge"><span class="dot"></span>Live archive</div>
-
       <div class="body-row">
         <div class="copy">
           <h1 class="title">Atlanta Transit<br />Alerts</h1>
@@ -156,141 +137,22 @@
             heatmap of incident frequency.
           </p>
         </div>
-
         <div class="heatmap">
           <div class="label">Red</div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.55;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.95;"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.45;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.85;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.7;"></div>
-          <div class="cell" style="background: var(--red); opacity: 0.5;"></div>
-          <div class="cell"></div>
-
+          <div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--red); opacity: 0.55;"></div><div class="cell"></div><div class="cell" style="background: var(--red); opacity: 0.95;"></div><div class="cell" style="background: var(--red); opacity: 0.45;"></div><div class="cell"></div><div class="cell" style="background: var(--red); opacity: 0.85;"></div><div class="cell"></div><div class="cell" style="background: var(--red); opacity: 0.7;"></div><div class="cell" style="background: var(--red); opacity: 0.5;"></div><div class="cell"></div>
           <div class="label">Blue</div>
-          <div class="cell" style="background: var(--blue); opacity: 0.7;"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.95;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.6;"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.85;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.5;"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.9;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.65;"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.4;"></div>
-          <div class="cell" style="background: var(--blue); opacity: 0.75;"></div>
-
-          <div class="label">Brown</div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--brn); opacity: 0.55;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--brn); opacity: 0.45;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--brn); opacity: 0.6;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--brn); opacity: 0.4;"></div>
-          <div class="cell"></div>
-
+          <div class="cell" style="background: var(--blue); opacity: 0.7;"></div><div class="cell" style="background: var(--blue); opacity: 0.95;"></div><div class="cell"></div><div class="cell" style="background: var(--blue); opacity: 0.6;"></div><div class="cell" style="background: var(--blue); opacity: 0.85;"></div><div class="cell"></div><div class="cell" style="background: var(--blue); opacity: 0.5;"></div><div class="cell" style="background: var(--blue); opacity: 0.9;"></div><div class="cell"></div><div class="cell" style="background: var(--blue); opacity: 0.65;"></div><div class="cell" style="background: var(--blue); opacity: 0.4;"></div><div class="cell" style="background: var(--blue); opacity: 0.75;"></div>
+          <div class="label">Gold</div>
+          <div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--gold); opacity: 0.55;"></div><div class="cell"></div><div class="cell" style="background: var(--gold); opacity: 0.45;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--gold); opacity: 0.6;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--gold); opacity: 0.4;"></div><div class="cell"></div>
           <div class="label">Green</div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--g); opacity: 0.7;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--g); opacity: 0.55;"></div>
-          <div class="cell" style="background: var(--g); opacity: 0.4;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--g); opacity: 0.75;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--g); opacity: 0.5;"></div>
-          <div class="cell"></div>
-
-          <div class="label">Orange</div>
-          <div class="cell" style="background: var(--org); opacity: 0.6;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.45;"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.7;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.5;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.55;"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.4;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--org); opacity: 0.65;"></div>
-
-          <div class="label">Pink</div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--pink); opacity: 0.55;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--pink); opacity: 0.4;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--pink); opacity: 0.5;"></div>
-          <div class="cell"></div>
-
-          <div class="label">Purple</div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--p); opacity: 0.5;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--p); opacity: 0.6;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--p); opacity: 0.45;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--p); opacity: 0.4;"></div>
-
-          <div class="label">Yellow</div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--y); opacity: 0.5;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--y); opacity: 0.55;"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-          <div class="cell"></div>
-
-          <div class="label">Buses</div>
-          <div class="cell" style="background: var(--bus); opacity: 0.55;"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.8;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.65;"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.4;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.9;"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.5;"></div>
-          <div class="cell"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.7;"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.45;"></div>
-          <div class="cell" style="background: var(--bus); opacity: 0.6;"></div>
+          <div class="cell"></div><div class="cell" style="background: var(--green); opacity: 0.7;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--green); opacity: 0.55;"></div><div class="cell" style="background: var(--green); opacity: 0.4;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--green); opacity: 0.75;"></div><div class="cell"></div><div class="cell" style="background: var(--green); opacity: 0.5;"></div><div class="cell"></div>
+          <div class="label">Streetcar</div>
+          <div class="cell"></div><div class="cell" style="background: var(--streetcar); opacity: 0.5;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--streetcar); opacity: 0.6;"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--streetcar); opacity: 0.45;"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell" style="background: var(--streetcar); opacity: 0.4;"></div>
         </div>
       </div>
-
       <div class="footer">
-        <div class="url">
-          <span class="scheme">https://</span>atlantatransitalerts.app
-        </div>
-        <div class="tag">Unofficial · Not affiliated with MARTA</div>
+        <div class="url"><span class="scheme">https://</span>atlantatransitalerts.app</div>
+        <div class="tag">Unofficial · built from public data</div>
       </div>
     </div>
   </body>

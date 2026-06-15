@@ -19,11 +19,11 @@ describe('SubscribeContent feed picker', () => {
     ).toBeInTheDocument();
   });
 
-  it('updates the feed URL when a Commuter line is picked', async () => {
+  it('updates the feed URL when the Streetcar is picked', async () => {
     render(<SubscribeContent />);
-    await userEvent.selectOptions(screen.getByLabelText('Commuter line'), 'commuter/line/bnsf');
+    await userEvent.selectOptions(screen.getByLabelText('MARTA line or route'), 'line/streetcar');
     expect(
-      screen.getByDisplayValue('https://atlantatransitalerts.app/feed/commuter/line/bnsf.xml'),
+      screen.getByDisplayValue('https://atlantatransitalerts.app/feed/line/streetcar.xml'),
     ).toBeInTheDocument();
   });
 });

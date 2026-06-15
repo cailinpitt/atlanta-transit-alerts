@@ -6,12 +6,12 @@ import { TRAIN_LINES } from '../lib/trainLines.js';
 import { MapScroller, normalize } from './EventMap.jsx';
 
 // Combined event map for an incident touching more than one train line — a
-// Loop-wide alert that merged several pulse-cold detections, say. Every
+// multi-line alert that merged several pulse-cold detections, say. Every
 // affected line is drawn faint in its brand color, each observation's stretch
 // is highlighted bold on its OWN line, and the involved stations render as
 // bold dots. Distinct from EventMap (single line) and LineMap (90-day heat).
 //
-// No text labels: a Loop event can involve ~9 stations spread across the
+// No text labels: a multi-line event can involve many stations spread across the
 // system, and floating labels for all of them collide unreadably on a phone.
 // The dots carry hover <title>s and the aggregated station chips above the map
 // already spell out every name, so the labels would be redundant noise.
@@ -19,7 +19,7 @@ import { MapScroller, normalize } from './EventMap.jsx';
 // Renders nothing when no affected station resolves against the line data —
 // falling back to faint tracks with nothing highlighted would be misleading.
 //
-// `lineKeys`  — full-name keys of the lines to draw ('purple', 'pink', …).
+// `lineKeys`  — normalized route keys of the lines to draw.
 // `segments`  — `{ line, from, to }` per affected stretch (see
 //               affectedLineSegments). `line: null` highlights on every drawn
 //               line serving both endpoints.
@@ -49,9 +49,9 @@ export default function MultiLineEventMap({
   if (!map) return null;
 
   // Group projected stations by their loose-normalized name so a segment
-  // endpoint ("Armitage (Brown/Purple)") resolves to the physical station even
+  // endpoint resolves to the physical station even
   // when the qualifier differs from the data file's. When several stations
-  // share a normalized name (Central Green vs Central Purple), the caller's
+  // share a normalized name, the caller's
   // line picks the right one.
   const byNorm = new Map();
   for (const s of map.stations) {
@@ -109,7 +109,7 @@ export default function MultiLineEventMap({
   }
 
   // Group highlights that cover the same stretch across multiple lines. A shared
-  // run (Pink + Green on the Lake St elevated) projects to identical coordinates,
+  // run on shared trackage projects to identical coordinates,
   // so drawing each line's solid stroke just stacks them and only the last color
   // shows. Instead we candy-stripe the group: one path per line, interleaved via
   // staggered dashes so every color reads along the shared track.
@@ -127,7 +127,7 @@ export default function MultiLineEventMap({
   // group is "on" for DASH px then "off" for DASH*(N-1) px, offset by its index
   // — so the N colors tile the line continuously with no gaps. Longer dashes
   // give each color a continuous run that's easier to read than rapid-fire
-  // alternation, which mushes into a single warm-pink blur on Brown/Red/Purple
+  // alternation, which can otherwise mush into a single blur on shared rail
   // shared trackage.
   const DASH = 16;
   const stretchPaths = [...stretchGroups.values()].flatMap((group) => {

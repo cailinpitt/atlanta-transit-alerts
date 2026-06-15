@@ -5,6 +5,7 @@ import { incident } from './v2TestHelpers.js';
 
 const NOW = 1_700_000_000_000;
 const MIN = 60_000;
+const DAY = 24 * 60 * MIN;
 
 // Nested incident shape with a MARTA block — ActiveCard shows `official.headline`
 // directly, so the headline doubles as a stable text handle in assertions.
@@ -42,34 +43,30 @@ describe('ActiveAlerts', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(/Active Now\s*\(2\)/);
   });
 
-  it('buckets active incidents into Disruptions, Delays, and Planned sections', () => {
+  it('buckets active incidents into Disruptions and Planned sections', () => {
     render(
       <ActiveAlerts
         incidents={[
-          // Live disruption (MARTA train).
           activeInc({
             id: 'd1',
             official: { headline: 'Red Line gap', post_url: 'https://bsky.app/profile/x/post/d1' },
           }),
-          // Routine Commuter delay → Delays.
           activeInc({
-            id: 'dl1',
-            kind: 'commuter',
-            routes: ['bnsf'],
-            commuter_status: { source: 'delay' },
+            id: 'd2',
+            kind: 'bus',
+            routes: ['66'],
             official: {
-              headline: 'BNSF 1282 delayed',
-              post_url: 'https://bsky.app/profile/x/post/dl1',
+              headline: 'Route 66 detour',
+              post_url: 'https://bsky.app/profile/x/post/d2',
             },
           }),
-          // Planned track construction → Planned & scheduled.
           activeInc({
             id: 'p1',
-            kind: 'commuter',
-            routes: ['up-n'],
-            commuter_status: { source: 'planned-delay' },
+            kind: 'train',
+            routes: ['gold'],
             official: {
-              headline: 'Track Construction Sat Jun 13',
+              headline: 'Gold Line planned service change',
+              agency_event_start_ts: NOW + DAY,
               post_url: 'https://bsky.app/profile/x/post/p1',
             },
           }),
@@ -80,11 +77,10 @@ describe('ActiveAlerts', () => {
       />,
     );
     expect(screen.getByText(/^Disruptions$/)).toBeInTheDocument();
-    expect(screen.getByText(/^Delays$/)).toBeInTheDocument();
     expect(screen.getByText(/Planned & scheduled/)).toBeInTheDocument();
     expect(screen.getByText('Red Line gap')).toBeInTheDocument();
-    expect(screen.getByText('BNSF 1282 delayed')).toBeInTheDocument();
-    expect(screen.getByText('Track Construction Sat Jun 13')).toBeInTheDocument();
+    expect(screen.getByText('Route 66 detour')).toBeInTheDocument();
+    expect(screen.getByText('Gold Line planned service change')).toBeInTheDocument();
   });
 
   it('keeps the first two incidents as full cards and collapses the rest to compact rows', () => {

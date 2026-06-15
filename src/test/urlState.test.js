@@ -7,13 +7,11 @@ describe('parseUrlState', () => {
       selectedLines: null,
       showBus: true,
       selectedBusRoutes: [],
-      selectedCommuterLines: [],
       dateRange: 7,
       selectedDay: null,
       selectedSignals: [],
       selectedSources: ['official', 'bot', 'merged'],
       search: '',
-      selectedAgency: 'all',
     });
   });
 
@@ -62,13 +60,6 @@ describe('parseUrlState', () => {
       '53A',
       '77',
     ]);
-  });
-
-  it('parses commuter lines and drops invalid keys (incl. legacy commuter=1)', () => {
-    expect(parseUrlState('?commuter=up-n,bnsf').selectedCommuterLines).toEqual(['up-n', 'bnsf']);
-    expect(parseUrlState('?commuter=UP-N,fake').selectedCommuterLines).toEqual(['up-n']);
-    // The old gate param `?commuter=1` has no valid line → no narrowing.
-    expect(parseUrlState('?commuter=1').selectedCommuterLines).toEqual([]);
   });
 
   it('parses range=all as null', () => {
@@ -189,13 +180,11 @@ describe('buildSearch', () => {
       selectedLines: ['red'],
       showBus: false,
       selectedBusRoutes: ['66'],
-      selectedCommuterLines: ['up-n', 'bnsf'],
       dateRange: 30,
       selectedDay: null,
       selectedSignals: [],
       selectedSources: ['official', 'bot', 'merged'],
       search: '',
-      selectedAgency: 'all',
     };
     expect(parseUrlState(buildSearch(state))).toEqual(state);
   });
@@ -206,13 +195,11 @@ describe('buildSearch', () => {
       selectedLines: null,
       showBus: true,
       selectedBusRoutes: [],
-      selectedCommuterLines: [],
       dateRange: 7,
       selectedDay: dayUtc,
       selectedSignals: [],
       selectedSources: ['official', 'bot', 'merged'],
       search: '',
-      selectedAgency: 'all',
     };
     const search = buildSearch(state);
     expect(search).toBe('?day=2026-05-06');

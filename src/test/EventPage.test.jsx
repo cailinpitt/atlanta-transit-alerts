@@ -6,8 +6,8 @@ import { incident } from './v2TestHelpers.js';
 const NOW = 1_000_000_000_000;
 
 // Build the published incident wire shape: a top-level incident with a nullable
-// `official` block and an `observations[]` list. Train line keys are already full
-// names ('purple') — normalization now happens server-side.
+// `official` block and an `observations[]` list. Rail and streetcar route keys
+// are already normalized by the exporter.
 function officialBlock(over) {
   return {
     alert_id: 'a',
@@ -40,7 +40,7 @@ const PAYLOAD = {
       sources: ['official'],
       official: officialBlock({
         alert_id: 'a1',
-        headline: 'Red Line Delays at Howard',
+        headline: 'Red Line Delays at Five Points',
         first_seen_ts: NOW - 60 * 60_000,
         resolved_ts: NOW - 30 * 60_000,
         active: false,
@@ -49,23 +49,23 @@ const PAYLOAD = {
       observations: [],
     },
     {
-      id: 'brnriver',
+      id: 'redplaza',
       kind: 'train',
-      routes: ['brown'],
+      routes: ['red'],
       first_seen_ts: NOW - 45 * 60_000,
       resolved_ts: NOW - 15 * 60_000,
       active: false,
       sources: ['official'],
       official: officialBlock({
         alert_id: 'a3',
-        headline: 'Brown Line Delays',
+        headline: 'Red Line Delays near Five Points',
         short_description:
-          'Brown Line service is experiencing delays due to a raised bridge at the Atlanta River, downtown. Trains stopped near Atlanta.',
-        mentioned_stations: ['Atlanta (Brown)'],
+          'Red Line service is experiencing delays due to police activity near Five Points Plaza. Trains stopped near Five Points.',
+        mentioned_stations: ['FIVE POINTS Station'],
         first_seen_ts: NOW - 45 * 60_000,
         resolved_ts: NOW - 15 * 60_000,
         active: false,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/brnriver',
+        post_url: 'https://bsky.app/profile/did:plc:abc/post/redplaza',
       }),
       observations: [],
     },
@@ -80,9 +80,9 @@ const PAYLOAD = {
       official: officialBlock({
         alert_id: 'a2',
         headline: 'Temporary Reroute',
-        short_description: 'SB State will be closed between Wacker and Randolph.',
-        affected_from_station: 'Wacker',
-        affected_to_station: 'Randolph',
+        short_description: 'SB Peachtree Street will be closed between Baker and Ellis.',
+        affected_from_station: 'Baker',
+        affected_to_station: 'Ellis',
         first_seen_ts: NOW - 30 * 60_000,
         resolved_ts: NOW - 5 * 60_000,
         active: false,
@@ -91,18 +91,16 @@ const PAYLOAD = {
       observations: [],
     },
     {
-      // Multi-line Loop incident: the MARTA alert grouped with one pulse-cold
-      // detection per line (Purple primary, Pink extra).
-      id: 'loopevt',
+      id: 'multirail',
       kind: 'train',
-      routes: ['purple', 'pink'],
+      routes: ['red', 'gold'],
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
       sources: ['official', 'bot'],
       official: officialBlock({
         alert_id: 'loop1',
-        headline: 'Loop Elevated Service Delayed',
+        headline: 'Downtown rail service delayed',
         first_seen_ts: NOW - 40 * 60_000,
         resolved_ts: NOW - 10 * 60_000,
         active: false,
@@ -112,44 +110,40 @@ const PAYLOAD = {
         {
           id: 201,
           kind: 'train',
-          line: 'purple',
-          from_station: 'Belmont (Red/Brown/Purple)',
-          to_station: 'Atlanta (Brown/Purple)',
+          line: 'red',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
           detection_source: 'pulse-cold',
           ts: NOW - 38 * 60_000,
           resolved_ts: NOW - 12 * 60_000,
           active: false,
-          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsPurple',
+          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsRed',
         },
         {
           id: 202,
           kind: 'train',
-          line: 'pink',
-          from_station: 'Ashland (Green/Pink)',
-          to_station: 'Washington/Wabash',
+          line: 'gold',
+          from_station: 'ARTS CENTER Station',
+          to_station: 'FIVE POINTS Station',
           detection_source: 'pulse-cold',
           ts: NOW - 36 * 60_000,
           resolved_ts: NOW - 12 * 60_000,
           active: false,
-          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsPink',
+          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsGold',
         },
       ],
     },
     {
-      // Shared-trackage incident: MARTA scopes it to Pink AND Green, but the bot
-      // only fired one pulse-cold on Pink between Ashland and Adams/Wabash —
-      // both Lake St stations that serve Green too. The page must fan the
-      // stretch onto Green so it isn't presented as Pink-only.
       id: 'sharedtrk',
       kind: 'train',
-      routes: ['pink', 'green'],
+      routes: ['red', 'gold'],
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
       sources: ['official', 'bot'],
       official: officialBlock({
         alert_id: 'shared1',
-        headline: 'Delays near Ashland/Lake Affecting Green and Pink Line Service',
+        headline: 'Delays between Civic Center and Five Points affecting Red and Gold Line service',
         first_seen_ts: NOW - 40 * 60_000,
         resolved_ts: NOW - 10 * 60_000,
         active: false,
@@ -159,50 +153,45 @@ const PAYLOAD = {
         {
           id: 301,
           kind: 'train',
-          line: 'pink',
-          from_station: 'Ashland (Green/Pink)',
-          to_station: 'Adams/Wabash',
+          line: 'red',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
           detection_source: 'pulse-cold',
           ts: NOW - 38 * 60_000,
           resolved_ts: NOW - 12 * 60_000,
           active: false,
-          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsSharedPink',
+          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsSharedRed',
         },
       ],
     },
     {
-      // Guard against shared-trackage false positives: a Brown-only alert on
-      // the Belmont↔Fullerton stretch that Purple ALSO runs. Because the MARTA
-      // alert scopes the incident to Brown alone (routes: ['brown']), Purple
-      // must NOT be pulled in — shared trackage only spreads across lines the
-      // incident already names, never invents new ones.
-      id: 'brnpurple',
+      id: 'redonly',
       kind: 'train',
-      routes: ['brown'],
+      routes: ['red'],
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
       sources: ['official', 'bot'],
       official: officialBlock({
-        alert_id: 'brnp1',
-        headline: 'Brown Line Delays near Belmont',
+        alert_id: 'redonly1',
+        headline: 'Red Line Delays near Civic Center',
         first_seen_ts: NOW - 40 * 60_000,
         resolved_ts: NOW - 10 * 60_000,
         active: false,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/brnpurple',
+        post_url: 'https://bsky.app/profile/did:plc:abc/post/redonly',
       }),
       observations: [
         {
           id: 401,
           kind: 'train',
-          line: 'brown',
-          from_station: 'Belmont (Red/Brown/Purple)',
-          to_station: 'Fullerton',
+          line: 'red',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
           detection_source: 'pulse-cold',
           ts: NOW - 38 * 60_000,
           resolved_ts: NOW - 12 * 60_000,
           active: false,
-          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsBrnPurple',
+          post_url: 'https://bsky.app/profile/did:plc:xyz/post/obsRedOnly',
         },
       ],
     },
@@ -245,8 +234,8 @@ const PAYLOAD = {
           id: 502,
           kind: 'train',
           line: 'green',
-          from_station: 'Roosevelt',
-          to_station: 'Cermak-McCormick Place',
+          from_station: 'EDGEWOOD-CANDLER PARK Station',
+          to_station: 'KING MEMORIAL Station',
           detection_source: 'pulse-cold',
           ts: NOW - 10 * 60_000,
           onset_ts: NOW - 80 * 60_000,
@@ -264,105 +253,25 @@ const PAYLOAD = {
       ],
     },
     {
-      id: 'commuter-972',
-      kind: 'commuter',
-      routes: ['ri'],
-      first_seen_ts: NOW - 60 * 60_000,
-      resolved_ts: NOW - 60 * 60_000,
-      active: false,
-      sources: ['bot'],
-      official: null,
-      observations: [
-        {
-          id: 'commuter-972',
-          kind: 'commuter',
-          line: 'ri',
-          from_station: 'LaSalle Street',
-          to_station: 'Joliet',
-          detection_source: 'cancellation-inferred',
-          ts: NOW - 60 * 60_000,
-          onset_ts: NOW - 65 * 60_000,
-          resolved_ts: NOW - 60 * 60_000,
-          active: false,
-          bot_description: 'Scheduled train not seen running — the 9:55 AM Joliet train',
-        },
-      ],
-    },
-    {
-      id: 'commuter-991',
-      kind: 'commuter',
-      routes: ['me'],
-      first_seen_ts: NOW - 60 * 60_000,
-      resolved_ts: NOW - 60 * 60_000,
-      active: false,
-      sources: ['bot'],
-      official: null,
-      observations: [
-        {
-          id: 'commuter-991',
-          kind: 'commuter',
-          line: 'me',
-          train_number: '121',
-          from_station: 'Millennium Station',
-          to_station: 'University Park',
-          detection_source: 'delay',
-          ts: NOW - 60 * 60_000,
-          onset_ts: NOW - 65 * 60_000,
-          resolved_ts: NOW - 60 * 60_000,
-          active: false,
-          bot_description: '~70 min late — the 12:20 PM University Park train',
-        },
-      ],
-    },
-    {
-      id: 'commuter-official-delay',
-      kind: 'commuter',
-      routes: ['ri'],
-      first_seen_ts: NOW - 45 * 60_000,
-      resolved_ts: NOW - 10 * 60_000,
-      active: false,
-      sources: ['official'],
-      official: officialBlock({
-        alert_id: 'commuter-delay-1',
-        headline: 'RID #426 Delayed',
-        short_description:
-          'RID train #426, scheduled to arrive LaSalle Street Station at 3:36 PM, is operating 30 to 35 minutes behind schedule due to switch problems.',
-        first_seen_ts: NOW - 45 * 60_000,
-        resolved_ts: NOW - 10 * 60_000,
-        active: false,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/commuter-official-delay',
-      }),
-      commuter_status: {
-        source: 'delay',
-        deadline_ts: NOW - 10 * 60_000,
-        delay_min: 35,
-        train_number: '426',
-      },
-      observations: [],
-    },
-    {
-      // Future planned work (advance-notice track construction). Posted today,
-      // work happens this weekend — so "Ongoing for" counting from first_seen
-      // is meaningless. Should relabel "First seen" → "Announced", drop the
-      // timer, and show a neutral "planned" pill instead of red "ongoing".
-      id: 'commuter-planned',
-      kind: 'commuter',
-      routes: ['bnsf', 'md-n', 'md-w', 'me', 'ri', 'up-nw', 'up-w'],
+      id: 'planned-rail',
+      kind: 'train',
+      routes: ['gold'],
       first_seen_ts: NOW - 60 * 60_000,
       resolved_ts: null,
       active: true,
       sources: ['official'],
       official: officialBlock({
-        alert_id: 'commuter-planned-1',
-        headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
+        alert_id: 'planned-rail-1',
+        headline: 'Gold Line planned service change',
         short_description:
-          'Track construction will be taking place on Saturday, June 13 through Sunday, June 14. Trains may incur delays enroute up to 15 minutes behind scheduled passing through the work zone.',
+          'Gold Line trains will use adjusted service this weekend for scheduled maintenance.',
         first_seen_ts: NOW - 60 * 60_000,
         resolved_ts: null,
         active: true,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/commuter-planned',
+        agency_event_start_ts: NOW + 2 * 24 * 60 * 60_000,
+        agency_event_end_ts: NOW + 3 * 24 * 60 * 60_000,
+        post_url: 'https://bsky.app/profile/did:plc:abc/post/planned-rail',
       }),
-      commuter_status: { source: 'planned-delay', train_number: null },
       observations: [],
     },
   ].map((inc) => incident(inc)),
@@ -388,7 +297,7 @@ const V2_PAYLOAD = {
       official_alert: {
         id: 'v2-alert',
         headline: 'Red Line Service Delayed',
-        description: 'Red Line trains are delayed between Howard and Loyola.',
+        description: 'Red Line trains are delayed between Civic Center and Five Points.',
         post_url: 'https://bsky.app/profile/did:plc:abc/post/v2evt',
         resolved_reply_url: null,
         lifecycle: {
@@ -398,10 +307,10 @@ const V2_PAYLOAD = {
           duration_ms: 40 * 60_000,
         },
         scope: {
-          from_station: 'Howard',
-          to_station: 'Loyola',
-          stations: ['Howard', 'Jarvis', 'Morse', 'Loyola'],
-          direction: 'toward 95th/Dan Ryan',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
+          stations: ['CIVIC CENTER Station', 'PEACHTREE CENTER Station', 'FIVE POINTS Station'],
+          direction: 'southbound',
           mentioned_stations: [],
         },
         agency_event_window: {
@@ -417,11 +326,11 @@ const V2_PAYLOAD = {
           source: 'pulse-cold',
           scope: {
             route: 'red',
-            from_station: 'Howard',
-            to_station: 'Loyola',
-            stations: ['Howard', 'Jarvis', 'Morse', 'Loyola'],
+            from_station: 'CIVIC CENTER Station',
+            to_station: 'FIVE POINTS Station',
+            stations: ['CIVIC CENTER Station', 'PEACHTREE CENTER Station', 'FIVE POINTS Station'],
             direction: 'branch-0-inbound',
-            direction_label: 'toward 95th/Dan Ryan',
+            direction_label: 'southbound',
           },
           lifecycle: {
             first_seen_ts: NOW - 55 * 60_000,
@@ -474,6 +383,14 @@ beforeEach(() => {
   }
 });
 
+function stubReducedMotion() {
+  vi.stubGlobal('matchMedia', (query) => ({
+    matches: query === '(prefers-reduced-motion: reduce)',
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+}
+
 afterEach(() => {
   // Unmount before restoring globals — EventPage installs a 5-minute
   // setInterval polling fetch, and the closure pins data + station index
@@ -488,7 +405,7 @@ describe('EventPage', () => {
   it('renders the matching alert by event id', async () => {
     render(<EventPage eventId="abc123" />);
     await waitFor(() => {
-      expect(screen.getByText('Red Line Delays at Howard')).toBeInTheDocument();
+      expect(screen.getByText('Red Line Delays at Five Points')).toBeInTheDocument();
     });
     expect(screen.getByText('View on Bluesky →')).toBeInTheDocument();
     // Breadcrumb replaces the old "← Back" link: Home › <day> › <route>.
@@ -507,83 +424,34 @@ describe('EventPage', () => {
     });
     expect(screen.getAllByText(/Per MARTA/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Per bot/).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'Loyola' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
   });
 
   it('renders a standalone observation by id', async () => {
     render(<EventPage eventId="bus99" />);
-    // "#66 Atlanta" appears both in the breadcrumb's current crumb and the
-    // page body, so assert presence rather than uniqueness.
     await waitFor(() => {
-      expect(screen.getAllByText('#66 Atlanta').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('#66 Brownlee Road / Harbin Road').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('ongoing')).toBeInTheDocument();
   });
 
-  it('renders an inferred Commuter cancellation with a cancellation-style layout', async () => {
-    render(<EventPage eventId="commuter-972" />);
-    await waitFor(() => {
-      expect(
-        screen.getByText('Scheduled train not seen running — the 9:55 AM Joliet train'),
-      ).toBeInTheDocument();
-    });
-    // "possible cancellation" badge, scheduled-departure relabel, and no
-    // duration/last-seen framing (a train that never ran).
-    expect(screen.getByText('possible cancellation')).toBeInTheDocument();
-    expect(screen.getByText('Scheduled departure')).toBeInTheDocument();
-    expect(screen.queryByText('First seen')).not.toBeInTheDocument();
-    expect(screen.queryByText('Last seen')).not.toBeInTheDocument();
-    expect(screen.queryByText('Duration')).not.toBeInTheDocument();
-    // The run (origin → destination) survives even though the map is dropped.
-    expect(screen.getByText('LaSalle Street')).toBeInTheDocument();
-    expect(screen.getByText('Joliet')).toBeInTheDocument();
-  });
-
-  it('renders a bot-only Commuter delay title with the train number when available', async () => {
-    render(<EventPage eventId="commuter-991" />);
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { name: /Commuter Electric train #121 delayed/i }),
-      ).toBeInTheDocument();
-    });
-    expect(screen.queryByRole('heading', { name: /12:20 PM University Park train/i })).toBeNull();
-  });
-
-  it('shows a delay badge for an official-only Commuter delay alert', async () => {
-    render(<EventPage eventId="commuter-official-delay" />);
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { name: /Rock Island train #426 delayed/i }),
-      ).toBeInTheDocument();
-    });
-    expect(screen.getAllByText('delayed').length).toBeGreaterThan(0);
-  });
-
   it('relabels and de-times a future planned-work alert', async () => {
-    render(<EventPage eventId="commuter-planned" />);
+    render(<EventPage eventId="planned-rail" />);
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: /Track Construction Saturday/i }),
+        screen.getByRole('heading', { name: /Gold Line planned service change/i }),
       ).toBeInTheDocument();
     });
     const article = screen.getByRole('article');
-    // The disruption hasn't started: count-up framing is wrong.
     expect(within(article).getByText('Announced')).toBeInTheDocument();
     expect(within(article).queryByText('First seen')).not.toBeInTheDocument();
     expect(within(article).queryByText('Ongoing for')).not.toBeInTheDocument();
-    // The Commuter "planned work" badge carries the status; no redundant "planned"
-    // pill, and no red "ongoing" marker before the work starts.
-    expect(within(article).getByText('planned work')).toBeInTheDocument();
+    expect(within(article).getByText('planned')).toBeInTheDocument();
     expect(within(article).queryByText('ongoing')).not.toBeInTheDocument();
-    expect(within(article).queryByText('planned')).not.toBeInTheDocument();
-    // A multi-line parent can't name one line in the "Surrounding 24 hours"
-    // header — it generalizes to the agency and turns on per-row line pills so
-    // each related row says which line it's on.
-    expect(screen.getByText('Surrounding 24 hours on affected Commuter lines')).toBeInTheDocument();
-    expect(screen.queryByText(/Surrounding 24 hours on 7 Commuter lines/)).not.toBeInTheDocument();
   });
 
   it('shows a not-found message for an unknown id', async () => {
+    stubReducedMotion();
     render(<EventPage eventId="missing" />);
     await waitFor(() => {
       expect(screen.getByText(/page not found/i)).toBeInTheDocument();
@@ -591,102 +459,70 @@ describe('EventPage', () => {
   });
 
   it('does not link a station name when it is followed by a geographic suffix', async () => {
-    // "Atlanta River" / "Atlanta Avenue" etc. should not be linked to the
-    // Atlanta station even when Atlanta is in mentioned_stations. A bare
-    // "Atlanta" elsewhere in the same text should still link.
-    render(<EventPage eventId="brnriver" />);
+    render(<EventPage eventId="redplaza" />);
     await waitFor(() => {
-      expect(screen.getByText(/raised bridge/)).toBeInTheDocument();
+      expect(screen.getByText(/police activity/)).toBeInTheDocument();
     });
-    expect(screen.queryByRole('link', { name: /^Atlanta River$/ })).toBeNull();
-    // The bare "Atlanta" later in the sentence still links.
-    expect(screen.getAllByRole('link', { name: 'Atlanta' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: /^Five Points Plaza$/ })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
   });
 
   it('aggregates affected stations across all merged observations', async () => {
-    // The merged Loop incident pairs the alert with two pulse-cold obs on
-    // different lines. The chips must list endpoints from BOTH (primary +
-    // extra), not just the primary's Belmont/Atlanta — otherwise a five-line
-    // incident reads as one arbitrary stretch.
-    render(<EventPage eventId="loopevt" />);
+    render(<EventPage eventId="multirail" />);
     await waitFor(() => {
-      expect(screen.getByText('Loop Elevated Service Delayed')).toBeInTheDocument();
+      expect(screen.getByText('Downtown rail service delayed')).toBeInTheDocument();
     });
-    // Primary obs (Purple) endpoints. Belmont/Atlanta can appear in both the
-    // affected-stations chips and the per-obs stretch line in the timeline
-    // rail, so allow >=1 match.
-    expect(screen.getAllByRole('link', { name: 'Belmont' }).length).toBeGreaterThan(0);
-    // Extra obs (Pink) endpoint — proves we go beyond the primary observation.
-    expect(screen.getAllByRole('link', { name: 'Washington/Wabash' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'Ashland' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'CIVIC CENTER Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'ARTS CENTER Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
   });
 
   it('renders the combined multi-line map for a multi-line incident', async () => {
-    render(<EventPage eventId="loopevt" />);
+    render(<EventPage eventId="multirail" />);
     await waitFor(() => {
-      expect(screen.getByText('Loop Elevated Service Delayed')).toBeInTheDocument();
+      expect(screen.getByText('Downtown rail service delayed')).toBeInTheDocument();
     });
     expect(
       screen.getByRole('img', { name: /Affected stretches across 2 train lines/ }),
     ).toBeInTheDocument();
-    // Bot-detected stretches are labeled as observed impact, not "where this
-    // happened" — they spread downstream of the MARTA's reported epicenter.
-    expect(screen.getByText('Bot observed impact')).toBeInTheDocument();
+    expect(screen.getByText('Affected stations (shared trackage)')).toBeInTheDocument();
     expect(screen.queryByText('Where this happened')).not.toBeInTheDocument();
   });
 
   it('fans a bot stretch onto sibling lines that share the trackage', async () => {
-    // The bot's pulse-cold was scoped to Pink, but Ashland↔Adams/Wabash also
-    // carries Green and the MARTA alert names both lines. The station list and
-    // map must surface Green alongside Pink — and reframe the copy so the
-    // inferred Green rows don't masquerade as separate bot detections.
     render(<EventPage eventId="sharedtrk" />);
     await waitFor(() => {
       expect(
-        screen.getByText('Delays near Ashland/Lake Affecting Green and Pink Line Service'),
+        screen.getByText(
+          'Delays between Civic Center and Five Points affecting Red and Gold Line service',
+        ),
       ).toBeInTheDocument();
     });
-    // Reworded section label (not "Bot observed impacted stations").
     expect(screen.getByText('Affected stations (shared trackage)')).toBeInTheDocument();
-    // Both lines now surface (row labels + map legend). Green was entirely
-    // absent before the fan-out — its presence is the regression guard.
-    expect(screen.getAllByText('Pink').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Green').length).toBeGreaterThan(0);
-    // Map heading reframed away from crediting the bot for the Green stretch.
+    expect(screen.getAllByText('Red').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Gold').length).toBeGreaterThan(0);
     expect(screen.getByText('Affected stretches')).toBeInTheDocument();
     expect(screen.queryByText('Bot observed impact')).not.toBeInTheDocument();
   });
 
   it('does not pull in a non-incident line that merely shares the trackage', async () => {
-    // Brown-only alert on Belmont↔Fullerton, which Purple also runs. Purple is
-    // not in the incident's routes, so it must stay out — the shared-track
-    // fan-out only spreads across lines the MARTA alert already named.
-    render(<EventPage eventId="brnpurple" />);
+    render(<EventPage eventId="redonly" />);
     await waitFor(() => {
-      expect(screen.getByText('Brown Line Delays near Belmont')).toBeInTheDocument();
+      expect(screen.getByText('Red Line Delays near Civic Center')).toBeInTheDocument();
     });
-    // Scope to the event-detail article — the cross-line "Elsewhere on the
-    // system" section below it can legitimately mention Purple via unrelated
-    // contemporaneous incidents, which isn't what this guard is about.
     const article = within(screen.getByRole('article'));
-    // No fan-out happened, so the original (non-shared) framing stays.
     expect(article.queryByText('Affected stations (shared trackage)')).not.toBeInTheDocument();
-    // Purple is not pulled into this Brown incident's own footprint.
-    expect(article.queryByText('Purple')).not.toBeInTheDocument();
-    expect(article.queryByText('Purple Line')).not.toBeInTheDocument();
+    expect(article.queryByText('Gold')).not.toBeInTheDocument();
+    expect(article.queryByText('Gold Line')).not.toBeInTheDocument();
   });
 
   it('adds a cleared entry to the Per MARTA timeline when the alert resolved', async () => {
-    // The Brown Line alert is resolved with MARTA body text. The timeline should
-    // end on a "cleared" entry (newest) so it doesn't read as still ongoing.
-    render(<EventPage eventId="brnriver" />);
+    render(<EventPage eventId="redplaza" />);
     await waitFor(() => {
       expect(screen.getByText('MARTA cleared this alert.')).toBeInTheDocument();
     });
-    // Original message (1) + clear (1) = 2 updates.
     expect(screen.getByText(/Per MARTA · 2 updates/)).toBeInTheDocument();
-    // The MARTA body text still renders in its version entry.
-    expect(screen.getByText(/raised bridge/)).toBeInTheDocument();
+    expect(screen.getByText(/police activity/)).toBeInTheDocument();
   });
 
   it('adds an onset entry to the Per bot timeline for a back-dated cold start', async () => {
@@ -722,7 +558,7 @@ describe('EventPage', () => {
       expect(screen.getByText('Temporary Reroute')).toBeInTheDocument();
     });
     expect(screen.queryByText('Stations')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Wacker' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Randolph' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Baker' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ellis' })).not.toBeInTheDocument();
   });
 });

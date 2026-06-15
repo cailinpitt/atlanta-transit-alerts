@@ -8,8 +8,8 @@ const makeObs = (overrides = {}) => ({
   id: 1,
   kind: 'train',
   line: 'red',
-  from_station: 'Howard',
-  to_station: 'Jarvis',
+  from_station: 'FIVE POINTS Station',
+  to_station: 'GARNETT Station',
   ts: NOW - DAY,
   resolved_ts: NOW - DAY + 10 * 60_000,
   active: false,
@@ -20,7 +20,7 @@ const makeAlert = (overrides = {}) => ({
   alert_id: 1,
   kind: 'train',
   routes: ['red'],
-  affected_from_station: 'Howard',
+  affected_from_station: 'FIVE POINTS Station',
   affected_to_station: null,
   first_seen_ts: NOW - DAY,
   resolved_ts: NOW - DAY + 60_000,
@@ -30,14 +30,14 @@ const makeAlert = (overrides = {}) => ({
 
 describe('slugifyStation', () => {
   it('lowercases and dashifies', () => {
-    expect(slugifyStation('Howard')).toBe('howard');
-    expect(slugifyStation('Clark/Division')).toBe('clark-division');
-    expect(slugifyStation("O'Hare")).toBe('o-hare');
+    expect(slugifyStation('FIVE POINTS Station')).toBe('five-points-station');
+    expect(slugifyStation('Centennial Olympic Park')).toBe('centennial-olympic-park');
+    expect(slugifyStation('King Historic District')).toBe('king-historic-district');
   });
 
   it('handles parenthetical line qualifiers', () => {
-    expect(slugifyStation('Central (Green)')).toBe('central-green');
-    expect(slugifyStation('Western (Brown)')).toBe('western-brown');
+    expect(slugifyStation('Airport (Red)')).toBe('airport-red');
+    expect(slugifyStation('Ashby (Blue/Green)')).toBe('ashby-blue-green');
   });
 
   it('returns null for empty/null input', () => {
@@ -54,30 +54,22 @@ describe('buildStationIndex', () => {
   });
 
   it('indexes both endpoints of an observation', () => {
-    const o = makeObs({ from_station: 'Howard', to_station: 'Jarvis' });
+    const o = makeObs({ from_station: 'FIVE POINTS Station', to_station: 'GARNETT Station' });
     const r = buildStationIndex([], [o], { now: NOW });
-    expect(r.has('howard')).toBe(true);
-    expect(r.has('jarvis')).toBe(true);
+    expect(r.has('five-points-station')).toBe(true);
+    expect(r.has('garnett-station')).toBe(true);
   });
 
   it('includes every line that physically serves the station, not just lines with recent incidents', () => {
-    // Howard serves Purple + Red + Yellow per the master roster. A station
-    // page that only had a Pink (sorry, Red) incident in the window should
-    // still surface Purple and Yellow pills so visitors see the full
-    // line context — this is the Ashland (Green/Pink) bug class.
     const obs = [makeObs({ id: 1, line: 'red' })];
     const r = buildStationIndex([], obs, { now: NOW });
-    // Sorted in MARTA canonical order: red, brown, green, orange, pink, purple, yellow.
-    // Howard's served set after normalization: red, purple, yellow.
-    expect(r.get('howard').lines).toEqual(['red', 'purple', 'yellow']);
+    expect(r.get('five-points-station').lines).toEqual(['blue', 'gold', 'green', 'red']);
   });
 
   it('normalizes raw short-code line keys so they merge with the master roster', () => {
-    // A hand-built record passes `line: 'p'` (raw MARTA short code). The index
-    // should not end up with both `'p'` and `'purple'` as distinct entries.
-    const r = buildStationIndex([], [makeObs({ line: 'p' })], { now: NOW });
-    expect(r.get('howard').lines).not.toContain('p');
-    expect(r.get('howard').lines).toContain('purple');
+    const r = buildStationIndex([], [makeObs({ line: 'RED' })], { now: NOW });
+    expect(r.get('five-points-station').lines).not.toContain('RED');
+    expect(r.get('five-points-station').lines).toContain('red');
   });
 
   it('drops observations outside the rolling window', () => {
@@ -92,77 +84,85 @@ describe('buildStationIndex', () => {
   });
 
   it('counts alerts and observations together at a station', () => {
-    const o = makeObs({ from_station: 'Howard', to_station: null });
-    const a = makeAlert({ affected_from_station: 'Howard' });
+    const o = makeObs({ from_station: 'FIVE POINTS Station', to_station: null });
+    const a = makeAlert({ affected_from_station: 'FIVE POINTS Station' });
     const r = buildStationIndex([a], [o], { now: NOW });
-    expect(r.get('howard').count).toBe(2);
+    expect(r.get('five-points-station').count).toBe(2);
   });
 
   it('does not double-count an observation that touches a station at both endpoints', () => {
     // Same name in both endpoints is contrived but the dedup guard is real.
-    const o = makeObs({ from_station: 'Howard', to_station: 'Howard' });
+    const o = makeObs({ from_station: 'FIVE POINTS Station', to_station: 'FIVE POINTS Station' });
     const r = buildStationIndex([], [o], { now: NOW });
-    expect(r.get('howard').count).toBe(1);
+    expect(r.get('five-points-station').count).toBe(1);
   });
 
   it('indexes alert mentioned_stations alongside the segment endpoints', () => {
-    // The Monroe sick-customer alert names a single station ("delays at
-    // Monroe") so it has no segment endpoints, only mentioned_stations.
-    // Without indexing mentions, /station/monroe-red would show no MARTA
-    // alerts for this incident.
     const a = makeAlert({
       affected_from_station: null,
       affected_to_station: null,
-      mentioned_stations: ['Monroe (Red)'],
+      mentioned_stations: ['Peachtree Center Station'],
     });
     const r = buildStationIndex([a], [], { now: NOW });
-    expect(r.get('monroe-red').alerts).toContain(a);
+    expect(r.get('peachtree-center-station').alerts).toContain(a);
   });
 
   it('mentioned_stations dedupes against the segment endpoints', () => {
     // Upstream extractor includes between/from-to results in
     // mentioned_stations too — overlap shouldn't double-count.
     const a = makeAlert({
-      affected_from_station: 'Howard',
+      affected_from_station: 'FIVE POINTS Station',
       affected_to_station: null,
-      mentioned_stations: ['Howard'],
+      mentioned_stations: ['FIVE POINTS Station'],
     });
     const r = buildStationIndex([a], [], { now: NOW });
-    expect(r.get('howard').alerts).toHaveLength(1);
+    expect(r.get('five-points-station').alerts).toHaveLength(1);
   });
 
   it('ties an observation to inner stops via the enumerated stations fill', () => {
-    // Rockwell → Montrose on the Brown Line: the inner Western/Damen stops must
-    // tie to the incident, not just the two named endpoints.
     const o = makeObs({
-      line: 'brn',
-      from_station: 'Rockwell',
-      to_station: 'Montrose (Brown)',
-      stations: ['Rockwell', 'Western (Brown)', 'Damen (Brown)', 'Montrose (Brown)'],
+      line: 'red',
+      from_station: 'CIVIC CENTER Station',
+      to_station: 'GARNETT Station',
+      stations: [
+        'CIVIC CENTER Station',
+        'PEACHTREE CENTER Station',
+        'FIVE POINTS Station',
+        'GARNETT Station',
+      ],
     });
     const r = buildStationIndex([], [o], { now: NOW });
-    expect(r.get('western-brown').observations).toContain(o);
-    expect(r.get('damen-brown').observations).toContain(o);
-    expect(r.get('rockwell').observations).toContain(o);
-    expect(r.get('montrose-brown').observations).toContain(o);
+    expect(r.get('peachtree-center-station').observations).toContain(o);
+    expect(r.get('five-points-station').observations).toContain(o);
+    expect(r.get('civic-center-station').observations).toContain(o);
+    expect(r.get('garnett-station').observations).toContain(o);
   });
 
   it('falls back to from/to when an observation has no stations fill', () => {
-    const o = makeObs({ from_station: 'Howard', to_station: 'Jarvis', stations: [] });
+    const o = makeObs({
+      from_station: 'FIVE POINTS Station',
+      to_station: 'GARNETT Station',
+      stations: [],
+    });
     const r = buildStationIndex([], [o], { now: NOW });
-    expect(r.get('howard').observations).toContain(o);
-    expect(r.get('jarvis').observations).toContain(o);
+    expect(r.get('five-points-station').observations).toContain(o);
+    expect(r.get('garnett-station').observations).toContain(o);
   });
 
   it('ties an alert to inner stops via affected_stations', () => {
     const a = makeAlert({
-      routes: ['brn'],
-      affected_from_station: 'Rockwell',
-      affected_to_station: 'Montrose (Brown)',
-      affected_stations: ['Rockwell', 'Western (Brown)', 'Damen (Brown)', 'Montrose (Brown)'],
+      routes: ['red'],
+      affected_from_station: 'CIVIC CENTER Station',
+      affected_to_station: 'GARNETT Station',
+      affected_stations: [
+        'CIVIC CENTER Station',
+        'PEACHTREE CENTER Station',
+        'FIVE POINTS Station',
+        'GARNETT Station',
+      ],
     });
     const r = buildStationIndex([a], [], { now: NOW });
-    expect(r.get('western-brown').alerts).toContain(a);
-    expect(r.get('damen-brown').alerts).toContain(a);
+    expect(r.get('peachtree-center-station').alerts).toContain(a);
+    expect(r.get('five-points-station').alerts).toContain(a);
   });
 });

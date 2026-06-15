@@ -6,20 +6,13 @@ import {
   groupIncidentRecords,
   incidentDetections,
   incidentLifecycle,
-  isWebsiteIncident,
   legacyKind,
   observationSignals,
-  officialAlert,
   postUrlRkey,
   SIGNAL_TYPES,
 } from './incidents.js';
 import { buildStationIndex } from './stations.js';
 import { TRAIN_LINE_ORDER } from './trainLines.js';
-
-const COMMUTER_LINE_ORDER = [];
-function commuterIncidentStatus() {
-  return null;
-}
 
 // Identity-based cache so the eight aggregators downstream of a single
 // `data` poll don't re-run the O(alerts × observations) merge in lockstep.
@@ -114,43 +107,6 @@ export function buildIncidentsByDay(alerts, observations, numDays = 90, now = Da
     addSpan(o.line, o.ts, o.resolved_ts);
   }
 
-  return result;
-}
-
-// Commuter analog of buildIncidentsByDay: per-Commuter-line incident counts keyed by
-// day index for the timeline grid. Returns { lineKey: { dayIdx: count } } for
-// the 11 Commuter lines (keys absent until a line has activity). Same merge +
-// span-bucketing model as the train version.
-export function buildCommuterIncidentsByDay(alerts, observations, numDays = 90, now = Date.now()) {
-  const result = {};
-  const todayUTC = atlantaDayUTC(now);
-
-  function addSpan(lineId, startTs, endTs) {
-    if (!COMMUTER_LINE_ORDER.includes(lineId)) return;
-    if (!result[lineId]) result[lineId] = {};
-    const end = endTs || now;
-    const startDayIdx = Math.round((todayUTC - atlantaDayUTC(startTs)) / DAY_MS);
-    const endDayIdx = Math.round((todayUTC - atlantaDayUTC(end)) / DAY_MS);
-    const lo = Math.max(0, endDayIdx);
-    const hi = Math.min(numDays - 1, startDayIdx);
-    for (let d = lo; d <= hi; d++) {
-      result[lineId][d] = (result[lineId][d] || 0) + 1;
-    }
-  }
-
-  const { merged, standaloneAlerts, standaloneObs } = groupIncidentRecords(
-    alerts.filter((a) => a.kind === 'commuter'),
-    observations.filter((o) => o.kind === 'commuter'),
-  );
-  for (const m of merged) {
-    for (const route of m.routes) addSpan(route, m.first_seen_ts, m.resolved_ts);
-  }
-  for (const a of standaloneAlerts) {
-    for (const route of a.routes) addSpan(route, a.first_seen_ts, a.resolved_ts);
-  }
-  for (const o of standaloneObs) {
-    addSpan(o.line, o.ts, o.resolved_ts);
-  }
   return result;
 }
 
@@ -261,10 +217,6 @@ export function buildBusIncidentsByDay(
  *   mostAffectedCount: number,
  *   quietestLineId: string | null,
  *   quietestLineDays: number,
- *   commuterMostAffectedId: string | null,
- *   commuterMostAffectedCount: number,
- *   commuterQuietestLineId: string | null,
- *   commuterQuietestLineDays: number,
  * }}
  */
 export function computeSummaryStats(alerts, observations, now = Date.now()) {
@@ -297,14 +249,11 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
   const activeCount = incidents.filter((i) => i.active).length;
   const weeklyCount = incidents.filter((i) => i.ts >= weekAgo).length;
 
-  // Count last-30-day incidents per (kind, key) — train line key (e.g. "red"),
-  // bus route number ("66"), or Commuter line key ("bnsf"). Bus routes are
-  // included so the MARTA "most affected" answer reflects reality even when a
-  // chronically-troubled bus route outpaces every train line. MARTA and Commuter are
-  // counted into separate maps so each agency surfaces its own leader — the
-  // homepage shows a MARTA line and a Commuter line side by side.
+  // Count last-30-day incidents per (kind, key): rail/streetcar line key
+  // (e.g. "red") or bus route number ("66"). Bus routes are included so the
+  // MARTA "most affected" answer reflects reality even when a chronically
+  // troubled bus route outpaces every rail line.
   const officialCounts = new Map(); // key: `${kind}:${id}` -> { kind, id, count }
-  const commuterCounts = new Map(); // key: commuter line -> { kind:'commuter', id, count }
   for (const inc of incidents) {
     if (inc.ts < monthAgo) continue;
     if (inc.kind === 'train') {
@@ -323,13 +272,6 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
         cur.count++;
         officialCounts.set(key, cur);
       }
-    } else if (inc.kind === 'commuter') {
-      for (const line of inc.lines || []) {
-        if (!COMMUTER_LINE_ORDER.includes(line)) continue;
-        const cur = commuterCounts.get(line) || { kind: 'commuter', id: line, count: 0 };
-        cur.count++;
-        commuterCounts.set(line, cur);
-      }
     }
   }
   const pickMost = (map) => {
@@ -340,13 +282,12 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     return best;
   };
   const mostAffected = pickMost(officialCounts);
-  const commuterMostAffected = pickMost(commuterCounts);
 
-  // Quietest line: among a rail agency's lines, find the one whose most recent
+  // Quietest line: among MARTA rail/streetcar lines, find the one whose most recent
   // incident is the oldest (longest streak of clean days). Buses are excluded —
   // there are too many low-traffic routes for "Route 192: 60 days since last
   // incident" to be meaningful, and that's not the kind of brag riders care
-  // about anyway. Computed per agency so MARTA and Commuter each get a streak.
+  // about anyway.
   const quietestFor = (kind, lineOrder) => {
     const lastTsByLine = new Map();
     for (const inc of incidents) {
@@ -371,7 +312,6 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     return { lineId, lineDays };
   };
   const officialQuietest = quietestFor('train', TRAIN_LINE_ORDER);
-  const commuterQuietest = quietestFor('commuter', COMMUTER_LINE_ORDER);
 
   return {
     activeCount,
@@ -381,10 +321,6 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     mostAffectedCount: mostAffected?.count ?? 0,
     quietestLineId: officialQuietest.lineId,
     quietestLineDays: officialQuietest.lineDays,
-    commuterMostAffectedId: commuterMostAffected?.id ?? null,
-    commuterMostAffectedCount: commuterMostAffected?.count ?? 0,
-    commuterQuietestLineId: commuterQuietest.lineId,
-    commuterQuietestLineDays: commuterQuietest.lineDays,
   };
 }
 
@@ -797,8 +733,8 @@ export const SERVICE_HOURS_PER_DAY = DEFAULT_SERVICE_HOURS_PER_DAY;
 // Disruption-hours: total line-hours of incident coverage over a rolling
 // window. Caller hands in a single scope's alerts/observations (one line,
 // one route, or the whole system). For a multi-line MARTA alert (e.g. Red+
-// Purple shared trackage), each affected line counts separately — a 60-min
-// alert on Red+Purple contributes 120 line-minutes, matching the per-day
+// shared trackage), each affected line counts separately — a 60-min
+// alert on Red+Gold contributes 120 line-minutes, matching the per-day
 // timeline cells which also draw on both rows.
 //
 // Spans are clamped to the window and to `now` (active spans extend to now).
@@ -1355,7 +1291,6 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
   let activeCount = 0;
   let trainCount = 0;
   let busCount = 0;
-  let commuterCount = 0;
   let priorTotal = 0;
   let longest = null;
 
@@ -1372,7 +1307,6 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
     if (inc.active) activeCount += 1;
     if (inc.kind === 'train') trainCount += 1;
     else if (inc.kind === 'bus') busCount += 1;
-    else if (inc.kind === 'commuter') commuterCount += 1;
 
     const dayIdx = Math.round((incDay - weekStartUtc) / DAY_MS);
     if (dayIdx >= 0 && dayIdx < 7) perDay[dayIdx].count += 1;
@@ -1421,7 +1355,6 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
     activeCount,
     trainCount,
     busCount,
-    commuterCount,
     lineCount: lineSet.size,
     perDay,
     busiestDay,
@@ -1559,146 +1492,11 @@ export function computeStatsLeaderboards(
   return { worstDay, worstHour, worstStation, longestIncident };
 }
 
-// Commuter leaderboards for /stats. Commuter's signature data isn't stations or
-// track segments (the MARTA leaderboards above) — it's cancellations and delays,
-// which the timetabled commuter-rail detectors emit as point-event
-// observations (detection_source 'cancellation' / 'cancellation-inferred' /
-// 'delay'). This rolls them up per line so the page can show which line is
-// cancelling or running late most over the window. Republished Commuter GTFS-rt
-// alerts (kind='commuter' alerts, no detection_source) are counted separately as
-// `alertsCount` for context but don't feed the per-line cancel/delay tallies.
-/**
- * @param {import('./incidents.js').Alert[]} alerts
- * @param {import('./incidents.js').Observation[]} observations
- * @param {object} [options]
- * @param {number} [options.now]
- * @param {number} [options.windowDays]
- * @returns {{
- *   cancellationTotal: number,
- *   delayTotal: number,
- *   alertsCount: number,
- *   byLine: Array<{ line: string, cancellations: number, delays: number, total: number }>,
- *   topCancelled: { line: string, cancellations: number } | null,
- *   topDelayed: { line: string, delays: number } | null,
- *   hasData: boolean,
- * }}
- */
-export function computeCommuterLeaderboards(
-  alerts,
-  observations,
-  { now = Date.now(), windowDays = 90 } = {},
-) {
-  const cutoff = now - windowDays * DAY_MS;
-  const perLine = new Map(); // line -> { cancellations, delays }
-  const bump = (line, field) => {
-    if (!line) return;
-    const rec = perLine.get(line) ?? { cancellations: 0, delays: 0 };
-    rec[field] += 1;
-    perLine.set(line, rec);
-  };
-  let cancellationTotal = 0;
-  let delayTotal = 0;
-  for (const o of observations) {
-    if (o.kind !== 'commuter') continue;
-    if (o.ts == null || o.ts < cutoff) continue;
-    const src = o.detection_source;
-    if (src === 'cancellation' || src === 'cancellation-inferred') {
-      bump(o.line, 'cancellations');
-      cancellationTotal += 1;
-    } else if (src === 'delay') {
-      bump(o.line, 'delays');
-      delayTotal += 1;
-    }
-  }
-  let alertsCount = 0;
-  for (const a of alerts) {
-    if (a.kind !== 'commuter') continue;
-    if (a.first_seen_ts == null || a.first_seen_ts < cutoff) continue;
-    alertsCount += 1;
-  }
-  const byLine = [...perLine.entries()]
-    .map(([line, c]) => ({ line, ...c, total: c.cancellations + c.delays }))
-    .sort((a, b) => b.total - a.total || a.line.localeCompare(b.line));
-  const topCancelled =
-    byLine
-      .filter((r) => r.cancellations > 0)
-      .sort((a, b) => b.cancellations - a.cancellations || a.line.localeCompare(b.line))[0] ?? null;
-  const topDelayed =
-    byLine
-      .filter((r) => r.delays > 0)
-      .sort((a, b) => b.delays - a.delays || a.line.localeCompare(b.line))[0] ?? null;
-  return {
-    cancellationTotal,
-    delayTotal,
-    alertsCount,
-    byLine,
-    topCancelled,
-    topDelayed,
-    hasData: byLine.length > 0 || alertsCount > 0,
-  };
-}
-
-/**
- * Count Commuter train-level delay/cancellation status instances from nested
- * incidents. Bot observations count individually; official-only Commuter alerts
- * count once through `commuter_status` / text fallback.
- *
- * @param {import('./incidents.js').Incident[]} incidents
- * @param {object} [options]
- * @param {number} [options.now]
- * @param {number} [options.windowDays]
- * @param {string | null} [options.lineFilter]
- * @returns {{ cancellations: number, delays: number, total: number }}
- */
-export function computeCommuterStatusCounts(
-  incidents,
-  { now = Date.now(), windowDays = 90, lineFilter = null } = {},
-) {
-  const cutoff = now - windowDays * DAY_MS;
-  let cancellations = 0;
-  let delays = 0;
-  const observationInLine = (line, routes = []) =>
-    !lineFilter ||
-    line === lineFilter ||
-    (line == null && Array.isArray(routes) && routes.includes(lineFilter));
-
-  for (const inc of incidents || []) {
-    if (isWebsiteIncident(inc)) continue;
-    const routes = inc.routes || [];
-    if (lineFilter && !routes.includes(lineFilter)) continue;
-
-    let countedObservation = false;
-    for (const o of incidentDetections(inc)) {
-      const lifecycle = o.lifecycle ?? {};
-      const scope = o.scope ?? {};
-      if (lifecycle.first_seen_ts == null || lifecycle.first_seen_ts < cutoff) continue;
-      if (!observationInLine(scope.route, routes)) continue;
-      if (o.source === 'delay') {
-        delays += 1;
-        countedObservation = true;
-      } else if (o.source === 'cancellation' || o.source === 'cancellation-inferred') {
-        cancellations += 1;
-        countedObservation = true;
-      }
-    }
-
-    if (countedObservation) continue;
-    if (!officialAlert(inc)) continue;
-    const ts = incidentLifecycle(inc).first_seen_ts;
-    if (ts == null || ts < cutoff) continue;
-    const source = commuterIncidentStatus(inc)?.source;
-    if (source === 'delay') delays += 1;
-    else if (source === 'cancellation' || source === 'cancellation-inferred') cancellations += 1;
-  }
-
-  return { cancellations, delays, total: cancellations + delays };
-}
-
 // Recurring segments: bucket train-only bot observations by (line,
 // from_station → to_station) and rank by raw count. The point is to surface
 // chokepoints — a stretch of track that disrupts often — which the per-
 // station leaderboard (`worstStation`) doesn't capture because every cold
-// stretch through Clark/Division also touches Atlanta, North/Clybourn, etc.
+// stretch through Five Points also touches adjacent stations.
 // Counting unique segments instead of stations puts the spotlight on the
 // actual recurring infrastructure problem rather than the busiest junction.
 //
@@ -1835,10 +1633,8 @@ export function computeRestorationDeltas(
   const { merged } = getMerge(alerts, observations);
   const rows = [];
   for (const m of merged) {
-    // MARTA-only concept: the gap between MARTA closing an alert and the bot seeing
-    // service recover. Commuter has no equivalent "agency cleared the alert" event,
-    // so excluding it keeps the "MARTA cleared early/late" framing accurate.
-    if (m.kind === 'commuter') continue;
+    // MARTA-only concept: the gap between MARTA closing an alert and the bot
+    // seeing service recover.
     if (m.resolved_ts == null || m.obs_resolved_ts == null) continue;
     if (m.first_seen_ts < cutoff) continue;
     // Overlap gate: the observation must describe roughly the same span as

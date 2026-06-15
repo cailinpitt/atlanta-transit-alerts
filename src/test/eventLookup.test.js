@@ -107,8 +107,8 @@ describe('findIncidentById', () => {
   it('finds a grouped incident by any official alert rkey alias', () => {
     const grouped = incident({
       id: 'canonical',
-      kind: 'commuter',
-      routes: ['bnsf', 'md-w'],
+      kind: 'train',
+      routes: ['red', 'gold'],
       official_alerts: [
         { ...mergedIncident.official_alert, post_url: ALERT_URL },
         {
@@ -133,7 +133,7 @@ describe('findIncidentById', () => {
 
 describe('formatRoutesLabel', () => {
   it('single bus route uses verbose name', () => {
-    expect(formatRoutesLabel('bus', ['3'])).toBe('#3 King Drive');
+    expect(formatRoutesLabel('bus', ['66'])).toBe('#66 Brownlee Road / Harbin Road');
   });
   it('two bus routes joins with "and"', () => {
     expect(formatRoutesLabel('bus', ['136', '147'])).toBe('#136 and #147');
@@ -148,9 +148,7 @@ describe('formatRoutesLabel', () => {
     expect(formatRoutesLabel('train', ['red'])).toBe('Red Line');
   });
   it('two train lines pluralizes', () => {
-    // Routes here are full-name keys (the export normalizes the bot's short
-    // codes into full names like `purple` server-side).
-    expect(formatRoutesLabel('train', ['red', 'purple'])).toBe('Red and Purple Lines');
+    expect(formatRoutesLabel('train', ['red', 'gold'])).toBe('Red and Gold Lines');
   });
   it('empty routes falls back to generic', () => {
     expect(formatRoutesLabel('bus', [])).toBe('this route');

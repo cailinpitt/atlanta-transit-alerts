@@ -352,7 +352,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   const affectedStations = collectImpactedStations(incident);
   // Affected stretches as { line, from, to } segments. A bot scopes its
   // detection to one line, but on shared trackage the same stations carry the
-  // incident's other lines too — fan the stretch onto them so a Pink+Green
+  // incident's other lines too — fan the stretch onto them so a Red+Gold
   // event lists (and maps) both lines, not just whichever one the bot fired on.
   const { segments, expanded: sharedTrackage } = expandSharedTrackageSegments(
     affectedLineSegments(incident),
@@ -457,7 +457,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           "Service Change") are the case where the chips actually add
           information that isn't already in the headline.
           Skipped for bus events: upstream's affected_from/to_station for
-          bus alerts holds cross-street labels (e.g. "Wacker", "Randolph"),
+          bus alerts holds cross-street labels,
           not rail-station names. The station index is train-only by
           design — linking them produces /station/wacker pages with no
           incidents on record. The cross-street info is already in the bus
@@ -796,7 +796,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
                         {/* The affected stretch — without it, multiple
                             pulse-cold detections on the same line read as
                             duplicates since the bot_description sentence is
-                            generic ("Brown Line service appears degraded…"). */}
+                            generic ("Red Line service appears degraded…"). */}
                         {e.obs.from_station && e.obs.to_station && (
                           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                             <StationName
@@ -1006,7 +1006,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
       {/* Geographic map for train incidents with at least one named
           station. Bus incidents (no geometry data) and alerts that don't
           tag a station fall through to just the mini timeline below.
-          Multi-line incidents (a Loop-wide alert that merged several
+          Multi-line incidents (an alert that merged several
           per-line detections) use the combined map so every affected line
           shows its own stretch instead of one arbitrary line. */}
       {kind === 'train' &&
@@ -1034,7 +1034,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         <EventReplay
           eventId={incident.id}
           // Prefer the affected observation's own line so a multi-route incident
-          // (e.g. a shared Orange/Green stretch) projects onto the line the
+          // projects onto the line the
           // segment is actually on, not whichever route sorts first.
           lineKey={primary?.line ?? (Array.isArray(incident.routes) ? incident.routes[0] : null)}
           fromStation={primary?.from_station ?? official?.affected_from_station ?? null}

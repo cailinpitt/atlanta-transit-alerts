@@ -4,20 +4,20 @@ import HighlightedText from '../components/HighlightedText.jsx';
 
 describe('HighlightedText', () => {
   it('returns text untouched when query is empty', () => {
-    render(<HighlightedText text="Howard" query="" />);
-    expect(screen.getByText('Howard')).toBeInTheDocument();
+    render(<HighlightedText text="Five Points" query="" />);
+    expect(screen.getByText('Five Points')).toBeInTheDocument();
     expect(screen.queryByRole('mark')).toBeNull();
   });
 
   it('wraps the matched substring in <mark>', () => {
-    render(<HighlightedText text="Red Line Reroute at Howard" query="howard" />);
-    const mark = screen.getByText('Howard');
+    render(<HighlightedText text="Red Line Reroute at Five Points" query="five" />);
+    const mark = screen.getByText('Five');
     expect(mark.tagName).toBe('MARK');
   });
 
   it('matches case-insensitively but preserves original casing', () => {
-    render(<HighlightedText text="Howard" query="HOW" />);
-    expect(screen.getByText('How').tagName).toBe('MARK');
+    render(<HighlightedText text="Five Points" query="FIV" />);
+    expect(screen.getByText('Fiv').tagName).toBe('MARK');
   });
 
   it('highlights every occurrence', () => {
@@ -31,9 +31,9 @@ describe('HighlightedText', () => {
   });
 
   it('returns the original text when there is no match', () => {
-    const { container } = render(<HighlightedText text="Howard" query="xyz" />);
+    const { container } = render(<HighlightedText text="Five Points" query="xyz" />);
     expect(container.querySelectorAll('mark')).toHaveLength(0);
-    expect(container.textContent).toBe('Howard');
+    expect(container.textContent).toBe('Five Points');
   });
 
   it('returns null/empty input untouched', () => {

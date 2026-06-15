@@ -112,7 +112,7 @@ function describeObservation(obs) {
 
 // True when the headline already names this incident's first route — in which
 // case prepending the routes label produces awkward duplication ("#82
-// Kimball-Homan: #82 Kimball/Homan…", "Brown Line: Brown Line Service…").
+// Brownlee Road / Harbin Road: #66 Brownlee Road / Harbin Road…", "Red Line: Red Line Service…").
 function headlineNamesRoute(headline, kind, routes) {
   if (!headline || !routes || routes.length === 0) return false;
   const lower = headline.toLowerCase();
@@ -121,7 +121,7 @@ function headlineNamesRoute(headline, kind, routes) {
     // form to avoid stray substring hits like "53" inside a date or address.
     return new RegExp(`#${routes[0]}\\b`).test(lower);
   }
-  // train: any route's full name ("Brown Line", "Red", "Yellow Line") in the
+  // train: any route's full name ("Gold Line", "Red", "Streetcar") in the
   // headline means the line is already identified.
   return routes.some((r) => {
     const label = TRAIN_LINES[r]?.label?.toLowerCase();
@@ -230,7 +230,7 @@ function entryContentHtml(incident, thumb) {
 
 // Atom <category>/JSON tags. Built as a list of {term, label} pairs:
 //   - mode: bus | train
-//   - per-route: route-82 (#82) for bus; line-brown (Brown Line) for train
+//   - per-route: route-66 (#66) for bus; line-gold (Gold Line) for train
 //   - state: ongoing | resolved
 //   - source: official-alert and/or any signal kinds (pulse-cold, ghost, …)
 // Atom uses term + optional label; JSON Feed gets the labels.

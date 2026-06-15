@@ -140,8 +140,8 @@ describe('scopedRecords', () => {
       first_seen_ts: NOW - 1 * HOUR,
     }),
     alertInc({
-      routes: ['red', 'purple'],
-      post_url: 'https://bsky.app/profile/x/post/redpurple',
+      routes: ['red', 'gold'],
+      post_url: 'https://bsky.app/profile/x/post/redgold',
       first_seen_ts: NOW - 2 * HOUR,
       resolved_ts: NOW - 1 * HOUR,
     }),
@@ -164,13 +164,13 @@ describe('scopedRecords', () => {
     const ids = scopedRecords(pool, 'train', 'red').map((r) => r.id);
     expect(ids).toEqual([
       'tag:atlantatransitalerts.app,2026:event/red-new',
-      'tag:atlantatransitalerts.app,2026:event/redpurple', // multi-route red+purple still matches
+      'tag:atlantatransitalerts.app,2026:event/redgold',
     ]);
   });
 
   it('matches a multi-route incident from any of its routes', () => {
-    const ids = scopedRecords(pool, 'train', 'purple').map((r) => r.id);
-    expect(ids).toEqual(['tag:atlantatransitalerts.app,2026:event/redpurple']);
+    const ids = scopedRecords(pool, 'train', 'gold').map((r) => r.id);
+    expect(ids).toEqual(['tag:atlantatransitalerts.app,2026:event/redgold']);
   });
 
   it('scopes by kind so a bus route never picks up train incidents', () => {
@@ -205,15 +205,13 @@ describe('emitAtom', () => {
   });
 });
 
-// A Commuter cancellation/delay: website-data-first, so NO Bluesky post, and a
-// zero-duration point event (resolved_ts == first_seen_ts).
-const commuterInc = (over = {}) => ({
-  kind: 'commuter',
-  id: 'commuter-678',
-  routes: ['md-n'],
-  detection_source: 'delay',
-  from_station: 'Fox Lake',
-  to_station: 'Atlanta Union Station',
+const streetcarInc = (over = {}) => ({
+  kind: 'train',
+  id: 'streetcar-678',
+  routes: ['streetcar'],
+  detection_source: 'bunching',
+  from_station: 'Centennial Olympic Park',
+  to_station: 'King Historic District',
   first_seen_ts: NOW,
   ts: NOW,
   resolved_ts: NOW,
@@ -221,29 +219,29 @@ const commuterInc = (over = {}) => ({
   ...over,
 });
 
-describe('Commuter incidents in the feed', () => {
-  it('links a postless Commuter record to its SPA event page by id', () => {
-    const rec = buildEntryRecord(commuterInc());
-    expect(rec.link).toBe('https://atlantatransitalerts.app/event/commuter-678');
-    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:obs-commuter-678');
-    expect(rec.thumb).toBe(null); // no OG card for postless Commuter
+describe('Streetcar incidents in the feed', () => {
+  it('links a postless streetcar record to its SPA event page by id', () => {
+    const rec = buildEntryRecord(streetcarInc());
+    expect(rec.link).toBe('https://atlantatransitalerts.app/event/streetcar-678');
+    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:obs-streetcar-678');
+    expect(rec.thumb).toBe(null);
   });
 
-  it('is never treated as a detector blip despite zero duration', () => {
-    expect(isLikelyDetectorBlip(commuterInc())).toBe(false);
+  it('is treated like other detector observations for brief-blip filtering', () => {
+    expect(isLikelyDetectorBlip(streetcarInc())).toBe(true);
   });
 
-  it('tags a Commuter entry with the Commuter mode + line category', () => {
-    const rec = buildEntryRecord(commuterInc());
+  it('tags a streetcar entry with the train mode + line category', () => {
+    const rec = buildEntryRecord(streetcarInc());
     const terms = rec.categories.map((c) => c.term);
-    expect(terms).toContain('commuter');
-    expect(terms).toContain('commuter-line-md-n');
+    expect(terms).toContain('train');
+    expect(terms).toContain('line-streetcar');
   });
 
-  it('scopes per-line Commuter feeds by the lowercase line key', () => {
-    const pool = [commuterInc(), commuterInc({ id: 'commuter-9', routes: ['up-n'] })];
-    expect(scopedRecords(pool, 'commuter', 'md-n')).toHaveLength(1);
-    expect(scopedRecords(pool, 'commuter', 'up-n')).toHaveLength(1);
-    expect(scopedRecords(pool, 'commuter', 'bnsf')).toHaveLength(0);
+  it('scopes per-line streetcar feeds by the normalized route key', () => {
+    const pool = [streetcarInc(), streetcarInc({ id: 'red-9', routes: ['red'] })];
+    expect(scopedRecords(pool, 'train', 'streetcar')).toHaveLength(1);
+    expect(scopedRecords(pool, 'train', 'red')).toHaveLength(1);
+    expect(scopedRecords(pool, 'train', 'blue')).toHaveLength(0);
   });
 });

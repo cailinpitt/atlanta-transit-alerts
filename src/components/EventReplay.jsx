@@ -104,7 +104,7 @@ function vehicleSample(v, t, reducedMotion = false) {
 const LOOP_CENTER = [41.8807, -87.6298];
 
 // A train whose last sample lands within this many px of a terminus (or the
-// Loop, for round-trip lines) ran off the end of its line — a clean exit, not a
+// downtown, for trunk lines) ran off the end of its line — a clean exit, not a
 // data dropout. Beyond it, a stream that ends mid-route before the incident
 // resolves is the feed losing the train; we mark that distinctly so it doesn't
 // read as a train that simply left.
@@ -131,7 +131,7 @@ function dotInBox(d, a, b, margin = 9) {
 }
 
 // "toward Midway" → slug for matching a terminus station. Returns null for
-// non-station phrasings like "toward the Loop" (caller just skips the arrow).
+// non-station phrasings like "toward downtown" (caller just skips the arrow).
 function terminusSlug(directionLabel) {
   const m = directionLabel?.match(/toward\s+(.+)$/i);
   return m ? slugifyStation(m[1].trim()) : null;
@@ -141,7 +141,7 @@ function terminusSlug(directionLabel) {
 // name. A lone station — or a well-separated pair — rides centered above its
 // dot, dropping below only to dodge the top edge so the text doesn't clip. Two
 // stations that sit close together would otherwise collide, so:
-//   • a vertical stack (e.g. Damen / Irving Park where the Brown Line bends)
+//   • a vertical stack where a line bends
 //     sets its labels *beside* the dots, like a real transit map — on the side
 //     opposite the direction arrow so the two don't collide — instead of
 //     stacked on top of the track;
@@ -157,7 +157,7 @@ function affectedLabelOffsets(affected, width, height, arrowSide = 0) {
     if (close && dy >= dx) {
       // Vertical stack: labels beside the dots, fanned outward (upper label up,
       // lower label down) so each clears a horizontal track arm at its own dot's
-      // level — e.g. Damen sits at the Brown Line's bend, so a label level with
+      // level, so a label level with
       // it would land on the westbound arm. Sit on the side opposite the arrow
       // if there is one; otherwise the side toward the map's center (the more
       // open margin). Anchor so the text grows into open canvas, clear of the
@@ -389,7 +389,7 @@ export default function EventReplay({ eventId, lineKey, fromStation, toStation, 
   // cleanly reached the end of its run. Memoized per loaded track.
   const lostSignalVehicles = useMemo(() => {
     if (!track || !map || track.durSec <= 0) return [];
-    const loopPt = map.project(LOOP_CENTER[0], LOOP_CENTER[1]);
+    const downtownPt = map.project(LOOP_CENTER[0], LOOP_CENTER[1]);
     const out = [];
     for (const v of vehicles) {
       if (!v.s?.length) continue;
@@ -402,8 +402,8 @@ export default function EventReplay({ eventId, lineKey, fromStation, toStation, 
       const nearTerminus = terminalPts.some(
         (tp) => Math.hypot(tp.x - sn.x, tp.y - sn.y) <= TERMINUS_NEAR_PX,
       );
-      const nearLoop = Math.hypot(loopPt.x - sn.x, loopPt.y - sn.y) <= LOOP_NEAR_PX;
-      if (nearTerminus || nearLoop) continue; // clean exit — not a dropout
+      const nearDowntown = Math.hypot(downtownPt.x - sn.x, downtownPt.y - sn.y) <= LOOP_NEAR_PX;
+      if (nearTerminus || nearDowntown) continue; // clean exit, not a dropout
       out.push({ id: v.id, dir: v.dir, lastSec, x: sn.x, y: sn.y });
     }
     return out;
@@ -563,7 +563,7 @@ export default function EventReplay({ eventId, lineKey, fromStation, toStation, 
   let targetPt = termSlug
     ? (map.stations.find((s) => slugifyStation(s.name) === termSlug) ?? null)
     : null;
-  // "toward the Loop"/"downtown" isn't a station — aim at the downtown end.
+  // Directional downtown phrasing isn't a station — aim at the downtown end.
   if (!targetPt && /loop|downtown/i.test(directionLabel ?? '')) {
     targetPt = map.project(LOOP_CENTER[0], LOOP_CENTER[1]);
   }

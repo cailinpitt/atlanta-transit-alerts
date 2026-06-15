@@ -6,7 +6,7 @@ import { describeText, incidentRoutes } from './incidentText.jsx';
 // One side of a nav row: a link to the neighbor's event page. The directional
 // cue lives on a small "← Previous" / "Next →" caption line, with the
 // neighbor's headline on its own line below. Keeping the arrow off the title
-// line is deliberate — many titles are station pairs ("Ashland → Clinton"), so
+// line is deliberate — many titles are station pairs, so
 // a leading arrow on the same line read as a second, contradictory arrow.
 // Renders an inert spacer when there's no neighbor so the other side stays
 // edge-aligned.

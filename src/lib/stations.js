@@ -5,8 +5,7 @@
 // rest don't carry station info, so this index is naturally sparse.
 //
 // Upstream (atlanta-transit-insights) already disambiguates stations that share a name
-// across lines via parenthetical qualifiers — `Central (Green)` vs
-// `Central (Purple)`, `Western (Brown)` vs `Western (Blue/Forest Park)`.
+// across lines via parenthetical qualifiers when needed.
 // We trust the literal string as station identity. If two physically
 // different stations ever share the exact same name in the data, that's a
 // data-quality issue upstream, not something to paper over here.
@@ -23,9 +22,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // slug → array of normalized line keys that physically serve this station,
 // derived from the bundled trainStations.json roster. Without this, the
 // station's `lines` set would be inferred purely from incidents in the
-// rolling window — so a multi-line station like Ashland (Green/Pink)
-// renders only the Pink pill when only Pink had a recent incident, even
-// though the station physically serves Green too.
+// rolling window — so a multi-line station like Five Points still shows all
+// served rail lines even when only one line had a recent incident.
 const SERVED_LINES_BY_SLUG = (() => {
   const map = new Map();
   for (const s of trainStations) {
@@ -74,7 +72,7 @@ export function rosterStationBySlug(slug) {
 // All roster station names that physically serve any of the given lines.
 // Used to broaden the alert-text linkify pool beyond the upstream
 // extractor's `mentioned_stations` — MARTA's prose often names stations
-// (e.g. "Garfield", "Ashland/63") that the extractor missed, and we still
+// (e.g. "Five Points", "Peachtree Center") that the extractor missed, and we still
 // want them clickable. Line-scoped so cross-line same-named stops like
 // "Halsted" don't bleed in.
 export function stationsServingLines(lines) {
@@ -91,9 +89,7 @@ export function stationsServingLines(lines) {
 // Normalized line keys that physically serve the station named `name`,
 // resolved via its slug against the bundled roster. Empty when the name
 // doesn't match a known station. Used to spread a bot's single-line stretch
-// onto the OTHER affected lines that share the same trackage — e.g. a
-// pulse-cold the bot scoped to Pink between Ashland and Adams/Wabash also
-// hit Green, since both run those Lake St tracks.
+// onto the other affected lines that share the same trackage.
 /**
  * @param {string | null | undefined} name
  * @returns {string[]}
@@ -111,7 +107,7 @@ function compareByOfficialOrder(a, b) {
 }
 
 // Drop the parenthetical line qualifier upstream uses to disambiguate
-// same-named stations across lines: `Central (Purple)` → `Central`. Used
+// parenthetical line qualifiers. Used
 // everywhere we display a station name *next to* a line pill or under a
 // line-page heading — the suffix is redundant noise in those contexts.
 // The StationPage heading still uses the raw name (with the suffix) since
@@ -128,8 +124,7 @@ export function displayStationName(name) {
 }
 
 // Slugify a station name for use in URLs. Lowercase, collapse runs of
-// non-alphanumeric chars to '-', trim. `Central (Green)` → `central-green`,
-// `Clark/Division` → `clark-division`, `O'Hare` → `o-hare`.
+// non-alphanumeric chars to '-', trim.
 export function slugifyStation(name) {
   if (!name) return null;
   const slug = String(name)
@@ -185,7 +180,7 @@ export function buildStationIndex(
     }
     const rec = index.get(slug);
     // Normalize so a raw short-code (`'p'`) coming from a caller that built
-    // records by hand doesn't co-exist with the full-name (`'purple'`)
+    // records by hand doesn't co-exist with the normalized route key.
     // seeded from the master roster.
     if (line) rec.lines.add(normalizeTrainLine(line));
     return rec;

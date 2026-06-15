@@ -40,7 +40,7 @@ export default function DayPage({ dateStr }) {
   const dayUtc = useMemo(() => dayStringToUtc(dateStr), [dateStr]);
   const dayLabel = dayUtc != null ? formatAtlantaDay(dayUtc) : null;
 
-  // Optional line/route scope carried in the query string (?lines=orange,
+  // Optional line/route scope carried in the query string (?lines=gold,
   // ?lines=none&routes=66). Lets a "view this day" link from a line-scoped
   // surface — e.g. the event page's mini timeline — land filtered to the
   // line in question instead of the whole system. Parsed once: the page is

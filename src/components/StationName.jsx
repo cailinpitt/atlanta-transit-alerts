@@ -9,9 +9,9 @@ import HighlightedText from './HighlightedText.jsx';
 export default function StationName({ name, stationIndex: _stationIndex, searchQuery = '' }) {
   if (!name) return null;
   const slug = slugifyStation(name);
-  // Display drops the "(Purple)"-style qualifier — line context is already
+  // Display drops parenthetical line qualifiers — line context is already
   // visible elsewhere on every render site that uses this component.
-  // Slug still derives from the full name so /station/central-purple stays
+  // Slug still derives from the full name so qualified stations stay
   // distinct from /station/central-green.
   const display = displayStationName(name);
   const inner = <HighlightedText text={display} query={searchQuery} />;
@@ -20,7 +20,7 @@ export default function StationName({ name, stationIndex: _stationIndex, searchQ
   if (known) {
     // Dotted underline as a "this text is interactive" cue without going as
     // loud as full blue-link styling — these names appear inline inside
-    // descriptive sentences (e.g. "Howard → Loyola"), so a subtle always-on
+    // descriptive sentences, so a subtle always-on
     // affordance reads better than nothing-until-hover. Solidifies + turns
     // blue on hover to confirm it's a link.
     return (

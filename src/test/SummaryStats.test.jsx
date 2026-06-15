@@ -10,7 +10,7 @@ const baseProps = {
   weeklyCount: 5,
   mostAffectedKind: 'train',
   mostAffectedId: 'red',
-  quietestLineId: 'yellow',
+  quietestLineId: 'streetcar',
   quietestLineDays: 10,
   alerts: [],
   observations: [],
@@ -50,70 +50,27 @@ describe('SummaryStats', () => {
     expect(screen.getAllByText(/most affected \(last 30 days\)/i).length).toBeGreaterThan(0);
   });
 
-  it('renders separate MARTA and Commuter most-affected / quietest lines', () => {
-    render(
-      <SummaryStats
-        {...baseProps}
-        commuterMostAffectedId="bnsf"
-        commuterQuietestLineId="up-n"
-        commuterQuietestLineDays={9}
-      />,
-    );
-    expect(screen.getAllByText(/Red Line/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Yellow Line/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/BNSF/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Union Pacific North/).length).toBeGreaterThan(0);
-  });
-
-  it('gates the per-agency lines on the agency filter', () => {
-    const props = {
-      ...baseProps,
-      commuterMostAffectedId: 'bnsf',
-      commuterQuietestLineId: 'up-n',
-      commuterQuietestLineDays: 9,
-    };
-    const { rerender } = render(<SummaryStats {...props} agency="official" />);
-    expect(screen.getAllByText(/Red Line/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/BNSF/)).toHaveLength(0);
-
-    rerender(<SummaryStats {...props} agency="commuter" />);
-    expect(screen.queryAllByText(/Red Line/)).toHaveLength(0);
-    expect(screen.getAllByText(/BNSF/).length).toBeGreaterThan(0);
-  });
-
   it('renders an "all clear" active label when nothing is active', () => {
     render(<SummaryStats {...baseProps} activeCount={0} showActive />);
     expect(screen.getAllByText(/all clear/i).length).toBeGreaterThan(0);
   });
 
-  it('labels MARTA train disruption hours explicitly', () => {
+  it('labels MARTA rail disruption hours explicitly', () => {
     render(<SummaryStats {...baseProps} observations={[railObservation('train', 'red')]} />);
-    expect(screen.getAllByText(/MARTA trains disrupted in last 7 days/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/MARTA rail trains disrupted in last 7 days/i).length,
+    ).toBeGreaterThan(0);
   });
 
-  it('shows only MARTA disruption cards when scoped to MARTA', () => {
+  it('shows rail disruption cards for rail and streetcar observations', () => {
     render(
       <SummaryStats
         {...baseProps}
-        agency="official"
-        observations={[railObservation('train', 'red'), railObservation('commuter', 'me')]}
+        observations={[railObservation('train', 'red'), railObservation('train', 'streetcar')]}
       />,
     );
-    expect(screen.getAllByText(/MARTA trains disrupted in last 7 days/i).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/Commuter trains disrupted in last 7 days/i)).toHaveLength(0);
-  });
-
-  it('shows only Commuter disruption cards when scoped to Commuter', () => {
-    render(
-      <SummaryStats
-        {...baseProps}
-        agency="commuter"
-        observations={[railObservation('train', 'red'), railObservation('commuter', 'me')]}
-      />,
-    );
-    expect(screen.queryAllByText(/MARTA trains disrupted in last 7 days/i)).toHaveLength(0);
-    expect(screen.getAllByText(/Commuter trains disrupted in last 7 days/i).length).toBeGreaterThan(
-      0,
-    );
+    expect(
+      screen.getAllByText(/MARTA rail trains disrupted in last 7 days/i).length,
+    ).toBeGreaterThan(0);
   });
 });

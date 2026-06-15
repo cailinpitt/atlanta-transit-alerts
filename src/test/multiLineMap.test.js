@@ -39,7 +39,7 @@ describe('sliceTrackBetween', () => {
     // *beyond* the end station (y=12). The slice is a single vertex, so the
     // old per-segment trim (gated on length>=2) never fired and the highlight
     // drew a stub down to y=30 and back. The chord-projection trim drops it.
-    // Regression for the Brown Line Belmont→Fullerton overshoot.
+    // Regression for sparse track slices that previously overshot short station spans.
     const sparse = [
       { x: 0, y: 30 },
       { x: 0, y: 40 },
@@ -58,41 +58,41 @@ describe('buildMultiLineMap', () => {
   });
 
   it('projects every requested line with its brand color', () => {
-    const map = buildMultiLineMap(['purple', 'pink', 'green', 'brown', 'orange']);
+    const map = buildMultiLineMap(['red', 'gold', 'green', 'blue', 'streetcar']);
     expect(map).not.toBeNull();
     expect(map.width).toBeGreaterThan(0);
     expect(map.height).toBeGreaterThan(0);
     const keys = map.tracksByLine.map((t) => t.key).sort();
-    expect(keys).toEqual(['brown', 'green', 'orange', 'pink', 'purple']);
+    expect(keys).toEqual(['blue', 'gold', 'green', 'red', 'streetcar']);
     for (const t of map.tracksByLine) {
       expect(t.color).toMatch(/^#/);
       expect(t.tracks.length).toBeGreaterThan(0);
     }
   });
 
-  it('tags shared Loop stations with every serving line', () => {
-    const map = buildMultiLineMap(['purple', 'pink', 'green', 'brown', 'orange']);
-    const wabash = map.stations.find((s) => s.name === 'Washington/Wabash');
-    expect(wabash).toBeTruthy();
-    expect(wabash.lines.sort()).toEqual(['brown', 'green', 'orange', 'pink', 'purple']);
-    expect(wabash.slug).toBe('washington-wabash');
+  it('tags transfer stations with every serving line', () => {
+    const map = buildMultiLineMap(['red', 'gold', 'green', 'blue']);
+    const fivePoints = map.stations.find((s) => s.name === 'FIVE POINTS Station');
+    expect(fivePoints).toBeTruthy();
+    expect(fivePoints.lines.sort()).toEqual(['blue', 'gold', 'green', 'red']);
+    expect(fivePoints.slug).toBe('five-points-station');
   });
 
   it('dedups repeated line keys', () => {
-    const map = buildMultiLineMap(['purple', 'purple', 'pink']);
-    expect(map.tracksByLine.map((t) => t.key).sort()).toEqual(['pink', 'purple']);
+    const map = buildMultiLineMap(['red', 'red', 'streetcar']);
+    expect(map.tracksByLine.map((t) => t.key).sort()).toEqual(['red', 'streetcar']);
   });
 });
 
 describe('affectedLineSegments', () => {
   it('returns one segment per merged observation, each on its own line', () => {
     // Observation ts ordering vs the MARTA anchor decides the primary (closest)
-    // and the order of the extras: brown (anchor), then pink, then orange.
+    // and the order of the extras.
     const T = 1_000_000_000_000;
     const incident = v2Incident({
       id: '115102',
       kind: 'train',
-      routes: ['purple', 'pink', 'green', 'brown', 'orange'],
+      routes: ['red', 'gold', 'green'],
       official: {
         alert_id: '115102',
         first_seen_ts: T,
@@ -101,30 +101,30 @@ describe('affectedLineSegments', () => {
       },
       observations: [
         {
-          line: 'brown',
-          from_station: 'Armitage (Brown/Purple)',
-          to_station: 'Atlanta (Brown/Purple)',
+          line: 'red',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
           ts: T,
         },
         {
-          line: 'pink',
-          from_station: 'Ashland (Green/Pink)',
-          to_station: 'Washington/Wabash',
+          line: 'gold',
+          from_station: 'ARTS CENTER Station',
+          to_station: 'FIVE POINTS Station',
           ts: T + 1000,
         },
         {
-          line: 'orange',
-          from_station: '35th/Archer',
-          to_station: 'Halsted (Orange)',
+          line: 'green',
+          from_station: 'BANKHEAD Station',
+          to_station: 'FIVE POINTS Station',
           ts: T + 2000,
         },
       ],
     });
     const segs = affectedLineSegments(incident);
     expect(segs).toEqual([
-      { line: 'brown', from: 'Armitage (Brown/Purple)', to: 'Atlanta (Brown/Purple)' },
-      { line: 'pink', from: 'Ashland (Green/Pink)', to: 'Washington/Wabash' },
-      { line: 'orange', from: '35th/Archer', to: 'Halsted (Orange)' },
+      { line: 'red', from: 'CIVIC CENTER Station', to: 'FIVE POINTS Station' },
+      { line: 'gold', from: 'ARTS CENTER Station', to: 'FIVE POINTS Station' },
+      { line: 'green', from: 'BANKHEAD Station', to: 'FIVE POINTS Station' },
     ]);
   });
 
@@ -132,11 +132,17 @@ describe('affectedLineSegments', () => {
     const incident = v2Incident({
       id: 'a1',
       kind: 'train',
-      routes: ['red', 'purple'],
-      official: { alert_id: 'a1', affected_from_station: 'Belmont', affected_to_station: 'Howard' },
+      routes: ['red', 'gold'],
+      official: {
+        alert_id: 'a1',
+        affected_from_station: 'CIVIC CENTER Station',
+        affected_to_station: 'FIVE POINTS Station',
+      },
       observations: [],
     });
-    expect(affectedLineSegments(incident)).toEqual([{ line: null, from: 'Belmont', to: 'Howard' }]);
+    expect(affectedLineSegments(incident)).toEqual([
+      { line: null, from: 'CIVIC CENTER Station', to: 'FIVE POINTS Station' },
+    ]);
   });
 
   it('returns the single segment for a standalone observation', () => {
@@ -145,9 +151,18 @@ describe('affectedLineSegments', () => {
       kind: 'train',
       routes: ['red'],
       official: null,
-      observations: [{ line: 'red', from_station: 'Howard', to_station: 'Loyola', ts: 1 }],
+      observations: [
+        {
+          line: 'red',
+          from_station: 'CIVIC CENTER Station',
+          to_station: 'FIVE POINTS Station',
+          ts: 1,
+        },
+      ],
     });
-    expect(affectedLineSegments(incident)).toEqual([{ line: 'red', from: 'Howard', to: 'Loyola' }]);
+    expect(affectedLineSegments(incident)).toEqual([
+      { line: 'red', from: 'CIVIC CENTER Station', to: 'FIVE POINTS Station' },
+    ]);
   });
 
   it('skips segments with no endpoints', () => {

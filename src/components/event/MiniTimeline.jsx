@@ -14,8 +14,7 @@ const BUS_COLOR = '#64748b'; // slate-500 — mirrors Timeline's bus row tint.
 // When the incident affects multiple routes, counts are kept *per route* so
 // the renderer can draw one row per affected line. Collapsing into a single
 // row paints "any of these routes had an incident" with one color, which
-// misrepresents alerts that touch the lines unevenly (e.g. Pink+Green where
-// only Pink had prior days of trouble).
+// misrepresents alerts that touch the lines unevenly.
 function buildEventLineWindow(incident, incidents, numDays = 14, now = Date.now()) {
   const routes = incidentRoutes(incident);
   const kind = legacyKind(incident);

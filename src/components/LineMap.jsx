@@ -117,8 +117,8 @@ function TerminalLabel({ station, mapWidth, mapHeight, radius }) {
 // for the line at all (geography missing or wrong line key) — the caller
 // shouldn't paper over a blank rendering with a "no data" placeholder.
 //
-// When ≥4 stations cluster downtown (true for every line except Yellow),
-// a zoom inset is rendered in the lower-right corner so the dense Loop
+// When four or more stations cluster downtown,
+// a zoom inset is rendered in the lower-right corner so the dense downtown
 // stations are individually clickable rather than overlapping dots.
 export default function LineMap({ lineKey, stationIndex }) {
   const map = useMemo(
@@ -178,7 +178,7 @@ export default function LineMap({ lineKey, stationIndex }) {
           {/* py-6 reserves space inside the scroll container's clip box so
               HTML terminal labels can overflow above/below the SVG without
               being chopped. The labels translate up to ~labelHeight + 6 px
-              above the top-edge dot; on a landscape line like Yellow whose
+              above the top-edge dot; on a mostly horizontal line whose
               SVG can render only ~190 px tall at narrow widths, that places
               the label at negative y relative to the inner container. The
               padding turns that negative offset into a positive one inside

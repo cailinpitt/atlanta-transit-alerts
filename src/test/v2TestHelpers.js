@@ -1,7 +1,7 @@
 export const DEFAULT_NOW = 1_000_000_000_000;
 
-export const modeForKind = (kind) => (kind === 'commuter' ? 'commuter_rail' : kind);
-export const agencyForKind = (kind) => (kind === 'commuter' ? 'commuter' : 'official');
+export const modeForKind = (kind) => kind;
+export const agencyForKind = () => 'official';
 
 export function lifecycle({
   first_seen_ts = null,
@@ -116,7 +116,6 @@ export function incident(over = {}) {
     official_alerts,
     observations,
     detections,
-    commuter_status,
     cancellation,
     status,
     sources,
@@ -138,9 +137,7 @@ export function incident(over = {}) {
     detections ??
     (observations ?? []).map((o) => detectionFromObs(o, { kind, routes, now: first_seen_ts }));
   const builtStatus =
-    status ??
-    (cancellation ? { type: 'cancellation', ...cancellation } : null) ??
-    (commuter_status ? { type: commuter_status.source, ...commuter_status } : null);
+    status ?? (cancellation ? { type: 'cancellation', ...cancellation } : null) ?? null;
   return {
     id: over.id ?? 'inc1',
     agency,

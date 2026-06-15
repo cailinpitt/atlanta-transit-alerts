@@ -10,7 +10,7 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 // A fixed Atlanta-afternoon anchor so hour bucketing is deterministic.
-const NOW = Date.UTC(2026, 4, 28, 20, 0, 0); // 2026-05-28 20:00 UTC ≈ 15:00 CDT
+const NOW = Date.UTC(2026, 4, 28, 19, 0, 0); // 2026-05-28 19:00 UTC = 15:00 Atlanta
 
 function obs(line, from, to, source = 'pulse-cold') {
   return { line, from_station: from, to_station: to, detection_source: source };
@@ -31,34 +31,34 @@ describe('computeStretchRecurrence', () => {
       id: 's1',
       kind: 'train',
       first_seen_ts: NOW - 1 * DAY,
-      observations: [obs('orange', 'Western (Orange)', 'Ashland (Orange)')],
+      observations: [obs('gold', 'ARTS CENTER Station', 'CIVIC CENTER Station')],
     }),
     inc({
       id: 's2',
       kind: 'train',
       first_seen_ts: NOW - 10 * DAY,
-      observations: [obs('orange', 'Western (Orange)', 'Ashland (Orange)')],
+      observations: [obs('gold', 'ARTS CENTER Station', 'CIVIC CENTER Station')],
     }),
     inc({
       id: 'self',
       kind: 'train',
       first_seen_ts: NOW,
-      observations: [obs('orange', 'Western (Orange)', 'Ashland (Orange)')],
+      observations: [obs('gold', 'ARTS CENTER Station', 'CIVIC CENTER Station')],
     }),
     // Different stretch — must not count.
     inc({
       id: 'other',
       kind: 'train',
       first_seen_ts: NOW - 2 * DAY,
-      observations: [obs('orange', 'Halsted', 'Ashland (Orange)')],
+      observations: [obs('gold', 'DORAVILLE Station', 'CHAMBLEE Station')],
     }),
   ];
 
   it('counts incidents on the same stretch and excludes self from priorCount', () => {
     const out = computeStretchRecurrence(incidents, {
-      line: 'orange',
-      fromStation: 'Western (Orange)',
-      toStation: 'Ashland (Orange)',
+      line: 'gold',
+      fromStation: 'ARTS CENTER Station',
+      toStation: 'CIVIC CENTER Station',
       selfId: 'self',
       now: NOW,
       windowDays: 90,
@@ -71,9 +71,9 @@ describe('computeStretchRecurrence', () => {
   it('returns null for a one-off stretch (no prior recurrence)', () => {
     expect(
       computeStretchRecurrence(incidents, {
-        line: 'orange',
-        fromStation: 'Halsted',
-        toStation: 'Ashland (Orange)',
+        line: 'gold',
+        fromStation: 'DORAVILLE Station',
+        toStation: 'CHAMBLEE Station',
         selfId: 'other',
         now: NOW,
         windowDays: 90,
@@ -87,18 +87,18 @@ describe('computeStretchRecurrence', () => {
         id: 'r',
         kind: 'train',
         first_seen_ts: NOW,
-        observations: [obs('orange', 'A', 'B', 'roundup')],
+        observations: [obs('gold', 'A', 'B', 'roundup')],
       }),
     ];
     expect(
       computeStretchRecurrence(round, {
-        line: 'orange',
+        line: 'gold',
         fromStation: 'A',
         toStation: 'B',
         now: NOW,
       }),
     ).toBeNull();
-    expect(computeStretchRecurrence(incidents, { line: 'orange', now: NOW })).toBeNull();
+    expect(computeStretchRecurrence(incidents, { line: 'gold', now: NOW })).toBeNull();
   });
 });
 
@@ -150,7 +150,7 @@ describe('computeLineDurationRank', () => {
 });
 
 describe('computeHourOfDayContext', () => {
-  // Pile 30 incidents into the same Atlanta hour as NOW (15:00 CDT) so that
+  // Pile 30 incidents into the same Atlanta hour as NOW so that
   // hour is far above the flat mean.
   const incidents = [];
   for (let i = 0; i < 30; i++) {

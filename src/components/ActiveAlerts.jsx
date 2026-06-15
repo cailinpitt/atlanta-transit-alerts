@@ -21,7 +21,7 @@ import StationName from './StationName.jsx';
 const BUS_COLOR = '#64748b';
 
 // Per-incident colors for the gantt bar. Rail incidents that touch
-// multiple lines (e.g. Red+Purple shared trackage) get one color per route so
+// multiple lines (e.g. Red+Gold shared trackage) get one color per route so
 // the bar renders as alternating bands rather than collapsing to the first
 // line's color. Buses always slot into the shared slate tint — bus alerts can
 // also span multiple routes, but the routes don't have per-route brand colors.

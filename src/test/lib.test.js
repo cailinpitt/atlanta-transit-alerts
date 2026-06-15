@@ -20,10 +20,6 @@ import {
 import { formatDuration, formatGap, formatRelativeTime, formatWeekRange } from '../lib/format.js';
 import {
   buildSearchMatchers,
-  commuterIncidentStatus,
-  commuterPointEvent,
-  commuterPointEventLabel,
-  commuterPointEventTitle,
   filterIncidents,
   findRelatedIncidents,
   groupIncidentRecords,
@@ -107,8 +103,8 @@ const makeObs = (overrides = {}) => ({
   ...overrides,
 });
 
-const modeForKind = (kind) => (kind === 'commuter' ? 'commuter_rail' : kind);
-const agencyForKind = (kind) => (kind === 'commuter' ? 'commuter' : 'official');
+const modeForKind = (kind) => kind;
+const agencyForKind = () => 'official';
 const lifecycle = ({ first_seen_ts, ts, onset_ts, resolved_ts, active, duration_ms }) => ({
   first_seen_ts: first_seen_ts ?? ts ?? null,
   onset_ts: onset_ts ?? null,
@@ -187,7 +183,6 @@ const aInc = (over = {}) => {
     active = false,
     official,
     observations,
-    commuter_status,
     ...top
   } = over;
   const base = { first_seen_ts, resolved_ts, active, duration_ms: top.duration_ms ?? null };
@@ -204,7 +199,7 @@ const aInc = (over = {}) => {
       ...official,
     }),
     detections: (observations ?? []).map((o) => detectionFromObs(kind, routes, o)),
-    status: commuter_status ? { type: commuter_status.source, ...commuter_status } : null,
+    status: null,
     ...top,
   };
 };
@@ -245,16 +240,6 @@ describe('filterIncidents', () => {
   it('returns everything when no filters are set', () => {
     const result = filterIncidents([aInc(), oInc()]);
     expect(result).toHaveLength(2);
-  });
-
-  it('agency filter scopes to MARTA or Commuter; MARTA line filter ignores Commuter', () => {
-    const official = aInc({ kind: 'train', routes: ['red'] });
-    const commuter = aInc({ kind: 'commuter', routes: ['up-w'] });
-    expect(filterIncidents([official, commuter])).toHaveLength(2); // null = all
-    expect(filterIncidents([official, commuter], { agencies: ['commuter'] })).toEqual([commuter]);
-    expect(filterIncidents([official, commuter], { agencies: ['official'] })).toEqual([official]);
-    // A MARTA line selection must NOT hide Commuter (the agency filter governs it).
-    expect(filterIncidents([official, commuter], { lines: ['red'] })).toHaveLength(2);
   });
 
   it('filters incidents by train line', () => {
@@ -345,58 +330,6 @@ describe('filterIncidents', () => {
 });
 
 describe('incidentHeadlineText', () => {
-  it('summarizes Commuter alert incidents that contain multiple delayed trains', () => {
-    const inc = aInc({
-      kind: 'commuter',
-      routes: ['ri'],
-      official: {
-        headline: 'RID #428 Delayed',
-        short_description:
-          'RID train #428, scheduled to depart Joliet at 3:25 PM, is operating 20 to 25 minutes behind schedule.',
-      },
-      observations: [
-        {
-          id: 'commuter-1003',
-          kind: 'commuter',
-          line: 'ri',
-          detection_source: 'delay',
-          train_number: '426',
-          ts: NOW,
-        },
-        {
-          id: 'commuter-1004',
-          kind: 'commuter',
-          line: 'ri',
-          detection_source: 'delay',
-          train_number: '428',
-          ts: NOW,
-        },
-      ],
-    });
-
-    expect(incidentHeadlineText(inc)).toBe('Rock Island trains #426 and #428 delayed');
-  });
-
-  it('summarizes single-train Commuter alert incidents from the train identity', () => {
-    const inc = aInc({
-      kind: 'commuter',
-      routes: ['ri'],
-      official: { headline: 'RID #418 on the move.' },
-      observations: [
-        {
-          id: 'commuter-1004',
-          kind: 'commuter',
-          line: 'ri',
-          detection_source: 'delay',
-          train_number: '418',
-          ts: NOW,
-        },
-      ],
-    });
-
-    expect(incidentHeadlineText(inc)).toBe('Rock Island train #418 delayed');
-  });
-
   it('uses the earliest official version as the stable MARTA incident title', () => {
     const inc = aInc({
       kind: 'train',
@@ -447,8 +380,8 @@ const makeObsForMerge = (overrides = {}) => ({
   id: 1,
   kind: 'train',
   line: 'red',
-  from_station: 'Jarvis',
-  to_station: '95th/Dan Ryan',
+  from_station: 'CIVIC CENTER Station',
+  to_station: 'FIVE POINTS Station',
   ts: NOW + 5 * 60_000,
   resolved_ts: NOW + 30 * 60_000,
   active: false,
@@ -467,7 +400,7 @@ describe('groupIncidentRecords', () => {
     expect(standaloneAlerts).toHaveLength(0);
     expect(standaloneObs).toHaveLength(0);
     expect(merged[0].headline).toBe('Red Line Delays');
-    expect(merged[0].from_station).toBe('Jarvis');
+    expect(merged[0].from_station).toBe('CIVIC CENTER Station');
   });
 
   it('keeps an alert with no observation as a standalone alert', () => {
@@ -644,33 +577,23 @@ describe('computeSummaryStats', () => {
       mostAffectedCount: 0,
       quietestLineId: null,
       quietestLineDays: 0,
-      commuterMostAffectedId: null,
-      commuterMostAffectedCount: 0,
-      commuterQuietestLineId: null,
-      commuterQuietestLineDays: 0,
     });
   });
 
-  it('computes a separate most-affected and quietest line for Commuter', () => {
+  it('keeps bus and rail leaderboards distinct', () => {
     const alerts = [
-      // MARTA train leader.
       makeAlert({ alert_id: 1, routes: ['red'], first_seen_ts: NOW - 1 * DAY }),
       makeAlert({ alert_id: 2, routes: ['red'], first_seen_ts: NOW - 2 * DAY }),
-      // Commuter: BNSF is the most-affected line; UP-N's lone old incident makes
-      // it the quietest.
-      makeAlert({ alert_id: 3, kind: 'commuter', routes: ['bnsf'], first_seen_ts: NOW - 1 * DAY }),
-      makeAlert({ alert_id: 4, kind: 'commuter', routes: ['bnsf'], first_seen_ts: NOW - 3 * DAY }),
-      makeAlert({ alert_id: 5, kind: 'commuter', routes: ['up-n'], first_seen_ts: NOW - 9 * DAY }),
+      makeAlert({ alert_id: 3, kind: 'bus', routes: ['66'], first_seen_ts: NOW - 1 * DAY }),
+      makeAlert({ alert_id: 4, kind: 'bus', routes: ['66'], first_seen_ts: NOW - 3 * DAY }),
+      makeAlert({ alert_id: 5, kind: 'bus', routes: ['12'], first_seen_ts: NOW - 9 * DAY }),
     ];
     const r = computeSummaryStats(alerts, [], NOW);
-    // MARTA leaders unchanged by the Commuter rows.
     expect(r.mostAffectedKind).toBe('train');
     expect(r.mostAffectedId).toBe('red');
-    // Commuter gets its own pair.
-    expect(r.commuterMostAffectedId).toBe('bnsf');
-    expect(r.commuterMostAffectedCount).toBe(2);
-    expect(r.commuterQuietestLineId).toBe('up-n');
-    expect(r.commuterQuietestLineDays).toBe(9);
+    expect(r.mostAffectedCount).toBe(2);
+    expect(r.quietestLineId).toBe('red');
+    expect(r.quietestLineDays).toBe(1);
   });
 
   it('quietest line picks the train line with the oldest most-recent incident', () => {
@@ -767,186 +690,8 @@ describe('observationSignals', () => {
   });
 });
 
-describe('commuterPointEvent', () => {
-  const pointInc = (over = {}) =>
-    oInc({
-      id: 'commuter-992',
-      kind: 'commuter',
-      routes: ['bnsf'],
-      obs: {
-        id: 'commuter-992',
-        detection_source: 'delay',
-        line: 'bnsf',
-        from_station: 'Aurora',
-        to_station: 'Atlanta Union Station',
-        direction_label: null,
-        bot_description: '~57 min late — the 12:05 PM Atlanta Union Station train',
-        ...over,
-      },
-    });
-
-  it('returns the kind, lede, and station pair for a delay', () => {
-    expect(commuterPointEvent(pointInc())).toEqual({
-      source: 'delay',
-      lede: '~57 min late — the 12:05 PM Atlanta Union Station train',
-      fromStation: 'Aurora',
-      toStation: 'Atlanta Union Station',
-      directionLabel: null,
-    });
-  });
-
-  it('recognizes confirmed and inferred cancellations', () => {
-    expect(commuterPointEvent(pointInc({ detection_source: 'cancellation' }))?.source).toBe(
-      'cancellation',
-    );
-    expect(
-      commuterPointEvent(pointInc({ detection_source: 'cancellation-inferred' }))?.source,
-    ).toBe('cancellation-inferred');
-  });
-
-  it('returns a null lede when the bot shipped no description', () => {
-    expect(commuterPointEvent(pointInc({ bot_description: undefined })).lede).toBeNull();
-  });
-
-  it('returns null for non-point observations', () => {
-    expect(
-      commuterPointEvent(oInc({ kind: 'commuter', obs: { detection_source: 'gap' } })),
-    ).toBeNull();
-  });
-
-  it('returns null for incidents carrying a Commuter alert (merged)', () => {
-    expect(
-      commuterPointEvent(
-        aInc({
-          kind: 'commuter',
-          routes: ['bnsf'],
-          official: { headline: 'x' },
-          observations: [
-            {
-              detection_source: 'delay',
-              line: 'bnsf',
-              bot_description: '~57 min late — the 12:05 PM Atlanta Union Station train',
-            },
-          ],
-        }),
-      ),
-    ).toBeNull();
-  });
-});
-
-describe('commuterPointEventLabel', () => {
-  it('maps each kind to its badge label', () => {
-    expect(commuterPointEventLabel('delay')).toBe('delayed');
-    expect(commuterPointEventLabel('planned-delay')).toBe('planned work');
-    expect(commuterPointEventLabel('cancellation')).toBe('cancelled');
-    expect(commuterPointEventLabel('cancellation-inferred')).toBe('possible cancellation');
-    expect(commuterPointEventLabel('gap')).toBeNull();
-  });
-});
-
-describe('commuterPointEventTitle', () => {
-  it('uses train numbers for bot-only Commuter delay titles', () => {
-    expect(
-      commuterPointEventTitle(
-        oInc({
-          id: 'commuter-991',
-          kind: 'commuter',
-          routes: ['me'],
-          obs: {
-            detection_source: 'delay',
-            line: 'me',
-            train_number: '121',
-            bot_description: '~70 min late — the 12:20 PM University Park train',
-          },
-        }),
-      ),
-    ).toBe('Commuter Electric train #121 delayed');
-  });
-
-  it('returns null when a bot-only Commuter point event has no train number', () => {
-    expect(
-      commuterPointEventTitle(
-        oInc({
-          kind: 'commuter',
-          routes: ['me'],
-          obs: { detection_source: 'delay', line: 'me' },
-        }),
-      ),
-    ).toBeNull();
-  });
-});
-
-describe('commuterIncidentStatus', () => {
-  it('reads official Commuter delay classifications', () => {
-    expect(
-      commuterIncidentStatus(
-        aInc({
-          kind: 'commuter',
-          official: { headline: 'RID #426 Delayed' },
-          commuter_status: { source: 'delay', train_number: '426' },
-        }),
-      ),
-    ).toEqual({ source: 'delay' });
-  });
-
-  it('falls back to official Commuter alert text for older data', () => {
-    const incident = aInc({
-      kind: 'commuter',
-      routes: ['ri'],
-      official: {
-        headline: 'RID #426 Delayed',
-        short_description:
-          'RID train #426 is operating 30 to 35 minutes behind schedule due to switch problems.',
-      },
-    });
-    expect(commuterIncidentStatus(incident)).toEqual({ source: 'delay' });
-    expect(incidentHeadlineText(incident)).toBe('Rock Island train #426 delayed');
-  });
-
-  it('treats construction delay advisories as planned work, not train-level delays', () => {
-    const incident = aInc({
-      kind: 'commuter',
-      routes: ['md-w'],
-      official: {
-        headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
-        short_description:
-          'Track construction will be taking place on Saturday, June 13 through Sunday, June 14. Trains may incur delays enroute up to 20 minutes behind scheduled passing through the work zone.',
-      },
-      commuter_status: { source: 'delay', train_number: null },
-    });
-    expect(commuterIncidentStatus(incident)).toEqual({ source: 'planned-delay' });
-    expect(incidentHeadlineText(incident)).toBe(
-      'Track Construction Saturday, June 13 through Sunday, June 14',
-    );
-  });
-});
-
 describe('incidentCategory / isPlannedIncident', () => {
   const NOW_TS = NOW;
-
-  it('classifies a Commuter planned-delay as planned work', () => {
-    const inc = aInc({
-      kind: 'commuter',
-      routes: ['up-n'],
-      active: true,
-      official: { headline: 'Track Construction Saturday, June 13' },
-      commuter_status: { source: 'planned-delay' },
-    });
-    expect(isPlannedIncident(inc, NOW_TS)).toBe(true);
-    expect(incidentCategory(inc, NOW_TS)).toBe('planned');
-  });
-
-  it('classifies a routine Commuter delay as a delay', () => {
-    const inc = aInc({
-      kind: 'commuter',
-      routes: ['ri'],
-      active: true,
-      official: { headline: 'RID #703 Delayed' },
-      commuter_status: { source: 'delay', train_number: '703' },
-    });
-    expect(isPlannedIncident(inc, NOW_TS)).toBe(false);
-    expect(incidentCategory(inc, NOW_TS)).toBe('delay');
-  });
 
   it('treats a MARTA alert with a multi-day date-only window as planned', () => {
     const inc = aInc({
@@ -984,10 +729,9 @@ describe('incidentCategory / isPlannedIncident', () => {
 });
 
 describe('modeLabel', () => {
-  it('keeps MARTA bus and train distinct and labels Commuter', () => {
-    expect(modeLabel('train')).toBe('MARTA Train');
+  it('keeps MARTA bus and rail distinct', () => {
+    expect(modeLabel('train')).toBe('MARTA Rail');
     expect(modeLabel('bus')).toBe('MARTA Bus');
-    expect(modeLabel('commuter')).toBe('Commuter');
   });
 });
 
@@ -996,16 +740,18 @@ describe('modeLabel', () => {
 // ---------------------------------------------------------------------------
 describe('filterIncidents search', () => {
   it('matches alert headlines case-insensitively', () => {
-    const a1 = aInc({ official: { headline: 'Red Line Delays at Howard' } });
-    const a2 = aInc({ official: { headline: 'Blue Line Delay near Forest Park' } });
-    const r = filterIncidents([a1, a2], { search: 'howard' });
+    const a1 = aInc({ official: { headline: 'Red Line Delays at Five Points' } });
+    const a2 = aInc({ official: { headline: 'Blue Line Delay near Decatur' } });
+    const r = filterIncidents([a1, a2], { search: 'five points' });
     expect(r.map((i) => i.id)).toEqual([a1.id]);
   });
 
   it('matches observation from/to stations', () => {
-    const o1 = oInc({ obs: { from_station: 'Polk', to_station: 'Ashland' } });
-    const o2 = oInc({ obs: { from_station: 'Belmont', to_station: 'Howard' } });
-    const r = filterIncidents([o1, o2], { search: 'howard' });
+    const o1 = oInc({ obs: { from_station: 'Decatur Station', to_station: 'Avondale Station' } });
+    const o2 = oInc({
+      obs: { from_station: 'Civic Center Station', to_station: 'Five Points Station' },
+    });
+    const r = filterIncidents([o1, o2], { search: 'five points' });
     expect(r.map((i) => i.id)).toEqual([o2.id]);
   });
 
@@ -1026,28 +772,28 @@ describe('filterIncidents search', () => {
     expect(filterIncidents([o], { search: 'green' })).toHaveLength(1);
   });
 
-  it('matches bus route by name (e.g. "Atlanta" → route 66)', () => {
+  it('matches bus route by name', () => {
     const o = oInc({
       kind: 'bus',
       routes: ['66'],
       obs: { kind: 'bus', line: '66', from_station: null, to_station: null },
     });
-    expect(filterIncidents([o], { search: 'atlanta' })).toHaveLength(1);
+    expect(filterIncidents([o], { search: 'brownlee' })).toHaveLength(1);
   });
 
   it('matches incidents via their line label', () => {
-    const a = aInc({ routes: ['brown'], official: { headline: 'Service issue' } });
-    expect(filterIncidents([a], { search: 'brown' })).toHaveLength(1);
+    const a = aInc({ routes: ['streetcar'], official: { headline: 'Service issue' } });
+    expect(filterIncidents([a], { search: 'streetcar' })).toHaveLength(1);
   });
 
-  it('matches "red line" and "Brown Line" conversational forms', () => {
+  it('matches rail line conversational forms', () => {
     const red = oInc({ obs: { line: 'red', from_station: null, to_station: null } });
-    const brn = oInc({
-      routes: ['brown'],
-      obs: { line: 'brown', from_station: null, to_station: null },
+    const gold = oInc({
+      routes: ['gold'],
+      obs: { line: 'gold', from_station: null, to_station: null },
     });
     expect(filterIncidents([red], { search: 'red line' })).toHaveLength(1);
-    expect(filterIncidents([brn], { search: 'Brown Line' })).toHaveLength(1);
+    expect(filterIncidents([gold], { search: 'gold line' })).toHaveLength(1);
   });
 
   it('matches signal labels (e.g. "headway gaps" → gap incidents)', () => {
@@ -1131,9 +877,8 @@ describe('buildHourOfWeek', () => {
   });
 
   it('counts incidents into their start-time bucket', () => {
-    // 2026-01-05 is a Monday in Atlanta (UTC-6).
-    const monday3pmCT = Date.UTC(2026, 0, 5, 21, 0); // 3pm CT = 21:00 UTC
-    const obs = makeObs({ ts: monday3pmCT });
+    const monday3pmAtlanta = Date.UTC(2026, 0, 5, 20, 0);
+    const obs = makeObs({ ts: monday3pmAtlanta });
     const { grid, total } = buildHourOfWeek([], [obs]);
     expect(total).toBe(1);
     expect(grid[1][15]).toBe(1); // Monday, 3pm
@@ -1468,13 +1213,15 @@ describe('buildSearchMatchers', () => {
   });
 
   it('matches MARTA headline case-insensitively', () => {
-    const a = aInc({ official: { headline: 'Red Line Reroute at Howard' } });
-    expect(buildSearchMatchers('howard').matchesIncident(a)).toBe(true);
+    const a = aInc({ official: { headline: 'Red Line Reroute at Five Points' } });
+    expect(buildSearchMatchers('five points').matchesIncident(a)).toBe(true);
   });
 
   it('matches observation segment endpoints', () => {
-    const o = oInc({ obs: { from_station: 'Jarvis', to_station: 'Howard' } });
-    expect(buildSearchMatchers('jarvis').matchesIncident(o)).toBe(true);
+    const o = oInc({
+      obs: { from_station: 'Civic Center Station', to_station: 'Five Points Station' },
+    });
+    expect(buildSearchMatchers('civic center').matchesIncident(o)).toBe(true);
   });
 
   it('matches train line by full label', () => {
@@ -1490,33 +1237,6 @@ describe('buildSearchMatchers', () => {
   it('matches signal label aliases', () => {
     const o = oInc({ obs: { signals: ['gap'], detection_source: 'gap' } });
     expect(buildSearchMatchers('headway gap').matchesIncident(o)).toBe(true);
-  });
-
-  it('matches synthesized Commuter multi-train titles', () => {
-    const inc = aInc({
-      kind: 'commuter',
-      routes: ['ri'],
-      official: { headline: 'RID #428 Delayed' },
-      observations: [
-        {
-          id: 'commuter-1003',
-          kind: 'commuter',
-          line: 'ri',
-          detection_source: 'delay',
-          train_number: '426',
-          ts: NOW,
-        },
-        {
-          id: 'commuter-1004',
-          kind: 'commuter',
-          line: 'ri',
-          detection_source: 'delay',
-          train_number: '428',
-          ts: NOW,
-        },
-      ],
-    });
-    expect(buildSearchMatchers('#426').matchesIncident(inc)).toBe(true);
   });
 });
 

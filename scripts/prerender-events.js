@@ -70,7 +70,7 @@ function softColor(hex, alpha = 0.18) {
 
 function accentFor(incident) {
   // Multi-route alerts use a kind-based label (e.g. `#136, #147, #151` or
-  // `Red and Purple Lines`) so the OG card reflects the full footprint, not
+  // `Red and Gold Lines`) so the OG card reflects the full footprint, not
   // just the first listed route.
   const routes =
     Array.isArray(incident.routes) && incident.routes.length > 0
@@ -81,7 +81,7 @@ function accentFor(incident) {
   const label = formatRoutesLabel(incident.kind, routes) || 'MARTA';
 
   // `chips` renders one pill per affected line/route on the card, mirroring the
-  // SPA's LinePill — a Pink+Green incident shows a pink chip *and* a green chip
+  // SPA's LinePill — a Red+Gold incident shows a red chip and a gold chip
   // rather than one chip miscolored as the first line. `label` is still the
   // combined text used for meta tags / JSON-LD; the chips are the visual.
   if (incident.kind === 'train') {

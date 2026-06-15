@@ -159,7 +159,7 @@ export default function LinePage({ kind, lineId }) {
   const busName = !isTrain ? BUS_ROUTE_NAMES[lineId] : null;
   const isKnown = isTrain ? !!trainInfo : !!busName;
   // Use the normalized id for all internal lookups so a `/line/org` URL matches
-  // data tagged 'orange'.
+  // data tagged with a non-MARTA line key.
   const effectiveLineId = isTrain ? normalizedLineId : lineId;
   // Lines treated as rail for display copy ("this line" vs "this route") and for
   // skipping the bus-route-style chrome.
@@ -347,7 +347,7 @@ export default function LinePage({ kind, lineId }) {
   }, [data, lineAlerts, lineObservations, now]);
 
   // Station index built from the full dataset, not just this line. A station
-  // can appear on multiple lines (Howard is on Red + Yellow; Damen on Blue +
+  // can appear on multiple lines; the station's line pills should include
   // Brown), and clicking it should land on the cross-line station page —
   // not be gated on whether this particular line meets the threshold.
   const stationIndex = useMemo(() => {

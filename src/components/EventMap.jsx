@@ -171,8 +171,7 @@ export default function EventMap({ lineKey, fromStation, toStation, active = fal
               // axis (vertical segment → labels above/below; horizontal
               // segment → labels left/right). The previous always-left/right
               // placement put labels near neighboring gray dots when the
-              // segment was nearly vertical, e.g. Southport → Fullerton on
-              // the Brown Line.
+              // segment was nearly vertical.
               let segmentIsVertical = false;
               if (affected.length === 2) {
                 const dx = Math.abs(affected[0].x - affected[1].x);
@@ -213,7 +212,7 @@ export default function EventMap({ lineKey, fromStation, toStation, active = fal
                 const LABEL_GAP = 14;
                 // Approximate the label's width as a fraction of the
                 // canvas so longer names ("Dempster-Skokie") clamp at a
-                // larger xRatio than short ones ("Howard"). Without this,
+                // larger xRatio than short ones. Without this,
                 // a long label on a left-of-midpoint dot can still grow
                 // leftward past the canvas edge and clip into card
                 // padding. ~0.015 per char tuned for the worst-case 480px
@@ -268,7 +267,7 @@ export default function EventMap({ lineKey, fromStation, toStation, active = fal
 // segment into view. The map's inner content has a 480px minWidth, which
 // exceeds many phone viewports — without this, narrow viewports default to
 // scrollLeft: 0, hiding incidents that sit on the right side of the line
-// (e.g. Blue Line's O'Hare branch). `affectedKey` re-runs the scroll when
+// `affectedKey` re-runs the scroll when
 // the highlighted stations change, so navigating between events updates
 // the framing instead of stuck at the previous segment's position.
 export function MapScroller({ mapWidth, affectedCenterX, affectedKey, children }) {

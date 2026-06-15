@@ -150,15 +150,15 @@ describe('buildEventSummaryText', () => {
   it('assembles a multi-line summary for a resolved incident', () => {
     expect(
       buildEventSummaryText({
-        description: 'Trains standing near Ashland',
-        lineLabel: 'Orange Line',
+        description: 'Trains standing near Arts Center',
+        lineLabel: 'Gold Line',
         dateText: 'May 28, 2026',
         durationText: '59 min',
         active: false,
         url: 'https://atlantatransitalerts.app/event/abc',
       }),
     ).toBe(
-      'Orange Line: Trains standing near Ashland\nMay 28, 2026 · lasted 59 min\nhttps://atlantatransitalerts.app/event/abc',
+      'Gold Line: Trains standing near Arts Center\nMay 28, 2026 · lasted 59 min\nhttps://atlantatransitalerts.app/event/abc',
     );
   });
 

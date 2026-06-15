@@ -458,11 +458,11 @@ export function incidentHeadlineText(incident) {
 }
 
 // The per-line affected stretches for an incident, as `{ line, from, to }`
-// segments. A multi-line incident (a Loop-wide alert that merged several
+// segments. A multi-line incident that merged several
 // pulse-cold detections) carries one segment per merged observation, each on
 // its OWN line — the multi-line event map uses these to highlight each line's
 // real stretch instead of drawing one arbitrary line. `line` is null for an
-// alert-level segment ("between Belmont and Howard" with no single owning
+// alert-level segment with no single owning
 // line); the renderer then highlights it on every drawn line serving both
 // endpoints.
 /**

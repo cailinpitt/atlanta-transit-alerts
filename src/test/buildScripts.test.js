@@ -132,22 +132,22 @@ describe('incidentRecords wire → row contract', () => {
     const childUrl = 'https://bsky.app/profile/did:plc:abc/post/childrkey';
     const grouped = incident({
       id: 'primaryrkey',
-      kind: 'commuter',
-      routes: ['bnsf', 'md-w'],
+      kind: 'train',
+      routes: ['red', 'gold'],
       official: {
         alert_id: 'primary',
-        headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
+        headline: 'Downtown rail service delayed',
         post_url: primaryUrl,
       },
       official_alerts: [
         officialAlertFromOfficial({
           alert_id: 'primary',
-          headline: 'Track Construction',
+          headline: 'Downtown rail service delayed',
           post_url: primaryUrl,
         }),
         officialAlertFromOfficial({
           alert_id: 'child',
-          headline: 'Track Construction',
+          headline: 'Downtown rail service delayed',
           post_url: childUrl,
         }),
       ],
@@ -173,7 +173,7 @@ describe('incidentRecords wire → row contract', () => {
         official_alert: {
           id: 'v2-alert',
           headline: 'Red Line Delays',
-          description: 'Delayed near Howard.',
+          description: 'Delayed near Five Points.',
           post_url: ALERT_URL,
           lifecycle: {
             first_seen_ts: NOW - 60 * 60_000,
@@ -181,10 +181,10 @@ describe('incidentRecords wire → row contract', () => {
             active: false,
           },
           scope: {
-            from_station: 'Howard',
-            to_station: 'Loyola',
-            direction: 'toward 95th/Dan Ryan',
-            stations: ['Howard', 'Jarvis', 'Morse', 'Loyola'],
+            from_station: 'CIVIC CENTER Station',
+            to_station: 'FIVE POINTS Station',
+            direction: 'southbound',
+            stations: ['CIVIC CENTER Station', 'PEACHTREE CENTER Station', 'FIVE POINTS Station'],
             mentioned_stations: [],
           },
           agency_event_window: {
@@ -200,10 +200,10 @@ describe('incidentRecords wire → row contract', () => {
             source: 'pulse-cold',
             scope: {
               route: 'red',
-              from_station: 'Howard',
-              to_station: 'Loyola',
-              direction_label: 'toward 95th/Dan Ryan',
-              stations: ['Howard', 'Jarvis', 'Morse', 'Loyola'],
+              from_station: 'CIVIC CENTER Station',
+              to_station: 'FIVE POINTS Station',
+              direction_label: 'southbound',
+              stations: ['CIVIC CENTER Station', 'PEACHTREE CENTER Station', 'FIVE POINTS Station'],
             },
             lifecycle: {
               first_seen_ts: NOW - 55 * 60_000,
@@ -223,17 +223,21 @@ describe('incidentRecords wire → row contract', () => {
       alert_id: 'v2-alert',
       kind: 'train',
       headline: 'Red Line Delays',
-      affected_from_station: 'Howard',
-      affected_to_station: 'Loyola',
-      affected_stations: ['Howard', 'Jarvis', 'Morse', 'Loyola'],
+      affected_from_station: 'CIVIC CENTER Station',
+      affected_to_station: 'FIVE POINTS Station',
+      affected_stations: [
+        'CIVIC CENTER Station',
+        'PEACHTREE CENTER Station',
+        'FIVE POINTS Station',
+      ],
     });
     expect(detectionRecords[0]).toMatchObject({
       id: 7,
       kind: 'train',
       line: 'red',
       detection_source: 'pulse-cold',
-      from_station: 'Howard',
-      to_station: 'Loyola',
+      from_station: 'CIVIC CENTER Station',
+      to_station: 'FIVE POINTS Station',
       _incidentId: 'v2',
     });
   });

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBusIncidentsByDay,
   computeCohortDurationStats,
-  computeCommuterLeaderboards,
-  computeCommuterStatusCounts,
   computeDayOfWeekCounts,
   computeDisruptionMinutes,
   computeRecentBurst,
@@ -14,7 +12,6 @@ import {
   serviceHoursForLine,
 } from '../lib/aggregate.js';
 import { atlantaDayUTC } from '../lib/format.js';
-import { incident } from './v2TestHelpers.js';
 
 // Fixed reference instant so day/window math is deterministic across runs.
 const NOW = 1_700_000_000_000; // 2023-11-14T22:13:20Z
@@ -53,7 +50,8 @@ describe('serviceHoursForLine', () => {
   });
 
   it('gives other train lines and buses the default 21h/day', () => {
-    expect(serviceHoursForLine('train', 'brown')).toBe(DEFAULT_SERVICE_HOURS_PER_DAY);
+    expect(serviceHoursForLine('train', 'green')).toBe(DEFAULT_SERVICE_HOURS_PER_DAY);
+    expect(serviceHoursForLine('train', 'streetcar')).toBe(DEFAULT_SERVICE_HOURS_PER_DAY);
     expect(serviceHoursForLine('bus', '66')).toBe(DEFAULT_SERVICE_HOURS_PER_DAY);
   });
 });
@@ -192,7 +190,12 @@ describe('computeWorstDay', () => {
 // ---------------------------------------------------------------------------
 describe('computeSegmentRecurrence', () => {
   const seg = (over = {}) =>
-    obs({ from_station: 'Belmont', to_station: 'Fullerton', detection_source: 'gap', ...over });
+    obs({
+      from_station: 'CIVIC CENTER Station',
+      to_station: 'FIVE POINTS Station',
+      detection_source: 'gap',
+      ...over,
+    });
 
   it('ranks repeated station-to-station segments above the minimum count', () => {
     const out = computeSegmentRecurrence(
@@ -200,15 +203,20 @@ describe('computeSegmentRecurrence', () => {
         seg({ id: 1, ts: NOW - 1 * DAY }),
         seg({ id: 2, ts: NOW - 2 * DAY }),
         // A different segment that only appears once → below minCount.
-        seg({ id: 3, from_station: 'Clark', to_station: 'Division', ts: NOW - 1 * DAY }),
+        seg({
+          id: 3,
+          from_station: 'ASHBY Station',
+          to_station: 'VINE CITY Station',
+          ts: NOW - 1 * DAY,
+        }),
       ],
       { now: NOW, windowDays: 90, minCount: 2 },
     );
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       line: 'red',
-      fromStation: 'Belmont',
-      toStation: 'Fullerton',
+      fromStation: 'CIVIC CENTER Station',
+      toStation: 'FIVE POINTS Station',
       count: 2,
     });
   });
@@ -351,173 +359,6 @@ describe('computeRestorationDeltas', () => {
     });
     const out = computeRestorationDeltas([a], [o], { now: NOW, windowDays: 90 });
     expect(out.matchedCount).toBe(0);
-  });
-
-  it('excludes Commuter incidents (MARTA-only concept)', () => {
-    const { alert: a, obs: o } = pair({
-      alertResolved: NOW,
-      obsTs: NOW - 58 * MIN,
-      obsResolved: NOW - 20 * MIN,
-    });
-    a.kind = 'commuter';
-    a.routes = ['up-n'];
-    o.kind = 'commuter';
-    o.line = 'up-n';
-    const out = computeRestorationDeltas([a], [o], { now: NOW, windowDays: 90 });
-    expect(out.matchedCount).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// computeCommuterLeaderboards
-// ---------------------------------------------------------------------------
-describe('computeCommuterLeaderboards', () => {
-  const mObs = (over = {}) =>
-    obs({ kind: 'commuter', line: 'up-n', detection_source: 'delay', ...over });
-
-  it('tallies cancellations and delays per line', () => {
-    const observations = [
-      mObs({ id: 1, line: 'up-n', detection_source: 'delay' }),
-      mObs({ id: 2, line: 'up-n', detection_source: 'delay' }),
-      mObs({ id: 3, line: 'up-n', detection_source: 'cancellation' }),
-      mObs({ id: 4, line: 'bnsf', detection_source: 'cancellation-inferred' }),
-      // Non-commuter and unrelated sources are ignored.
-      obs({ id: 5, kind: 'train', line: 'red', detection_source: 'ghost' }),
-    ];
-    const out = computeCommuterLeaderboards([], observations, { now: NOW, windowDays: 90 });
-    expect(out.delayTotal).toBe(2);
-    expect(out.cancellationTotal).toBe(2); // 1 confirmed + 1 inferred
-    expect(out.topDelayed).toEqual({ line: 'up-n', delays: 2, cancellations: 1, total: 3 });
-    // up-n and bnsf each have 1 cancellation → tie broken alphabetically (bnsf first).
-    expect(out.topCancelled.line).toBe('bnsf');
-    expect(out.hasData).toBe(true);
-  });
-
-  it('counts republished Commuter alerts separately', () => {
-    const alerts = [alert({ kind: 'commuter', routes: ['md-n'], first_seen_ts: NOW - HOUR })];
-    const out = computeCommuterLeaderboards(alerts, [], { now: NOW, windowDays: 90 });
-    expect(out.alertsCount).toBe(1);
-    expect(out.byLine).toEqual([]);
-    expect(out.hasData).toBe(true);
-  });
-
-  it('reports no data when nothing Commuter is in window', () => {
-    const stale = [mObs({ id: 1, ts: NOW - 120 * DAY, resolved_ts: NOW - 120 * DAY })];
-    const out = computeCommuterLeaderboards([], stale, { now: NOW, windowDays: 90 });
-    expect(out.hasData).toBe(false);
-    expect(out.topCancelled).toBeNull();
-    expect(out.topDelayed).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// computeCommuterStatusCounts
-// ---------------------------------------------------------------------------
-describe('computeCommuterStatusCounts', () => {
-  const commuterIncident = (over = {}) =>
-    incident({
-      id: 'm1',
-      kind: 'commuter',
-      routes: ['me'],
-      first_seen_ts: NOW - HOUR,
-      resolved_ts: NOW,
-      active: false,
-      official: null,
-      observations: [],
-      ...over,
-    });
-
-  it('counts bot delay and cancellation observations for a line', () => {
-    const out = computeCommuterStatusCounts(
-      [
-        commuterIncident({
-          observations: [
-            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
-            {
-              id: 'c1',
-              kind: 'commuter',
-              line: 'me',
-              detection_source: 'cancellation-inferred',
-              ts: NOW - HOUR,
-            },
-            { id: 'd2', kind: 'commuter', line: 'ri', detection_source: 'delay', ts: NOW - HOUR },
-          ],
-        }),
-      ],
-      { now: NOW, windowDays: 90, lineFilter: 'me' },
-    );
-    expect(out).toEqual({ cancellations: 1, delays: 1, total: 2 });
-  });
-
-  it('counts official-only Commuter alert status once', () => {
-    const out = computeCommuterStatusCounts(
-      [
-        commuterIncident({
-          official: { headline: 'ME train #121 delayed' },
-          commuter_status: { source: 'delay', train_number: '121' },
-        }),
-        commuterIncident({
-          id: 'm2',
-          official: { headline: 'ME train #123 will not operate' },
-          commuter_status: { source: 'cancellation', train_number: '123' },
-        }),
-      ],
-      { now: NOW, windowDays: 90, lineFilter: 'me' },
-    );
-    expect(out).toEqual({ cancellations: 1, delays: 1, total: 2 });
-  });
-
-  it('does not count planned-work Commuter delay advisories as late trains', () => {
-    const out = computeCommuterStatusCounts(
-      [
-        commuterIncident({
-          official: {
-            headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
-            short_description:
-              'Track construction will be taking place on Saturday, June 13 through Sunday, June 14. Trains may incur delays enroute up to 20 minutes behind scheduled passing through the work zone.',
-          },
-          commuter_status: { source: 'planned-delay', train_number: null },
-        }),
-      ],
-      { now: NOW, windowDays: 90, lineFilter: 'me' },
-    );
-    expect(out).toEqual({ cancellations: 0, delays: 0, total: 0 });
-  });
-
-  it('does not double-count merged official and bot status', () => {
-    const out = computeCommuterStatusCounts(
-      [
-        commuterIncident({
-          official: { headline: 'ME train #121 delayed' },
-          commuter_status: { source: 'delay', train_number: '121' },
-          observations: [
-            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
-          ],
-        }),
-      ],
-      { now: NOW, windowDays: 90, lineFilter: 'me' },
-    );
-    expect(out).toEqual({ cancellations: 0, delays: 1, total: 1 });
-  });
-
-  it('excludes stale official and bot statuses', () => {
-    const old = NOW - 120 * DAY;
-    const out = computeCommuterStatusCounts(
-      [
-        commuterIncident({
-          first_seen_ts: old,
-          official: { headline: 'ME train #121 delayed' },
-          commuter_status: { source: 'delay', train_number: '121' },
-        }),
-        commuterIncident({
-          observations: [
-            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: old },
-          ],
-        }),
-      ],
-      { now: NOW, windowDays: 90, lineFilter: 'me' },
-    );
-    expect(out).toEqual({ cancellations: 0, delays: 0, total: 0 });
   });
 });
 

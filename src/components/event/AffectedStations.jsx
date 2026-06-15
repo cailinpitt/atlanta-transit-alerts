@@ -12,7 +12,7 @@ import { RowLabel } from './MiniTimeline.jsx';
 // lines) plus their base form (without the parenthetical disambiguator),
 // since alerts may write "Monroe" not "Monroe (Red)". Longest-first scan prevents
 // "UIC" from matching inside "UIC-Halsted". Whole-word boundaries on either
-// side keep "Howard" from matching inside "Howards" or station-suffix tokens.
+// side keep a station name from matching inside longer words or station-suffix tokens.
 export function linkifyMentionedStations(text, mentions, stationIndex) {
   if (!text) return text;
   // No aliases to match → return text as-is. Without this short-circuit,
@@ -41,16 +41,15 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
   // Longest-first so substring aliases ("Halsted") don't shadow longer ones
   // ("UIC-Halsted") that share a prefix.
   aliases.sort((a, b) => b.alias.length - a.alias.length);
-  // Slash and hyphen handling: alerts sometimes write "Adams/ Wabash" or
-  // "UIC Halsted" where the canonical name uses "Adams/Wabash" or
+  // Slash and hyphen handling: alerts sometimes include stray spacing where
+  // the canonical name does not, or omit punctuation.
   // "UIC-Halsted". Build a regex per alias that tolerates whitespace
   // around slashes and treats `-`/space as interchangeable.
   function aliasPattern(alias) {
     return (
       alias
         .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        // Alerts may write "Adams/ Wabash" with a stray space; the canonical name is
-        // "Adams/Wabash". Allow whitespace around any `/` in the alias.
+        // Allow whitespace around any `/` in the alias.
         .replace(/\//g, '\\s*/\\s*')
         // Hyphens and runs of whitespace are interchangeable: canonical
         // "UIC-Halsted" matches "UIC Halsted".
@@ -58,8 +57,8 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
     );
   }
   // Suffix denylist: short single-word station names like "Atlanta" or
-  // "Loop" collide with geographic features ("Atlanta River", "Atlanta
-  // Avenue") and neighborhood phrasing ("Loop area"). When the match is
+  // Short station aliases can collide with geographic features or neighborhood
+  // phrasing. When the match is
   // immediately followed by one of these tokens it's a place name in the
   // alert text, not a station reference, so we skip the link.
   const NON_STATION_SUFFIX =
@@ -114,7 +113,7 @@ export function collectImpactedStations(incident) {
   add(scope.to_station);
   add(primary?.from_station);
   add(primary?.to_station);
-  // Every merged observation's endpoints, not just the primary's. A Loop-wide
+  // Every merged observation's endpoints, not just the primary's. A multi-line
   // alert merges one pulse-cold detection per affected line; showing only the
   // primary obs's segment (e.g. "Armitage ↔ Atlanta") misrepresents a
   // five-line incident as a single stretch on one line.
@@ -168,8 +167,8 @@ export function groupAffectedStationsByLine(segments) {
 }
 
 // Spread a bot's single-line stretch onto the OTHER affected lines that share
-// the same trackage. The bot scopes a pulse-cold to one line ('pink'), but on
-// shared track (the Lake St elevated, the Loop, Red+Purple north of Belmont)
+// the same trackage. The bot scopes a pulse-cold to one line, but on
+// shared track
 // the same stations carry several lines — and the alert that scopes the
 // incident to `routes` confirms those other lines are down too. So for each
 // line-owned segment, we add a copy on every other incident route that the
@@ -306,7 +305,7 @@ export function StationsByLine({ groups, direction, sharedTrackage = false }) {
       <div className="mt-1 space-y-1">
         {groups.map(({ line, segments }) => (
           // Fixed-width pill column so every line's stations start at the same
-          // x — the pills vary in width (Brown vs Orange vs Purple), which
+          // x — the pills vary in width, which
           // otherwise left the station names ragged. items-center vertically
           // centers the station text against its line pill.
           <div key={line} className="flex items-center gap-2">

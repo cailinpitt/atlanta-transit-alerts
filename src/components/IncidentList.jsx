@@ -76,7 +76,7 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
   const isObsOnly = !official;
   const eventId = incident.id;
   const sources = getSources(incident);
-  // For a merged incident spanning more than one line (a Loop-wide alert that
+  // For a merged incident spanning more than one line (an alert that
   // merged a detection per line), the single primary "from → to" sub-line hides
   // the other lines' stretches. When 2+ lines are involved, show each line's
   // stretch grouped together, divided by a bar. A single-line stretch keeps the
@@ -263,7 +263,7 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
           <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">{description}</p>
 
           {/* Merged, multi-line: each line's stretch grouped together and
-              divided by a bar, so a Loop-wide event shows every line's stops
+              divided by a bar, so a multi-line event shows every line's stops
               instead of just the primary obs's stretch. */}
           {isMultiLineSegments && (
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">

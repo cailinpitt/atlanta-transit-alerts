@@ -13,7 +13,7 @@ const TRAIN_LINE_SET = new Set(TRAIN_LINE_ORDER);
 
 // Roster, computed once: numeric-aware A–Z sort (so "35th/Archer" lands ahead
 // of "Adams"), plus each station's serving lines normalized to full keys
-// ('org' → 'orange') so the line filter can match against TRAIN_LINE_ORDER.
+// legacy route aliases so the line filter can match against TRAIN_LINE_ORDER.
 const ROSTER = [...trainStations]
   .map((s) => ({ ...s, normLines: [...new Set((s.lines || []).map(normalizeTrainLine))] }))
   .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' }));
