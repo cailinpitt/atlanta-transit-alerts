@@ -6,7 +6,6 @@ import {
   computeDisruptionMinutes,
   computeDurationHistogram,
   computeLineReliability,
-  computeMetraStatusCounts,
   computeRecentBurst,
   computeSegmentRecurrence,
   computeSummaryStats,
@@ -16,19 +15,17 @@ import {
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES, formatBusRoute } from '../lib/busRoutes.js';
-import { cancellationInfo } from '../lib/cancellation.js';
-import { normalizeTrainLine, TRAIN_LINES } from '../lib/ctaLines.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { formatChicagoDay, formatGap, formatMinutesAsHours } from '../lib/format.js';
+import { formatAtlantaDay, formatGap, formatMinutesAsHours } from '../lib/format.js';
 import {
   incidentLifecycle,
   incidentRecords,
+  isWebsiteIncident,
   legacyKind,
   searchFilterIncidents,
 } from '../lib/incidents.js';
-import { metraLineInfo, normalizeMetraLine } from '../lib/metraLines.js';
-import { buildMetraStationIndex } from '../lib/metraStations.js';
 import { buildStationIndex } from '../lib/stations.js';
+import { normalizeTrainLine, TRAIN_LINES } from '../lib/trainLines.js';
 import ActiveAlerts from './ActiveAlerts.jsx';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
@@ -37,7 +34,6 @@ import HourOfWeekHeatmap from './HourOfWeekHeatmap.jsx';
 import IncidentList from './IncidentList.jsx';
 import LineMap from './LineMap.jsx';
 import { LONG_RUNNING_THRESHOLD_MS } from './LongRunningBanner.jsx';
-import MetraUpcomingCancellations from './MetraUpcomingCancellations.jsx';
 import NotFoundPage from './NotFoundPage.jsx';
 import { SignalBreakdownSingleRoute } from './SignalBreakdown.jsx';
 import Timeline from './Timeline.jsx';
@@ -154,27 +150,20 @@ export default function LinePage({ kind, lineId }) {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
-  // Validate the id: for trains it must be a known TRAIN_LINES key (after
-  // normalizing CTA short codes — `/line/org` resolves to 'orange'); for
-  // buses it must appear in BUS_ROUTE_NAMES (which is comprehensive). An
+  // Validate the id: for rail it must be a known TRAIN_LINES key; for buses it
+  // must appear in BUS_ROUTE_NAMES (which is comprehensive). An
   // unknown id renders the not-found card without trying to fetch.
   const isTrain = kind === 'train';
-  const isMetra = kind === 'metra';
-  const normalizedLineId = isTrain
-    ? normalizeTrainLine(lineId)
-    : isMetra
-      ? normalizeMetraLine(lineId)
-      : lineId;
+  const normalizedLineId = isTrain ? normalizeTrainLine(lineId) : lineId;
   const trainInfo = isTrain ? TRAIN_LINES[normalizedLineId] : null;
-  const metraInfo = isMetra ? metraLineInfo(lineId) : null;
-  const busName = !isTrain && !isMetra ? BUS_ROUTE_NAMES[lineId] : null;
-  const isKnown = isTrain ? !!trainInfo : isMetra ? !!metraInfo : !!busName;
+  const busName = !isTrain ? BUS_ROUTE_NAMES[lineId] : null;
+  const isKnown = isTrain ? !!trainInfo : !!busName;
   // Use the normalized id for all internal lookups so a `/line/org` URL matches
-  // data tagged 'orange', and `/metra/line/up-w` matches data tagged 'up-w'.
-  const effectiveLineId = isTrain || isMetra ? normalizedLineId : lineId;
+  // data tagged 'orange'.
+  const effectiveLineId = isTrain ? normalizedLineId : lineId;
   // Lines treated as rail for display copy ("this line" vs "this route") and for
   // skipping the bus-route-style chrome.
-  const isRail = isTrain || isMetra;
+  const isRail = isTrain;
 
   useEffect(() => {
     const url = dataUrl('alerts.json');
@@ -183,7 +172,12 @@ export default function LinePage({ kind, lineId }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((fresh) => setData({ ...fresh, incidents: fresh.incidents || [] }))
+      .then((fresh) =>
+        setData({
+          ...fresh,
+          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
+        }),
+      )
       .catch(setError);
   }, []);
 
@@ -231,10 +225,6 @@ export default function LinePage({ kind, lineId }) {
     const recent = [];
     const longRunning = [];
     for (const i of activeIncidents) {
-      // Upcoming single-train cancellations are forward-looking, not live
-      // disruptions — they get their own strip, not the "active disruptions"
-      // cards (and never the long-running "Day N" framing).
-      if (cancellationInfo(i)) continue;
       const startTs = incidentLifecycle(i).first_seen_ts;
       if (startTs != null && now - startTs >= LONG_RUNNING_THRESHOLD_MS) longRunning.push(i);
       else recent.push(i);
@@ -246,16 +236,12 @@ export default function LinePage({ kind, lineId }) {
   // chip uses the bare route number ("#147") so it stays compact and
   // parallel with the train pill ("Red Line"); the route name is rendered
   // separately to the right rather than crammed inside the pill.
-  const heading = isTrain
-    ? `${trainInfo?.label ?? lineId} Line`
-    : isMetra
-      ? (metraInfo?.label ?? lineId)
-      : `#${lineId}`;
+  const heading = isTrain ? `${trainInfo?.label ?? lineId} Line` : `#${lineId}`;
   // The tab title uses the longer formatBusRoute form so a pinned tab is
   // unambiguous in the OS tab strip ("#147 Outer DuSable Lake Shore Exp.").
   const tabHeading = isRail ? heading : busName ? formatBusRoute(lineId) : lineId;
   useEffect(() => {
-    const base = 'Chicago Transit Alerts';
+    const base = 'Atlanta Transit Alerts';
     if (!isKnown) {
       document.title = `${base}`;
       return;
@@ -327,15 +313,6 @@ export default function LinePage({ kind, lineId }) {
     return computeDayOfWeekCounts(lineAlerts, lineObservations, { now, windowDays: 91 });
   }, [data, lineAlerts, lineObservations, now]);
 
-  const metraStatusCounts = useMemo(() => {
-    if (!data || !isMetra) return null;
-    return computeMetraStatusCounts(lineIncidents, {
-      now,
-      windowDays: 90,
-      lineFilter: effectiveLineId,
-    });
-  }, [data, isMetra, lineIncidents, now, effectiveLineId]);
-
   // Worst single day for this line/route in the 90d window. Surfaced as a
   // single-line callout linking to the day-permalink — gives a quick "this
   // is the floor we've sunk to" reference point.
@@ -375,10 +352,8 @@ export default function LinePage({ kind, lineId }) {
   // not be gated on whether this particular line meets the threshold.
   const stationIndex = useMemo(() => {
     if (!flat) return null;
-    return isMetra
-      ? buildMetraStationIndex(flat.officialRecords, flat.detectionRecords, { now, windowDays: 90 })
-      : buildStationIndex(flat.officialRecords, flat.detectionRecords, { now, windowDays: 90 });
-  }, [flat, now, isMetra]);
+    return buildStationIndex(flat.officialRecords, flat.detectionRecords, { now, windowDays: 90 });
+  }, [flat, now]);
 
   // Search-only narrowing for the IncidentList. The line is already locked
   // by the pre-filter above; only free-text search remains. Reuse the same
@@ -400,10 +375,10 @@ export default function LinePage({ kind, lineId }) {
     return <NotFoundPage />;
   }
 
-  // Color used for the heading pill + accents. Trains use their CTA brand
+  // Color used for the heading pill + accents. Rail uses MARTA brand
   // color; buses fall back to slate to match the bus rows in the timeline.
-  const headingBg = isTrain ? trainInfo.color : isMetra ? metraInfo.color : '#64748b';
-  const headingText = isTrain ? trainInfo.textColor : isMetra ? metraInfo.textColor : '#fff';
+  const headingBg = isTrain ? trainInfo.color : '#64748b';
+  const headingText = isTrain ? trainInfo.textColor : '#fff';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gh-canvas flex flex-col">
@@ -430,11 +405,9 @@ export default function LinePage({ kind, lineId }) {
             {!isRail && busName && (
               <span className="text-sm text-slate-500 dark:text-slate-400">{busName}</span>
             )}
-            {/* Per-line/route Atom feed — subscribe to just this line/route. A
-                feed exists for every CTA line, roster bus route, and Metra line.
-                Metra feeds live under the /feed/metra/line/ namespace. */}
+            {/* Per-line/route Atom feed — subscribe to just this line/route. */}
             <a
-              href={`/feed/${isTrain ? 'line' : isMetra ? 'metra/line' : 'route'}/${effectiveLineId}.xml`}
+              href={`/feed/${isTrain ? 'line' : 'route'}/${effectiveLineId}.xml`}
               className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-400 hover:underline"
               title={`Subscribe to ${heading} alerts via RSS/Atom`}
             >
@@ -452,8 +425,6 @@ export default function LinePage({ kind, lineId }) {
 
         {data && (
           <>
-            {isMetra && <MetraUpcomingCancellations incidents={lineIncidents} now={now} />}
-
             {(recentActive.length > 0 || longRunningActive.length > 0) && (
               <ActiveAlerts
                 incidents={recentActive}
@@ -479,8 +450,7 @@ export default function LinePage({ kind, lineId }) {
             {summary &&
               (summary.weeklyCount > 0 ||
                 (reliability?.currentStreakDays ?? 0) > 0 ||
-                (disruption?.disruptedMinutes ?? 0) > 0 ||
-                (metraStatusCounts?.total ?? 0) > 0) && (
+                (disruption?.disruptedMinutes ?? 0) > 0) && (
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 px-1">
                   <div className="flex-1 min-w-0 space-y-2">
                     {(() => {
@@ -494,18 +464,6 @@ export default function LinePage({ kind, lineId }) {
                             : `${(disruption.ratio * 100).toFixed(disruption.ratio < 0.01 ? 2 : 1)}%`
                           : null;
                       const cells = [{ v: String(summary.weeklyCount), l: 'in last 7 days' }];
-                      if (isMetra && metraStatusCounts) {
-                        cells.push(
-                          {
-                            v: String(metraStatusCounts.cancellations),
-                            l: 'cancellations, 90d',
-                          },
-                          {
-                            v: String(metraStatusCounts.delays),
-                            l: 'delays, 90d',
-                          },
-                        );
-                      }
                       if (disruption && disruption.disruptedMinutes > 0) {
                         cells.push({
                           v: formatMinutesAsHours(disruption.disruptedMinutes),
@@ -579,7 +537,7 @@ export default function LinePage({ kind, lineId }) {
                           href={`/day/${new Date(worstDay.dayUtc).toISOString().slice(0, 10)}`}
                           className="text-blue-500 hover:text-blue-400 hover:underline"
                         >
-                          <strong>{formatChicagoDay(worstDay.dayUtc)}</strong>
+                          <strong>{formatAtlantaDay(worstDay.dayUtc)}</strong>
                         </a>{' '}
                         ({worstDay.count} incident{worstDay.count === 1 ? '' : 's'})
                       </p>
@@ -589,14 +547,9 @@ export default function LinePage({ kind, lineId }) {
                 </div>
               )}
 
-            {/* Geographic station heatmap — rail only (CTA L + Metra), which
-                have line/station geometry. Hidden on bus pages. */}
+            {/* Geographic station heatmap — rail only. Hidden on bus pages. */}
             {isRail && (
-              <LineMap
-                kind={isMetra ? 'metra' : 'train'}
-                lineKey={effectiveLineId}
-                stationIndex={stationIndex}
-              />
+              <LineMap kind="train" lineKey={effectiveLineId} stationIndex={stationIndex} />
             )}
 
             {segments.length > 0 && (
@@ -628,23 +581,19 @@ export default function LinePage({ kind, lineId }) {
 
             <DurationHistogram histogram={durationHistogram} />
 
-            {/* The 90-day per-line grid is the CTA timeline; it has no Metra
-                rows, so it's skipped on Metra line pages. */}
-            {!isMetra && (
-              <Timeline
-                alerts={lineAlerts}
-                observations={lineObservations}
-                selectedLines={isTrain ? [effectiveLineId] : []}
-                numDays={90}
-                selectedRangeDays={null}
-                dataStartTs={data.data_start_ts ?? null}
-                now={now}
-                onLineClick={() => {}}
-                showBus={!isTrain}
-                selectedBusRoutes={!isTrain ? [lineId] : []}
-                onBusRouteClick={() => {}}
-              />
-            )}
+            <Timeline
+              alerts={lineAlerts}
+              observations={lineObservations}
+              selectedLines={isTrain ? [effectiveLineId] : []}
+              numDays={90}
+              selectedRangeDays={null}
+              dataStartTs={data.data_start_ts ?? null}
+              now={now}
+              onLineClick={() => {}}
+              showBus={!isTrain}
+              selectedBusRoutes={!isTrain ? [lineId] : []}
+              onBusRouteClick={() => {}}
+            />
 
             <DayOfWeekBars data={dayOfWeek} />
 
@@ -653,7 +602,7 @@ export default function LinePage({ kind, lineId }) {
             {!isTrain && (
               <SignalBreakdownSingleRoute
                 observations={lineObservations}
-                label={isMetra ? (metraInfo?.label ?? lineId) : `#${lineId}`}
+                label={`#${lineId}`}
                 labelColor={headingBg}
               />
             )}

@@ -6,7 +6,7 @@ import { incident } from './v2TestHelpers.js';
 
 const NOW = 1_000_000_000_000;
 
-// Nested incident wire shape: top-level id/kind/routes, a nullable `cta` block,
+// Nested incident wire shape: top-level id/kind/routes, a nullable `official` block,
 // and an `observations[]` list.
 const obsRecord = (over = {}) => ({
   id: 1,
@@ -29,7 +29,7 @@ const alertInc = (over = {}) =>
     first_seen_ts: NOW - 60 * 60_000,
     resolved_ts: NOW - 30 * 60_000,
     active: false,
-    cta: {
+    official: {
       alert_id: 'a1',
       headline: 'Red Line Delays',
       post_url: 'https://bsky.app/alert',
@@ -47,7 +47,7 @@ const obsInc = (over = {}) =>
     first_seen_ts: NOW - 55 * 60_000,
     resolved_ts: NOW - 30 * 60_000,
     active: false,
-    cta: null,
+    official: null,
     observations: [obsRecord()],
     ...over,
   });
@@ -60,7 +60,7 @@ const mergedInc = (over = {}) =>
     first_seen_ts: NOW - 60 * 60_000,
     resolved_ts: NOW - 30 * 60_000,
     active: false,
-    cta: {
+    official: {
       alert_id: 'a1',
       headline: 'Red Line Delays',
       post_url: 'https://bsky.app/alert',
@@ -76,9 +76,9 @@ describe('IncidentList', () => {
     expect(screen.getByText(/no incidents/i)).toBeInTheDocument();
   });
 
-  it('shows "via CTA" tag for CTA-only incidents', () => {
+  it('shows "via MARTA" tag for MARTA-only incidents', () => {
     render(<IncidentList incidents={[alertInc()]} />);
-    expect(screen.getByText('via CTA')).toBeInTheDocument();
+    expect(screen.getByText('via MARTA')).toBeInTheDocument();
   });
 
   it('shows "via auto-detection" tag for bot-only incidents', () => {
@@ -88,13 +88,13 @@ describe('IncidentList', () => {
 
   it('shows both tags for a merged incident', () => {
     render(<IncidentList incidents={[mergedInc()]} />);
-    expect(screen.getByText('via CTA')).toBeInTheDocument();
+    expect(screen.getByText('via MARTA')).toBeInTheDocument();
     expect(screen.getByText('via auto-detection')).toBeInTheDocument();
   });
 
   it('shows both Bluesky links for a merged incident', () => {
     render(<IncidentList incidents={[mergedInc()]} />);
-    expect(screen.getByText('Via CTA →')).toBeInTheDocument();
+    expect(screen.getByText('Via MARTA →')).toBeInTheDocument();
     expect(screen.getByText('Bot detection (gap) →')).toBeInTheDocument();
   });
 
@@ -116,28 +116,28 @@ describe('IncidentList', () => {
     expect(rightBadgeColumn).toBeNull();
   });
 
-  it('shows a "delayed" badge and leads with the train number for a Metra delay', () => {
+  it('shows a "delayed" badge and leads with the train number for a Commuter delay', () => {
     const delayInc = incident({
-      id: 'metra-992',
-      kind: 'metra',
+      id: 'commuter-992',
+      kind: 'commuter',
       routes: ['bnsf'],
       first_seen_ts: NOW,
       resolved_ts: NOW,
       active: false,
-      cta: null,
+      official: null,
       observations: [
         {
-          id: 'metra-992',
-          kind: 'metra',
+          id: 'commuter-992',
+          kind: 'commuter',
           line: 'bnsf',
           train_number: '121',
           from_station: 'Aurora',
-          to_station: 'Chicago Union Station',
+          to_station: 'Atlanta Union Station',
           detection_source: 'delay',
           ts: NOW,
           resolved_ts: NOW,
           active: false,
-          bot_description: '~57 min late — the 12:05 PM Chicago Union Station train',
+          bot_description: '~57 min late — the 12:05 PM Atlanta Union Station train',
         },
       ],
     });
@@ -146,22 +146,22 @@ describe('IncidentList', () => {
     expect(screen.getByText('BNSF train #121 delayed')).toBeInTheDocument();
     // The affected stretch moves to the secondary line.
     expect(screen.getByText('Aurora')).toBeInTheDocument();
-    expect(screen.getByText('Chicago Union Station')).toBeInTheDocument();
+    expect(screen.getByText('Atlanta Union Station')).toBeInTheDocument();
   });
 
-  it('shows a "possible cancellation" badge for an inferred Metra cancellation', () => {
+  it('shows a "possible cancellation" badge for an inferred Commuter cancellation', () => {
     const inferredInc = incident({
-      id: 'metra-972',
-      kind: 'metra',
+      id: 'commuter-972',
+      kind: 'commuter',
       routes: ['ri'],
       first_seen_ts: NOW,
       resolved_ts: NOW,
       active: false,
-      cta: null,
+      official: null,
       observations: [
         {
-          id: 'metra-972',
-          kind: 'metra',
+          id: 'commuter-972',
+          kind: 'commuter',
           line: 'ri',
           from_station: 'LaSalle Street',
           to_station: 'Joliet',

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { hexToRgba } from '../lib/format.js';
 import { buildLineMap, sliceTrackBetween } from '../lib/lineMap.js';
-import { buildMetraLineMap } from '../lib/metraLineMap.js';
-import { METRA_LINES } from '../lib/metraLines.js';
 import { displayStationName } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 
 // Light-touch event-scoped map: full line track in muted color, with the
 // stations involved in this incident highlighted as bold dots with labels.
@@ -19,21 +17,14 @@ import { displayStationName } from '../lib/stations.js';
 // `from` / `to` station names come from either an observation (from_station/
 // to_station) or an alert (affected_from_station/affected_to_station); the
 // caller normalizes which fields to pass.
-export default function EventMap({
-  lineKey,
-  fromStation,
-  toStation,
-  active = false,
-  kind = 'train',
-}) {
-  const isMetra = kind === 'metra';
+export default function EventMap({ lineKey, fromStation, toStation, active = false }) {
   const map = useMemo(
     () =>
-      (isMetra ? buildMetraLineMap : buildLineMap)(lineKey, null, {
+      buildLineMap(lineKey, null, {
         maxWidth: 720,
         maxHeight: 320,
       }),
-    [lineKey, isMetra],
+    [lineKey],
   );
 
   if (!map) return null;
@@ -53,11 +44,10 @@ export default function EventMap({
   // the map's minWidth (480px) exceeds the viewport.
   const affectedCenterX = affected.reduce((sum, s) => sum + s.x, 0) / affected.length;
 
-  const info = isMetra ? METRA_LINES[lineKey] : TRAIN_LINES[lineKey];
+  const info = TRAIN_LINES[lineKey];
   const accent = info?.color ?? '#475569';
-  // CTA reads "Red Line"; Metra lines are named outright ("Rock Island").
-  const mapLabel = isMetra ? (info?.label ?? lineKey) : `${info?.label ?? lineKey} Line`;
-  const stationHrefBase = isMetra ? '/metra/station' : '/station';
+  const mapLabel = `${info?.label ?? lineKey} Line`;
+  const stationHrefBase = '/station';
   const trackPaths = map.tracks
     .filter((t) => t.length >= 2)
     .map((t) => `M${t.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L')}`);
@@ -65,7 +55,7 @@ export default function EventMap({
   // Highlight the actual segment of track between the two affected stations
   // (when both endpoints are present and distinct). sliceTrackBetween picks
   // the right branch and slices the polyline between them — a straight chord
-  // would shortcut bends (Blue Line Clark/Lake → Chicago turns 90°
+  // would shortcut bends (Blue Line Clark/Lake → Atlanta turns 90°
   // underground; the chord version cut across other paths and looked wrong).
   const highlightPath =
     affected.length === 2 ? sliceTrackBetween(map.tracks, affected[0], affected[1]) : null;
@@ -165,7 +155,7 @@ export default function EventMap({
                 the side of its dot pointing AWAY from the other affected
                 dot — so the two labels diverge outward from the segment
                 rather than landing between the dots (which historically
-                made e.g. Blue Line Chicago/Clark-Lake look swapped).
+                made e.g. Blue Line Atlanta/Clark-Lake look swapped).
                 Single-station events default to above. */}
             {(() => {
               const midX =
@@ -300,9 +290,8 @@ export function MapScroller({ mapWidth, affectedCenterX, affectedKey, children }
   }, [affectedKey, affectedCenterX, mapWidth]);
   return (
     // py-6 reserves vertical room inside the scroll box so a station label that
-    // sits at the top or bottom edge of the SVG (e.g. a Metra terminal like
-    // Chicago OTC near the top of a diagonal line) overflows into the padding
-    // instead of being clipped — `overflow-x: auto` coerces the y-axis to clip
+    // sits at the top or bottom edge of the SVG overflows into the padding
+    // instead of being clipped. `overflow-x: auto` coerces the y-axis to clip
     // too, so without this cushion the label's top gets cut off. Same fix the
     // LinePage LineMap uses for its terminal labels.
     <div ref={ref} className="relative overflow-x-auto py-6">

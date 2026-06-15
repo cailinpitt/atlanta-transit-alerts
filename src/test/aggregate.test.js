@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBusIncidentsByDay,
   computeCohortDurationStats,
+  computeCommuterLeaderboards,
+  computeCommuterStatusCounts,
   computeDayOfWeekCounts,
   computeDisruptionMinutes,
-  computeMetraLeaderboards,
-  computeMetraStatusCounts,
   computeRecentBurst,
   computeRestorationDeltas,
   computeSegmentRecurrence,
@@ -13,7 +13,7 @@ import {
   DEFAULT_SERVICE_HOURS_PER_DAY,
   serviceHoursForLine,
 } from '../lib/aggregate.js';
-import { chicagoDayUTC } from '../lib/format.js';
+import { atlantaDayUTC } from '../lib/format.js';
 import { incident } from './v2TestHelpers.js';
 
 // Fixed reference instant so day/window math is deterministic across runs.
@@ -168,7 +168,7 @@ describe('computeDayOfWeekCounts', () => {
 // computeWorstDay
 // ---------------------------------------------------------------------------
 describe('computeWorstDay', () => {
-  it('returns the Chicago day with the most incident starts', () => {
+  it('returns the Atlanta day with the most incident starts', () => {
     const out = computeWorstDay(
       [],
       [
@@ -179,7 +179,7 @@ describe('computeWorstDay', () => {
       { now: NOW, windowDays: 90 },
     );
     expect(out.count).toBe(2);
-    expect(out.dayUtc).toBe(chicagoDayUTC(NOW));
+    expect(out.dayUtc).toBe(atlantaDayUTC(NOW));
   });
 
   it('returns null when there are no incidents in the window', () => {
@@ -272,8 +272,8 @@ describe('computeCohortDurationStats', () => {
   });
 
   it('returns null for an incident with no signal to bucket on', () => {
-    const ctaOnly = { kind: 'train', line: 'red' }; // no detection_source
-    expect(computeCohortDurationStats(ctaOnly, [], [], { now: NOW })).toBeNull();
+    const officialOnly = { kind: 'train', line: 'red' }; // no detection_source
+    expect(computeCohortDurationStats(officialOnly, [], [], { now: NOW })).toBeNull();
   });
 });
 
@@ -300,7 +300,7 @@ describe('computeRestorationDeltas', () => {
     }),
   });
 
-  it('flags CTA clearing late (after service recovered)', () => {
+  it('flags MARTA clearing late (after service recovered)', () => {
     const { alert: a, obs: o } = pair({
       alertResolved: NOW,
       obsTs: NOW - 58 * MIN,
@@ -308,20 +308,20 @@ describe('computeRestorationDeltas', () => {
     });
     const out = computeRestorationDeltas([a], [o], { now: NOW, windowDays: 90 });
     expect(out.matchedCount).toBe(1);
-    expect(out.ctaClearedLate).toHaveLength(1);
-    expect(out.ctaClearedEarly).toHaveLength(0);
-    expect(out.ctaClearedLate[0].deltaMs).toBe(20 * MIN);
+    expect(out.officialClearedLate).toHaveLength(1);
+    expect(out.officialClearedEarly).toHaveLength(0);
+    expect(out.officialClearedLate[0].deltaMs).toBe(20 * MIN);
   });
 
-  it('flags CTA clearing early (before service recovered)', () => {
+  it('flags MARTA clearing early (before service recovered)', () => {
     const { alert: a, obs: o } = pair({
       alertResolved: NOW - 30 * MIN,
       obsTs: NOW - 58 * MIN,
       obsResolved: NOW - 10 * MIN,
     });
     const out = computeRestorationDeltas([a], [o], { now: NOW, windowDays: 90 });
-    expect(out.ctaClearedEarly).toHaveLength(1);
-    expect(out.ctaClearedEarly[0].deltaMs).toBe(-20 * MIN);
+    expect(out.officialClearedEarly).toHaveLength(1);
+    expect(out.officialClearedEarly[0].deltaMs).toBe(-20 * MIN);
   });
 
   it('drops pairs whose observation barely overlaps the alert span', () => {
@@ -353,15 +353,15 @@ describe('computeRestorationDeltas', () => {
     expect(out.matchedCount).toBe(0);
   });
 
-  it('excludes Metra incidents (CTA-only concept)', () => {
+  it('excludes Commuter incidents (MARTA-only concept)', () => {
     const { alert: a, obs: o } = pair({
       alertResolved: NOW,
       obsTs: NOW - 58 * MIN,
       obsResolved: NOW - 20 * MIN,
     });
-    a.kind = 'metra';
+    a.kind = 'commuter';
     a.routes = ['up-n'];
-    o.kind = 'metra';
+    o.kind = 'commuter';
     o.line = 'up-n';
     const out = computeRestorationDeltas([a], [o], { now: NOW, windowDays: 90 });
     expect(out.matchedCount).toBe(0);
@@ -369,11 +369,11 @@ describe('computeRestorationDeltas', () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeMetraLeaderboards
+// computeCommuterLeaderboards
 // ---------------------------------------------------------------------------
-describe('computeMetraLeaderboards', () => {
+describe('computeCommuterLeaderboards', () => {
   const mObs = (over = {}) =>
-    obs({ kind: 'metra', line: 'up-n', detection_source: 'delay', ...over });
+    obs({ kind: 'commuter', line: 'up-n', detection_source: 'delay', ...over });
 
   it('tallies cancellations and delays per line', () => {
     const observations = [
@@ -381,10 +381,10 @@ describe('computeMetraLeaderboards', () => {
       mObs({ id: 2, line: 'up-n', detection_source: 'delay' }),
       mObs({ id: 3, line: 'up-n', detection_source: 'cancellation' }),
       mObs({ id: 4, line: 'bnsf', detection_source: 'cancellation-inferred' }),
-      // Non-metra and unrelated sources are ignored.
+      // Non-commuter and unrelated sources are ignored.
       obs({ id: 5, kind: 'train', line: 'red', detection_source: 'ghost' }),
     ];
-    const out = computeMetraLeaderboards([], observations, { now: NOW, windowDays: 90 });
+    const out = computeCommuterLeaderboards([], observations, { now: NOW, windowDays: 90 });
     expect(out.delayTotal).toBe(2);
     expect(out.cancellationTotal).toBe(2); // 1 confirmed + 1 inferred
     expect(out.topDelayed).toEqual({ line: 'up-n', delays: 2, cancellations: 1, total: 3 });
@@ -393,17 +393,17 @@ describe('computeMetraLeaderboards', () => {
     expect(out.hasData).toBe(true);
   });
 
-  it('counts republished Metra alerts separately', () => {
-    const alerts = [alert({ kind: 'metra', routes: ['md-n'], first_seen_ts: NOW - HOUR })];
-    const out = computeMetraLeaderboards(alerts, [], { now: NOW, windowDays: 90 });
+  it('counts republished Commuter alerts separately', () => {
+    const alerts = [alert({ kind: 'commuter', routes: ['md-n'], first_seen_ts: NOW - HOUR })];
+    const out = computeCommuterLeaderboards(alerts, [], { now: NOW, windowDays: 90 });
     expect(out.alertsCount).toBe(1);
     expect(out.byLine).toEqual([]);
     expect(out.hasData).toBe(true);
   });
 
-  it('reports no data when nothing Metra is in window', () => {
+  it('reports no data when nothing Commuter is in window', () => {
     const stale = [mObs({ id: 1, ts: NOW - 120 * DAY, resolved_ts: NOW - 120 * DAY })];
-    const out = computeMetraLeaderboards([], stale, { now: NOW, windowDays: 90 });
+    const out = computeCommuterLeaderboards([], stale, { now: NOW, windowDays: 90 });
     expect(out.hasData).toBe(false);
     expect(out.topCancelled).toBeNull();
     expect(out.topDelayed).toBeNull();
@@ -411,36 +411,36 @@ describe('computeMetraLeaderboards', () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeMetraStatusCounts
+// computeCommuterStatusCounts
 // ---------------------------------------------------------------------------
-describe('computeMetraStatusCounts', () => {
-  const metraIncident = (over = {}) =>
+describe('computeCommuterStatusCounts', () => {
+  const commuterIncident = (over = {}) =>
     incident({
       id: 'm1',
-      kind: 'metra',
+      kind: 'commuter',
       routes: ['me'],
       first_seen_ts: NOW - HOUR,
       resolved_ts: NOW,
       active: false,
-      cta: null,
+      official: null,
       observations: [],
       ...over,
     });
 
   it('counts bot delay and cancellation observations for a line', () => {
-    const out = computeMetraStatusCounts(
+    const out = computeCommuterStatusCounts(
       [
-        metraIncident({
+        commuterIncident({
           observations: [
-            { id: 'd1', kind: 'metra', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
+            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
             {
               id: 'c1',
-              kind: 'metra',
+              kind: 'commuter',
               line: 'me',
               detection_source: 'cancellation-inferred',
               ts: NOW - HOUR,
             },
-            { id: 'd2', kind: 'metra', line: 'ri', detection_source: 'delay', ts: NOW - HOUR },
+            { id: 'd2', kind: 'commuter', line: 'ri', detection_source: 'delay', ts: NOW - HOUR },
           ],
         }),
       ],
@@ -449,17 +449,17 @@ describe('computeMetraStatusCounts', () => {
     expect(out).toEqual({ cancellations: 1, delays: 1, total: 2 });
   });
 
-  it('counts official-only Metra alert status once', () => {
-    const out = computeMetraStatusCounts(
+  it('counts official-only Commuter alert status once', () => {
+    const out = computeCommuterStatusCounts(
       [
-        metraIncident({
-          cta: { headline: 'ME train #121 delayed' },
-          metra_status: { source: 'delay', train_number: '121' },
+        commuterIncident({
+          official: { headline: 'ME train #121 delayed' },
+          commuter_status: { source: 'delay', train_number: '121' },
         }),
-        metraIncident({
+        commuterIncident({
           id: 'm2',
-          cta: { headline: 'ME train #123 will not operate' },
-          metra_status: { source: 'cancellation', train_number: '123' },
+          official: { headline: 'ME train #123 will not operate' },
+          commuter_status: { source: 'cancellation', train_number: '123' },
         }),
       ],
       { now: NOW, windowDays: 90, lineFilter: 'me' },
@@ -467,16 +467,16 @@ describe('computeMetraStatusCounts', () => {
     expect(out).toEqual({ cancellations: 1, delays: 1, total: 2 });
   });
 
-  it('does not count planned-work Metra delay advisories as late trains', () => {
-    const out = computeMetraStatusCounts(
+  it('does not count planned-work Commuter delay advisories as late trains', () => {
+    const out = computeCommuterStatusCounts(
       [
-        metraIncident({
-          cta: {
+        commuterIncident({
+          official: {
             headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
             short_description:
               'Track construction will be taking place on Saturday, June 13 through Sunday, June 14. Trains may incur delays enroute up to 20 minutes behind scheduled passing through the work zone.',
           },
-          metra_status: { source: 'planned-delay', train_number: null },
+          commuter_status: { source: 'planned-delay', train_number: null },
         }),
       ],
       { now: NOW, windowDays: 90, lineFilter: 'me' },
@@ -485,13 +485,13 @@ describe('computeMetraStatusCounts', () => {
   });
 
   it('does not double-count merged official and bot status', () => {
-    const out = computeMetraStatusCounts(
+    const out = computeCommuterStatusCounts(
       [
-        metraIncident({
-          cta: { headline: 'ME train #121 delayed' },
-          metra_status: { source: 'delay', train_number: '121' },
+        commuterIncident({
+          official: { headline: 'ME train #121 delayed' },
+          commuter_status: { source: 'delay', train_number: '121' },
           observations: [
-            { id: 'd1', kind: 'metra', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
+            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: NOW - HOUR },
           ],
         }),
       ],
@@ -502,16 +502,16 @@ describe('computeMetraStatusCounts', () => {
 
   it('excludes stale official and bot statuses', () => {
     const old = NOW - 120 * DAY;
-    const out = computeMetraStatusCounts(
+    const out = computeCommuterStatusCounts(
       [
-        metraIncident({
+        commuterIncident({
           first_seen_ts: old,
-          cta: { headline: 'ME train #121 delayed' },
-          metra_status: { source: 'delay', train_number: '121' },
+          official: { headline: 'ME train #121 delayed' },
+          commuter_status: { source: 'delay', train_number: '121' },
         }),
-        metraIncident({
+        commuterIncident({
           observations: [
-            { id: 'd1', kind: 'metra', line: 'me', detection_source: 'delay', ts: old },
+            { id: 'd1', kind: 'commuter', line: 'me', detection_source: 'delay', ts: old },
           ],
         }),
       ],

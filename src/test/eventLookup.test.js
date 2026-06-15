@@ -10,8 +10,8 @@ const NOW = 1_000_000_000_000;
 
 // findIncidentById now reads the nested `incidents[]` wire shape directly: a
 // top-level incident whose `id` is the canonical event rkey, with a nullable
-// `cta` block and an `observations[]` list. A merged incident carries both; a
-// bot-only incident has `cta: null`.
+// `official` block and an `observations[]` list. A merged incident carries both; a
+// bot-only incident has `official: null`.
 const mergedIncident = incident({
   id: '3ml5idb536d2c', // = alert post rkey
   kind: 'train',
@@ -19,8 +19,8 @@ const mergedIncident = incident({
   first_seen_ts: NOW - 60 * 60_000,
   resolved_ts: NOW - 30 * 60_000,
   active: false,
-  sources: ['cta', 'bot'],
-  cta: {
+  sources: ['official', 'bot'],
+  official: {
     alert_id: 'a1',
     headline: 'Red Line Delays',
     first_seen_ts: NOW - 60 * 60_000,
@@ -49,7 +49,7 @@ const botOnlyIncident = incident({
   resolved_ts: null,
   active: true,
   sources: ['bot'],
-  cta: null,
+  official: null,
   observations: [
     {
       id: 2,
@@ -107,7 +107,7 @@ describe('findIncidentById', () => {
   it('finds a grouped incident by any official alert rkey alias', () => {
     const grouped = incident({
       id: 'canonical',
-      kind: 'metra',
+      kind: 'commuter',
       routes: ['bnsf', 'md-w'],
       official_alerts: [
         { ...mergedIncident.official_alert, post_url: ALERT_URL },

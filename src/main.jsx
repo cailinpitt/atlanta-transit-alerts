@@ -36,39 +36,37 @@ const WeekPage = lazy(() => import('./components/WeekPage.jsx'));
 // here. Match patterns:
 //   /event/:id            → individual event detail
 //   /event/:id/resolved   → same view, but the prerendered OG card has the
-//                           'Archived' badge hardcoded. Used by cta-insights
+//                           'Archived' badge hardcoded. Used by atlanta-transit-insights
 //                           resolution replies so Bluesky's URL-keyed card
 //                           cache doesn't keep showing the original
 //                           'Active' image after the incident resolves.
 //   /line/:id      → train line page (e.g. /line/red, /line/blue)
 //   /route/:id     → bus route page  (e.g. /route/66, /route/X9)
 //   /station/:slug → train station page (e.g. /station/clark-division)
-//   /stations      → A–Z index of every 'L' station
+//   /stations      → A-Z index of every MARTA rail/streetcar station
 //   /routes        → index of every train line + bus route
-//   /day/:date     → single Chicago calendar day (YYYY-MM-DD)
+//   /day/:date     → single Atlanta calendar day (YYYY-MM-DD)
 //   /week          → recap of the current Sun–Sat week
 //   /week/:date    → recap of the week containing :date (YYYY-MM-DD); the
 //                    canonical permalink uses that week's Sunday
 //   /calendar      → 12-month calendar heatmap of daily incident counts
 //   /stats         → leaderboard of worst day/hour/station/longest incident
 //   /compare       → side-by-side comparison of up to 3 train lines or bus routes
-//   /system/trains → mode-wide health dashboard for the L
+//   /system/trains → mode-wide health dashboard for MARTA rail
 //   /system/buses  → mode-wide health dashboard for buses
 const path = window.location.pathname;
 const eventMatch = /^\/event\/([^/?#]+)(?:\/resolved)?\/?$/.exec(path);
 const lineMatch = /^\/line\/([^/?#]+)\/?$/.exec(path);
-const metraLineMatch = /^\/metra\/line\/([^/?#]+)\/?$/.exec(path);
 const routeMatch = /^\/route\/([^/?#]+)\/?$/.exec(path);
 const stationsIndexMatch = /^\/stations\/?$/.exec(path);
 const routesIndexMatch = /^\/routes\/?$/.exec(path);
 const stationMatch = /^\/station\/([^/?#]+)\/?$/.exec(path);
-const metraStationMatch = /^\/metra\/station\/([^/?#]+)\/?$/.exec(path);
 const dayMatch = /^\/day\/([^/?#]+)\/?$/.exec(path);
 const weekMatch = /^\/week(?:\/([^/?#]+))?\/?$/.exec(path);
 const calendarMatch = /^\/calendar\/?$/.exec(path);
 const statsMatch = /^\/stats\/?$/.exec(path);
 const compareMatch = /^\/compare\/?$/.exec(path);
-const systemMatch = /^\/system\/(trains|buses|metra)\/?$/.exec(path);
+const systemMatch = /^\/system\/(trains|buses)\/?$/.exec(path);
 const aboutMatch = /^\/about\/?$/.exec(path);
 const subscribeMatch = /^\/subscribe\/?$/.exec(path);
 const privacyMatch = /^\/privacy\/?$/.exec(path);
@@ -78,8 +76,6 @@ if (eventMatch) {
   page = <EventPage eventId={eventMatch[1]} />;
 } else if (lineMatch) {
   page = <LinePage kind="train" lineId={lineMatch[1]} />;
-} else if (metraLineMatch) {
-  page = <LinePage kind="metra" lineId={metraLineMatch[1]} />;
 } else if (routeMatch) {
   page = <LinePage kind="bus" lineId={routeMatch[1]} />;
 } else if (stationsIndexMatch) {
@@ -88,8 +84,6 @@ if (eventMatch) {
   page = <RoutesIndexPage />;
 } else if (stationMatch) {
   page = <StationPage slug={stationMatch[1]} />;
-} else if (metraStationMatch) {
-  page = <StationPage slug={metraStationMatch[1]} kind="metra" />;
 } else if (dayMatch) {
   page = <DayPage dateStr={dayMatch[1]} />;
 } else if (weekMatch) {
@@ -101,11 +95,7 @@ if (eventMatch) {
 } else if (compareMatch) {
   page = <ComparePage />;
 } else if (systemMatch) {
-  page = (
-    <SystemHealthPage
-      kind={systemMatch[1] === 'trains' ? 'train' : systemMatch[1] === 'metra' ? 'metra' : 'bus'}
-    />
-  );
+  page = <SystemHealthPage kind={systemMatch[1] === 'trains' ? 'train' : 'bus'} />;
 } else if (aboutMatch) {
   page = <AboutPage />;
 } else if (subscribeMatch) {

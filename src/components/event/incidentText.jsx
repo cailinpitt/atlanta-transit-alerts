@@ -1,8 +1,6 @@
 import {
   botSummaryText,
   incidentHeadlineText,
-  isMetraPointSource,
-  metraPointEventTitle,
   officialAlert,
   splitObservations,
 } from '../../lib/incidents.js';
@@ -22,13 +20,6 @@ export function incidentRoutes(incident) {
 export function describeText(incident) {
   if (officialAlert(incident)) return incidentHeadlineText(incident);
   const { primary } = splitObservations(incident);
-  // Metra point event: prefer train-number titles when the exporter supplies the
-  // run number; otherwise fall back to the pre-rendered bot sentence.
-  const metraTitle = metraPointEventTitle(incident);
-  if (metraTitle) return metraTitle;
-  if (isMetraPointSource(primary?.detection_source) && primary?.bot_description) {
-    return primary.bot_description;
-  }
   if (primary?.from_station && primary?.to_station) {
     const seg = `${displayStationName(primary.from_station)} → ${displayStationName(primary.to_station)}`;
     return primary.direction_label ? `${seg} (${primary.direction_label})` : seg;
@@ -39,12 +30,6 @@ export function describeText(incident) {
 export function describe(incident, stationIndex) {
   if (officialAlert(incident)) return incidentHeadlineText(incident);
   const { primary } = splitObservations(incident);
-  // Metra point event: same title policy as describeText.
-  const metraTitle = metraPointEventTitle(incident);
-  if (metraTitle) return metraTitle;
-  if (isMetraPointSource(primary?.detection_source) && primary?.bot_description) {
-    return primary.bot_description;
-  }
   if (primary?.from_station && primary?.to_station) {
     return (
       <>

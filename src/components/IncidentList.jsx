@@ -1,13 +1,8 @@
 import { Fragment, useMemo, useState } from 'react';
-import {
-  cancellationInfo,
-  cancellationSchedulePhrase,
-  cancellationStatusLabel,
-} from '../lib/cancellation.js';
 import { buildCsv } from '../lib/csv.js';
 import {
-  chicagoDayUTC,
-  formatChicagoDay,
+  atlantaDayUTC,
+  formatAtlantaDay,
   formatDuration,
   formatEstimatedEnd,
   formatStabilizationDelta,
@@ -21,41 +16,36 @@ import {
   incidentHeadlineText,
   incidentLifecycle,
   legacyKind,
-  metraIncidentStatus,
-  metraPointEvent,
-  metraPointEventTitle,
   officialAlert,
   splitObservations,
 } from '../lib/incidents.js';
 import HighlightedText from './HighlightedText.jsx';
 import LinePill from './LinePill.jsx';
-import MetraPointBadge from './MetraPointBadge.jsx';
 import OfficialBadge from './OfficialBadge.jsx';
 import ShareLink from './ShareLink.jsx';
 import StationName from './StationName.jsx';
 
 const PAGE_SIZE = 25;
 
-// Build the list of Bluesky sources for this incident. CTA's own alert post
+// Build the list of Bluesky sources for this incident. The official alert post
 // first (when present), then the bot observation that paired with it, then
 // any extra bot observations merged into the same incident. Each entry has
 // `url` and `label` so the renderer doesn't have to re-derive labels.
 function getSources(incident) {
-  const cta = officialAlert(incident);
+  const official = officialAlert(incident);
   const kind = legacyKind(incident);
   const { primary, extras } = splitObservations(incident);
   const out = [];
-  if (cta?.post_url) {
-    // Merged → "Via CTA"/"Via Metra" (the bot post follows); pure alert → "View on Bluesky".
+  if (official?.post_url) {
     out.push({
-      url: cta.post_url,
+      url: official.post_url,
       label: primary ? `Via ${agencyLabel(kind)}` : 'View on Bluesky',
     });
   } else if (primary?.post_url) {
     // Bot-only incident: the observation post is the main source.
     out.push({ url: primary.post_url, label: 'View on Bluesky' });
   }
-  if (cta && primary?.post_url) {
+  if (official && primary?.post_url) {
     out.push({
       url: primary.post_url,
       label: primary.detection_source
@@ -63,7 +53,7 @@ function getSources(incident) {
         : 'Bot detection',
     });
   }
-  if (cta) {
+  if (official) {
     for (const e of extras) {
       if (!e.post_url) continue;
       out.push({
@@ -77,29 +67,15 @@ function getSources(incident) {
 }
 
 function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
-  const cta = officialAlert(incident);
+  const official = officialAlert(incident);
   const kind = legacyKind(incident);
   const lifecycle = incidentLifecycle(incident);
   const { primary } = splitObservations(incident);
-  const isMerged = !!cta && !!primary;
-  const isAlert = !!cta && !primary;
-  const isObsOnly = !cta;
+  const isMerged = !!official && !!primary;
+  const isAlert = !!official && !primary;
+  const isObsOnly = !official;
   const eventId = incident.id;
   const sources = getSources(incident);
-  // Single-train Metra cancellation → schedule-anchored badge instead of the
-  // ongoing/duration framing (a train that won't run has no duration).
-  const cancel = cancellationInfo(incident);
-  const cancelPhrase = cancellationSchedulePhrase(cancel);
-  // Metra point event (late / cancelled / not-seen-running train): lead the
-  // description with the pre-rendered sentence and mark the row with a status
-  // badge so it doesn't read like a route/reroute. `pointLede` is null when the
-  // bot shipped no sentence — then the station pair stays the description and
-  // only the badge flags the kind.
-  const pointEvent = metraPointEvent(incident);
-  const metraStatus = metraIncidentStatus(incident);
-  const pointTitle = metraPointEventTitle(incident);
-  const pointLede = pointEvent?.lede ?? null;
-
   // For a merged incident spanning more than one line (a Loop-wide alert that
   // merged a detection per line), the single primary "from → to" sub-line hides
   // the other lines' stretches. When 2+ lines are involved, show each line's
@@ -131,7 +107,7 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
     (isObsOnly ? (primary?.duration_ms ?? null) : null) ?? (endTs != null ? endTs - startTs : null);
   const duration = endTs ? formatDuration(durationMs) : null;
 
-  // Only render the stabilization chip when CTA cleared the alert before the
+  // Only render the stabilization chip when the agency cleared the alert before the
   // bot saw sustained recovery — that gap is the felt return-to-normal lag.
   const obsResolvedTs = isMerged && !lifecycle.active ? (primary?.resolved_ts ?? null) : null;
   const stabilizationDelta =
@@ -149,12 +125,8 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
   // pulse-cold posts on opposite directions of the same line read as distinct
   // at a glance instead of looking identical.
   const directionLabel = primary?.direction_label ?? null;
-  if (cta) {
+  if (official) {
     description = <HighlightedText text={incidentHeadlineText(incident)} query={searchQuery} />;
-  } else if (pointTitle) {
-    description = <HighlightedText text={pointTitle} query={searchQuery} />;
-  } else if (pointLede) {
-    description = <HighlightedText text={pointLede} query={searchQuery} />;
   } else if (obsFrom && obsTo) {
     description = (
       <>
@@ -182,30 +154,15 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
     description = <HighlightedText text={botSummaryText(incident)} query={searchQuery} />;
   }
 
-  const durationDetail =
-    !cancel && !metraStatus && !lifecycle.active
-      ? duration
-        ? `${duration} duration`
-        : !endTs
-          ? 'duration unknown'
-          : null
-      : null;
+  const durationDetail = !lifecycle.active
+    ? duration
+      ? `${duration} duration`
+      : !endTs
+        ? 'duration unknown'
+        : null
+    : null;
 
-  // Status badge — pulled out of the inline metadata line and rendered in a
-  // fixed right-hand column (below) so the badges line up vertically across
-  // rows instead of starting wherever the variable-length attribution text
-  // ("via CTA · via auto-detection") happens to end. Schedule, CTA
-  // estimated-end, and plain duration detail text stays inline on the left.
-  const statusBadge = cancel ? (
-    <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">
-      {cancellationStatusLabel(cancel)}
-    </span>
-  ) : metraStatus ? (
-    <span className="inline-flex items-center gap-1.5">
-      <MetraPointBadge source={metraStatus.source} />
-      {lifecycle.active && <span className="text-xs font-semibold text-red-500">ongoing</span>}
-    </span>
-  ) : lifecycle.active ? (
+  const statusBadge = lifecycle.active ? (
     <span className="text-xs font-semibold text-red-500">ongoing</span>
   ) : null;
 
@@ -268,17 +225,11 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
                 <span className="text-xs text-slate-500 dark:text-slate-400">{durationDetail}</span>
               </>
             )}
-            {cancel && cancelPhrase && (
-              <>
-                <span className="text-xs text-slate-300 dark:text-slate-600">·</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{cancelPhrase}</span>
-              </>
-            )}
             {lifecycle.active &&
-              cta?.agency_event_window?.end_ts != null &&
+              official?.agency_event_window?.end_ts != null &&
               (() => {
-                const phrase = formatEstimatedEnd(cta.agency_event_window.end_ts, undefined, {
-                  dateOnly: cta.agency_event_window.end_is_date_only === true,
+                const phrase = formatEstimatedEnd(official.agency_event_window.end_ts, undefined, {
+                  dateOnly: official.agency_event_window.end_is_date_only === true,
                 });
                 if (!phrase) return null;
                 return (
@@ -286,24 +237,24 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
                     <span className="text-xs text-slate-300 dark:text-slate-600">·</span>
                     <span
                       className="text-xs text-slate-500 dark:text-slate-400"
-                      title="CTA tagged this alert with an estimated end time when it was posted."
+                      title="MARTA tagged this alert with an estimated end time when it was posted."
                     >
-                      CTA estimated end {phrase}
+                      MARTA estimated end {phrase}
                     </span>
                   </>
                 );
               })()}
-            {!lifecycle.active && cta?.agency_event_window?.end_ts != null && (
+            {!lifecycle.active && official?.agency_event_window?.end_ts != null && (
               <>
                 <span className="text-xs text-slate-300 dark:text-slate-600">·</span>
                 <span
                   className="text-xs text-slate-500 dark:text-slate-400"
-                  title="CTA tagged this alert with an estimated end time when it was posted."
+                  title="MARTA tagged this alert with an estimated end time when it was posted."
                 >
-                  CTA estimated end{' '}
-                  {cta.agency_event_window.end_is_date_only === true
-                    ? formatChicagoDay(chicagoDayUTC(cta.agency_event_window.end_ts))
-                    : formatTime(cta.agency_event_window.end_ts)}
+                  MARTA estimated end{' '}
+                  {official.agency_event_window.end_is_date_only === true
+                    ? formatAtlantaDay(atlantaDayUTC(official.agency_event_window.end_ts))
+                    : formatTime(official.agency_event_window.end_ts)}
                 </span>
               </>
             )}
@@ -343,27 +294,6 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
                   </span>
                 </Fragment>
               ))}
-            </p>
-          )}
-
-          {/* Metra point event: when the main description is a train-number title
-              or the bot sentence, keep the affected run visible below it. */}
-          {(pointTitle || pointLede) && obsFrom && obsTo && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              <StationName
-                name={obsFrom}
-                kind={kind}
-                stationIndex={stationIndex}
-                searchQuery={searchQuery}
-              />{' '}
-              →{' '}
-              <StationName
-                name={obsTo}
-                kind={kind}
-                stationIndex={stationIndex}
-                searchQuery={searchQuery}
-              />
-              {directionLabel && <span className="ml-1.5">({directionLabel})</span>}
             </p>
           )}
 
@@ -499,7 +429,7 @@ export default function IncidentList({
     const a = document.createElement('a');
     a.href = url;
     const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `chicago-transit-alerts-${stamp}.csv`;
+    a.download = `atlanta-transit-alerts-${stamp}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -540,9 +470,9 @@ export default function IncidentList({
         type="search"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search Red, 66, Chicago, Howard…"
+        placeholder="Search Blue, 15, Five Points…"
         aria-label="Search by line, route, station, or text"
-        title="Search line names (Red, Blue), bus routes by number (66) or name (Chicago), station names (Howard, Belmont), and alert text."
+        title="Search line names, bus routes by number or name, station names, and alert text."
         className="w-full pl-3 pr-7 py-1 text-xs rounded-full bg-slate-100 dark:bg-gh-subtle text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 border border-transparent focus:outline-none focus:border-slate-300 dark:focus:border-gh-border focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400"
       />
       {search && (
@@ -569,7 +499,7 @@ export default function IncidentList({
   const pageCount = Math.ceil(total / PAGE_SIZE);
   const visible = combined.slice(0, page * PAGE_SIZE);
 
-  // Group the visible window by Chicago calendar day so the list reads as a
+  // Group the visible window by Atlanta calendar day so the list reads as a
   // commit-feed-style log: a date header with a count, then that day's
   // incidents under it. We also need the per-day total against `combined`
   // (not just `visible`) so the header count doesn't shrink as a day's
@@ -577,13 +507,13 @@ export default function IncidentList({
   const groups = useMemo(() => {
     const totalsByDay = new Map();
     for (const inc of combined) {
-      const key = chicagoDayUTC(incidentLifecycle(inc).first_seen_ts);
+      const key = atlantaDayUTC(incidentLifecycle(inc).first_seen_ts);
       totalsByDay.set(key, (totalsByDay.get(key) || 0) + 1);
     }
     const out = [];
     let current = null;
     for (const inc of visible) {
-      const key = chicagoDayUTC(incidentLifecycle(inc).first_seen_ts);
+      const key = atlantaDayUTC(incidentLifecycle(inc).first_seen_ts);
       if (!current || current.dayUtc !== key) {
         current = { dayUtc: key, total: totalsByDay.get(key) || 0, incidents: [] };
         out.push(current);
@@ -631,7 +561,7 @@ export default function IncidentList({
           <Fragment key={group.dayUtc}>
             <div className="flex items-baseline gap-2 pt-4 pb-1 first:pt-0 border-t border-slate-100 dark:border-gh-border first:border-t-0">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {formatChicagoDay(group.dayUtc)}
+                {formatAtlantaDay(group.dayUtc)}
               </h3>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 {group.total} incident{group.total === 1 ? '' : 's'}

@@ -45,29 +45,19 @@ function InfoPopover({ children, label = 'What does this mean?' }) {
 
 const BOTS = [
   {
-    label: 'CTA Alert Insights',
+    label: 'MARTA Alert Insights',
     emoji: '⚠️',
-    href: 'https://bsky.app/profile/ctaalertinsights.chicagotransitalerts.app',
+    href: 'https://bsky.app/profile/martaalertinsights.atlantatransitalerts.app',
   },
   {
-    label: 'CTA Train Insights',
-    emoji: '🚇',
-    href: 'https://bsky.app/profile/ctatraininsights.chicagotransitalerts.app',
-  },
-  {
-    label: 'CTA Bus Insights',
-    emoji: '🚌',
-    href: 'https://bsky.app/profile/ctabusinsights.chicagotransitalerts.app',
-  },
-  {
-    label: 'Metra Alert Insights',
+    label: 'MARTA Train Insights',
     emoji: '🚆',
-    href: 'https://bsky.app/profile/metraalertinsights.chicagotransitalerts.app',
+    href: 'https://bsky.app/profile/martatraininsights.atlantatransitalerts.app',
   },
   {
-    label: 'Metra Insights',
-    emoji: '🛤️',
-    href: 'https://bsky.app/profile/metrainsights.chicagotransitalerts.app',
+    label: 'MARTA Bus Insights',
+    emoji: '🚌',
+    href: 'https://bsky.app/profile/martabusinsights.atlantatransitalerts.app',
   },
 ];
 
@@ -80,7 +70,7 @@ export default function Header({
   observations,
 }) {
   // Tick once a minute so the relative "Nm ago" label stays honest on a tab
-  // left open. The absolute Chicago time rides along as the hover tooltip.
+  // left open. The absolute Atlanta time rides along as the hover tooltip.
   const now = useNow();
   const updatedAbs = generatedAt
     ? new Date(generatedAt).toLocaleString('en-US', {
@@ -88,8 +78,8 @@ export default function Header({
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        timeZone: 'America/Chicago',
-      }) + ' CT'
+        timeZone: 'America/New_York',
+      }) + ' ET'
     : null;
   const updatedRel = generatedAt ? formatRelativeTime(generatedAt, now) : null;
 
@@ -107,7 +97,7 @@ export default function Header({
               className="text-left hover:opacity-70 transition-opacity"
               aria-label="Reset filters and return to default view"
             >
-              Chicago Transit Alerts
+              Atlanta Transit Alerts
             </button>
           </h1>
           <div className="relative flex items-center gap-2 flex-shrink-0">
@@ -132,7 +122,7 @@ export default function Header({
           </div>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          Major CTA &amp; Metra alerts and service observations
+          MARTA alerts and bot-detected service disruptions
         </p>
         {/* Meta row: bot links, plus the last-updated note on mobile. */}
         <div className="relative flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2">

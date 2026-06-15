@@ -7,13 +7,13 @@
 //
 // Scope (intentionally bounded — generating 150+ bus routes when only a few
 // are ever shared would be wasteful):
-//   - All 8 train lines + all 11 Metra lines (stable sets, always rendered)
+//   - All MARTA train lines (stable set, always rendered)
 //   - Bus routes that appear in alerts/observations within the 90-day window
 //   - Stations from buildStationIndex (already filtered to >=1 incident)
 //   - /calendar (singleton, always rendered)
 //   - /stats (singleton, always rendered)
 //   - /compare (singleton, always rendered)
-//   - /system/trains, /system/buses, and /system/metra (singletons, always rendered)
+//   - /system/trains and /system/buses (singletons, always rendered)
 //   - /stations and /routes (A–Z directory indexes, singletons)
 //
 // Anything outside the scope falls back to the generic homepage OG card,
@@ -36,11 +36,10 @@ import { buildWeekSummary, computeStatsLeaderboards, listWeeks } from '../src/li
 import { breadcrumbJsonLd, dayTrail, topLevelTrail, weekTrail } from '../src/lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES } from '../src/lib/busRoutes.js';
 import { buildCalendarMonths, maxCountAcrossMonths } from '../src/lib/calendar.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../src/lib/ctaLines.js';
 import {
-  chicagoDayIsoUTC,
-  chicagoDayUTC,
-  formatChicagoDay,
+  atlantaDayIsoUTC,
+  atlantaDayUTC,
+  formatAtlantaDay,
   formatDuration,
   formatWeekRange,
 } from '../src/lib/format.js';
@@ -48,12 +47,10 @@ import {
   formatRoutesLabel,
   groupIncidentRecords,
   incidentRecords,
-  legacyKind,
+  isWebsiteIncident,
 } from '../src/lib/incidents.js';
-import { gateIncidents } from '../src/lib/metraGate.js';
-import { METRA_LINE_ORDER, METRA_LINES } from '../src/lib/metraLines.js';
-import { buildMetraStationIndex } from '../src/lib/metraStations.js';
 import { buildStationIndex } from '../src/lib/stations.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../src/lib/trainLines.js';
 import trainStations from '../src/lib/trainStations.json' with { type: 'json' };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -150,7 +147,7 @@ function buildStatsHtml(leaders) {
   if (leaders.worstDay) {
     items.push({
       label: 'Worst day',
-      value: `${formatChicagoDay(leaders.worstDay.dayUtc)} · ${leaders.worstDay.count} incident${leaders.worstDay.count === 1 ? '' : 's'}`,
+      value: `${formatAtlantaDay(leaders.worstDay.dayUtc)} · ${leaders.worstDay.count} incident${leaders.worstDay.count === 1 ? '' : 's'}`,
     });
   } else {
     items.push({ label: 'Worst day', value: 'Not enough data yet' });
@@ -227,20 +224,11 @@ function activeRoutesByKind(payload) {
 // Build the list of line/route/station "pages" to render. Each item carries
 // everything the renderer needs: a stable slug for the cache key and output
 // path, the raw input fields, and the kind so we pick the right template.
-function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations: [] }) {
+function planPages(payload, dailyPayload) {
   const now = Date.now();
   const cutoff = now - WINDOW_DAYS * DAY_MS;
   const pages = [];
   const { trains: activeTrains, buses: activeBuses } = activeRoutesByKind(payload);
-
-  // Active Metra lines (ungated) — drives the "Active disruption" card variant.
-  const activeMetra = new Set();
-  for (const a of metraFlat.officialRecords ?? []) {
-    if (a.active) for (const r of a.routes ?? []) activeMetra.add(r);
-  }
-  for (const o of metraFlat.detectionRecords ?? []) {
-    if (o.active && o.line) activeMetra.add(o.line);
-  }
 
   // Calendar — singleton page. Always rendered so a fresh deploy never
   // ships without its share card. The grid HTML is computed up front and
@@ -272,8 +260,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       outDir: resolve(DIST, 'compare'),
       url: `${SITE}/compare`,
       path: '/compare',
-      ogTitle: 'Compare CTA lines · Atlanta Transit Alerts',
-      desc: 'Side-by-side reliability, signal mix, and resolution time for up to 3 CTA train lines or bus routes — archived on atlantatransitalerts.app.',
+      ogTitle: 'Compare MARTA lines · Atlanta Transit Alerts',
+      desc: 'Side-by-side reliability, signal mix, and resolution time for up to 3 MARTA train lines or bus routes — archived on atlantatransitalerts.app.',
       subtitle: '',
     });
   }
@@ -320,10 +308,10 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       url: `${SITE}/system/trains`,
       path: '/system/trains',
       ogTitle: 'Train system health · Atlanta Transit Alerts',
-      desc: 'System-wide health for the L: active disruptions, per-line incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
+      desc: 'System-wide health for MARTA rail: active disruptions, per-line incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
       title: 'Train system health',
       subtitle:
-        'All eight L lines at a glance — active disruptions, recent activity, and 30-day disruption time.',
+        'MARTA rail lines at a glance — active disruptions, recent activity, and 30-day disruption time.',
       pillHtml: trainPills,
       // Trains: a wash of the L brand colors across the card, plus a
       // vertical multi-stop bar mirroring the same palette so the card
@@ -341,7 +329,7 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       url: `${SITE}/system/buses`,
       path: '/system/buses',
       ogTitle: 'Bus system health · Atlanta Transit Alerts',
-      desc: 'System-wide health for CTA buses: active disruptions, per-route incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
+      desc: 'System-wide health for MARTA buses: active disruptions, per-route incident counts, disruption hours, and 30-day trends — archived on atlantatransitalerts.app.',
       title: 'Bus system health',
       subtitle:
         totalBusRoutes > 0
@@ -354,33 +342,6 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       bgGradient:
         'linear-gradient(135deg, rgba(71, 85, 105, 0.18) 0%, rgba(100, 116, 139, 0.10) 45%, rgba(249, 115, 22, 0.10) 100%)',
       accentBar: 'linear-gradient(180deg, #334155 0%, #64748b 60%, #f97316 100%)',
-    });
-
-    // Metra system card — the 11 lines as compact route-code pills (full names
-    // overflow). Palette washes a few Metra brand colors so the card reads as
-    // "Metra" at a glance.
-    const metraPills = METRA_LINE_ORDER.map((line) => {
-      const info = METRA_LINES[line];
-      if (!info) return '';
-      return `<span class="pill" style="background:${info.color};color:${info.textColor}">${escHtml(line.toUpperCase())}</span>`;
-    }).join('');
-    pages.push({
-      kind: 'system',
-      mode: 'metra',
-      slug: 'system-metra',
-      outDir: resolve(DIST, 'system', 'metra'),
-      url: `${SITE}/system/metra`,
-      path: '/system/metra',
-      ogTitle: 'Metra system health · Atlanta Transit Alerts',
-      desc: 'System-wide health for Metra commuter rail: active disruptions, per-line cancellations and delays, and 30-day trends — archived on atlantatransitalerts.app.',
-      title: 'Metra system health',
-      subtitle:
-        'Every Metra line at a glance — active disruptions, cancellations, and delays over the last 30 days.',
-      pillHtml: metraPills,
-      bgGradient:
-        'linear-gradient(120deg, rgba(0, 128, 0, 0.12) 0%, rgba(235, 92, 0, 0.10) 30%, rgba(224, 36, 0, 0.10) 55%, rgba(0, 66, 168, 0.12) 80%, rgba(255, 230, 0, 0.10) 100%)',
-      accentBar:
-        'linear-gradient(180deg, #29C233 0%, #EB5C00 22%, #E02400 42%, #9785BC 60%, #0042A8 78%, #FFE600 100%)',
     });
   }
 
@@ -402,7 +363,7 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     url: `${SITE}/stats`,
     path: '/stats',
     ogTitle: 'Stats · Atlanta Transit Alerts',
-    desc: 'Worst days, hours, stations, and longest incidents on the CTA — archived on atlantatransitalerts.app.',
+    desc: 'Worst days, hours, stations, and longest incidents on MARTA — archived on atlantatransitalerts.app.',
     subtitle: statsSubtitle(payload),
     statsHtml,
   });
@@ -426,8 +387,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     path: '/stations',
     title: 'All stations',
     ogTitle: 'All stations · Atlanta Transit Alerts',
-    desc: `A–Z index of all ${trainStations.length} CTA 'L' stations, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
-    subtitle: `Every CTA 'L' station, A–Z — ${trainStations.length} stops across the eight lines, each with its full alert history.`,
+    desc: `A–Z index of all ${trainStations.length} MARTA rail and streetcar stations, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
+    subtitle: `Every MARTA rail and streetcar station, A–Z — ${trainStations.length} stops across the network, each with its full alert history.`,
     pillHtml: indexTrainPills,
   });
   pages.push({
@@ -438,8 +399,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     path: '/routes',
     title: 'All routes',
     ogTitle: 'All routes · Atlanta Transit Alerts',
-    desc: `Index of every CTA train line and bus route, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
-    subtitle: `Every CTA line and route in one place — 8 train lines and ${busRouteCount} bus routes, each with its full alert history.`,
+    desc: `Index of every MARTA train line and bus route, each linking to its service-alert and disruption history — archived on atlantatransitalerts.app.`,
+    subtitle: `Every MARTA line and route in one place — ${TRAIN_LINE_ORDER.length} train lines and ${busRouteCount} bus routes, each with its full alert history.`,
     pillHtml:
       indexTrainPills +
       ['Local', 'Express', 'Limited', 'Owl service']
@@ -476,33 +437,6 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     });
   }
 
-  // Metra lines — stable set of 11, always rendered. The pill carries the short
-  // route code (UP-N) and the full line name goes in the headline slot, since
-  // Metra's full names ("Union Pacific Northwest") are too long for the pill.
-  for (const lineId of METRA_LINE_ORDER) {
-    const info = METRA_LINES[lineId];
-    if (!info) continue;
-    const active = activeMetra.has(lineId);
-    pages.push({
-      kind: 'line',
-      slug: `metra-line-${lineId}`,
-      outDir: resolve(DIST, 'metra', 'line', lineId),
-      url: `${SITE}/metra/line/${lineId}`,
-      path: `/metra/line/${lineId}`,
-      feedPath: `/feed/metra/line/${lineId}.xml`,
-      label: lineId.toUpperCase(),
-      crumbLabel: `${info.label} (Metra)`,
-      title: info.label,
-      ogTitle: `${info.label} · Metra · Atlanta Transit Alerts`,
-      desc: `Cancellations, delays, and service alerts on the Metra ${info.label} line — archived on atlantatransitalerts.app.`,
-      subtitle: active
-        ? 'Active disruption right now — see live status.'
-        : 'Cancellations, delays, and service alerts, archived.',
-      accent: { color: info.color, soft: softColor(info.color, 0.22), text: info.textColor },
-      active,
-    });
-  }
-
   // Bus routes with at least one incident in the window. Sorted leading-numeric
   // for deterministic build output (helps caching when nothing's changed).
   const busRoutes = new Set();
@@ -515,7 +449,7 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
   }
   for (const route of [...busRoutes].sort()) {
     const name = BUS_ROUTE_NAMES[route] ?? BUS_ROUTE_NAMES[String(route)];
-    // Pill stays compact ("#10") so it doesn't overflow with long CTA route
+    // Pill stays compact ("#10") so it doesn't overflow with long bus route
     // names like "Obama Presidential Center/Museum of Science & Industry".
     // The full name lives in the title slot underneath, where it can wrap
     // and clamp gracefully.
@@ -540,7 +474,7 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
     });
   }
 
-  // Day pages — every Chicago calendar day in the rolling window that had at
+  // Day pages — every Atlanta calendar day in the rolling window that had at
   // least one incident. Skipped when the merge step yields nothing for that
   // day, so a zero-incident day doesn't claim a share card.
   const DAY_PRERENDER_WINDOW_DAYS = 30;
@@ -551,9 +485,9 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
   const daysWithIncidents = new Map(); // dayUtc → { trainLines: Set, busRoutes: Set, count }
   function bumpDay(ts, kind, routes) {
     if (ts == null) return;
-    const day = chicagoDayUTC(ts);
-    if (day < chicagoDayUTC(now) - (DAY_PRERENDER_WINDOW_DAYS - 1) * DAY_MS) return;
-    if (day > chicagoDayUTC(now)) return;
+    const day = atlantaDayUTC(ts);
+    if (day < atlantaDayUTC(now) - (DAY_PRERENDER_WINDOW_DAYS - 1) * DAY_MS) return;
+    if (day > atlantaDayUTC(now)) return;
     let entry = daysWithIncidents.get(day);
     if (!entry) {
       entry = { trainLines: new Set(), busRoutes: new Set(), count: 0 };
@@ -595,9 +529,9 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       url: `${SITE}/day/${isoDate}`,
       path: `/day/${isoDate}`,
       dayUtc,
-      ogTitle: `${formatChicagoDay(dayUtc)} · Atlanta Transit Alerts`,
-      desc: `MARTA service alerts and bot-detected disruptions on ${formatChicagoDay(dayUtc)} — archived on atlantatransitalerts.app.`,
-      title: formatChicagoDay(dayUtc),
+      ogTitle: `${formatAtlantaDay(dayUtc)} · Atlanta Transit Alerts`,
+      desc: `MARTA service alerts and bot-detected disruptions on ${formatAtlantaDay(dayUtc)} — archived on atlantatransitalerts.app.`,
+      title: formatAtlantaDay(dayUtc),
       subtitle: `${entry.count} incident${entry.count === 1 ? '' : 's'} across ${entry.trainLines.size + entry.busRoutes.size} line${entry.trainLines.size + entry.busRoutes.size === 1 ? '' : 's'}/route${entry.trainLines.size + entry.busRoutes.size === 1 ? '' : 's'}`,
       pillHtml,
     });
@@ -622,7 +556,7 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       .join('');
   }
   for (const weekStartUtc of weeks) {
-    const iso = chicagoDayIsoUTC(weekStartUtc);
+    const iso = atlantaDayIsoUTC(weekStartUtc);
     const range = formatWeekRange(weekStartUtc, { year: true });
     const summary = buildWeekSummary(
       payload.officialRecords ?? [],
@@ -636,8 +570,8 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
         : `${summary.total} incident${summary.total === 1 ? '' : 's'} · ${summary.trainCount} train, ${summary.busCount} bus`;
     const desc =
       summary.total === 0
-        ? `Service alerts and bot-detected disruptions on the CTA for the week of ${range} (Sunday–Saturday) — archived on atlantatransitalerts.app.`
-        : `${summary.total} CTA incident${summary.total === 1 ? '' : 's'} during the week of ${range} (Sunday–Saturday) — ${summary.trainCount} train, ${summary.busCount} bus. Archived on atlantatransitalerts.app.`;
+        ? `Service alerts and bot-detected disruptions on MARTA for the week of ${range} (Sunday–Saturday) — archived on atlantatransitalerts.app.`
+        : `${summary.total} MARTA incident${summary.total === 1 ? '' : 's'} during the week of ${range} (Sunday–Saturday) — ${summary.trainCount} train, ${summary.busCount} bus. Archived on atlantatransitalerts.app.`;
     const common = {
       kind: 'week',
       weekStartUtc,
@@ -693,42 +627,6 @@ function planPages(payload, dailyPayload, metraFlat = { alerts: [], observations
       subtitle: `Train station · ${rec.count} incident${rec.count === 1 ? '' : 's'} on record (90d)`,
     });
   }
-
-  // Metra stations — same card, built from the Metra incident index (metraFlat,
-  // since the CTA payload above has Metra stripped). They live under the
-  // /metra/station/ namespace, so applyDisclaimer's path check gives them the
-  // Metra disclaimer automatically.
-  const metraStationIndex = buildMetraStationIndex(
-    metraFlat.officialRecords,
-    metraFlat.detectionRecords,
-    {
-      now,
-      windowDays: WINDOW_DAYS,
-    },
-  );
-  for (const [slug, rec] of [...metraStationIndex].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const linePills = rec.lines
-      .map((line) => {
-        const info = METRA_LINES[line];
-        if (!info) return null;
-        return `<span class="line-pill" style="background:${info.color};color:${info.textColor}">${escHtml(info.label)}</span>`;
-      })
-      .filter(Boolean)
-      .join('');
-    pages.push({
-      kind: 'station',
-      slug: `metra-station-${slug}`,
-      outDir: resolve(DIST, 'metra', 'station', slug),
-      url: `${SITE}/metra/station/${slug}`,
-      path: `/metra/station/${slug}`,
-      stationName: rec.name,
-      linePills,
-      ogTitle: `${rec.name} · Metra · Atlanta Transit Alerts`,
-      desc: `Metra cancellations, delays, and service alerts at ${rec.name} — archived on atlantatransitalerts.app.`,
-      subtitle: `Metra station · ${rec.count} incident${rec.count === 1 ? '' : 's'} on record (90d)`,
-    });
-  }
-
   return pages;
 }
 
@@ -850,17 +748,8 @@ function buildHtmlStub(shell, page) {
 const ACTIVE_RIBBON_HTML =
   '<div class="active-ribbon"><span class="dot"></span>Active disruption</div>';
 
-// Swap the static "…with the CTA" disclaimer to "…with Metra" on Metra cards,
-// keeping the shared templates otherwise untouched.
-function applyDisclaimer(html, page) {
-  if (page.path?.startsWith('/metra/') || page.mode === 'metra') {
-    return html.replace('Not affiliated with the CTA', 'Not affiliated with Metra');
-  }
-  return html;
-}
-
 function fillLineTemplate(tpl, page) {
-  const html = tpl
+  return tpl
     .replaceAll('__ACCENT__', page.accent.color)
     .replaceAll('__ACCENT_SOFT__', page.accent.soft)
     .replaceAll('__ACCENT_TEXT__', page.accent.text)
@@ -869,16 +758,14 @@ function fillLineTemplate(tpl, page) {
     .replaceAll('__SUBTITLE__', escHtml(page.subtitle))
     .replaceAll('__PATH__', escHtml(page.path))
     .replaceAll('__ACTIVE_RIBBON__', page.active ? ACTIVE_RIBBON_HTML : '');
-  return applyDisclaimer(html, page);
 }
 
 function fillStationTemplate(tpl, page) {
-  const html = tpl
+  return tpl
     .replaceAll('__STATION_NAME__', escHtml(page.stationName))
     .replaceAll('__LINE_PILLS__', page.linePills)
     .replaceAll('__SUBTITLE__', escHtml(page.subtitle))
     .replaceAll('__PATH__', escHtml(page.path));
-  return applyDisclaimer(html, page);
 }
 
 function fillCalendarTemplate(tpl, page) {
@@ -901,14 +788,13 @@ function fillCompareTemplate(tpl) {
 }
 
 function fillSystemTemplate(tpl, page) {
-  const html = tpl
+  return tpl
     .replaceAll('__BG_GRADIENT__', page.bgGradient)
     .replaceAll('__ACCENT_BAR__', page.accentBar)
     .replaceAll('__TITLE__', escHtml(page.title))
     .replaceAll('__SUBTITLE__', escHtml(page.subtitle))
     .replaceAll('__PILLS__', page.pillHtml)
     .replaceAll('__PATH__', escHtml(page.path));
-  return applyDisclaimer(html, page);
 }
 
 // Directory-index card shares the system card's TITLE/SUBTITLE/PILLS/PATH
@@ -986,9 +872,6 @@ function signatureFor(page, templateHash) {
       active: !!page.active,
     };
   }
-  // The Metra disclaimer swap (applyDisclaimer) changes the rendered PNG without
-  // touching any field above, so fold it into the signature to bust the cache.
-  if (page.path?.startsWith('/metra/') || page.mode === 'metra') payload.disc = 'metra';
   h.update(JSON.stringify({ ...payload, templateHash }));
   return h.digest('hex');
 }
@@ -1025,13 +908,7 @@ async function main() {
     return;
   }
   const raw = JSON.parse(readFileSync(DATA, 'utf8'));
-  // The CTA aggregates (stats, calendar, day/week, system trains/buses) read the
-  // gated payload — gateIncidents is CTA-only in Node, so Metra is stripped from
-  // those cards. Metra's own roster cards (line pages + /system/metra) are driven
-  // by this separate ungated slice so they can show the active-disruption variant.
-  const allIncidents = raw.incidents || [];
-  const metraFlat = incidentRecords(allIncidents.filter((inc) => legacyKind(inc) === 'metra'));
-  raw.incidents = gateIncidents(allIncidents);
+  raw.incidents = (raw.incidents || []).filter((inc) => isWebsiteIncident(inc));
   const payload = { ...raw, ...incidentRecords(raw.incidents || []) };
   // daily-counts.json is optional — if it's missing (e.g. during a build
   // before the cron has dropped one in), skip the calendar OG card rather
@@ -1064,7 +941,7 @@ async function main() {
   const systemHash = createHash('sha256').update(systemTpl).digest('hex').slice(0, 16);
   const indexHash = createHash('sha256').update(indexTpl).digest('hex').slice(0, 16);
 
-  const pages = planPages(payload, dailyPayload, metraFlat);
+  const pages = planPages(payload, dailyPayload);
   if (pages.length === 0) {
     console.log('prerender-pages: nothing to render');
     return;

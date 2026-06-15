@@ -7,11 +7,11 @@ describe('parseUrlState', () => {
       selectedLines: null,
       showBus: true,
       selectedBusRoutes: [],
-      selectedMetraLines: [],
+      selectedCommuterLines: [],
       dateRange: 7,
       selectedDay: null,
       selectedSignals: [],
-      selectedSources: ['cta', 'bot', 'merged'],
+      selectedSources: ['official', 'bot', 'merged'],
       search: '',
       selectedAgency: 'all',
     });
@@ -64,11 +64,11 @@ describe('parseUrlState', () => {
     ]);
   });
 
-  it('parses metra lines and drops invalid keys (incl. legacy metra=1)', () => {
-    expect(parseUrlState('?metra=up-n,bnsf').selectedMetraLines).toEqual(['up-n', 'bnsf']);
-    expect(parseUrlState('?metra=UP-N,fake').selectedMetraLines).toEqual(['up-n']);
-    // The old gate param `?metra=1` has no valid line → no narrowing.
-    expect(parseUrlState('?metra=1').selectedMetraLines).toEqual([]);
+  it('parses commuter lines and drops invalid keys (incl. legacy commuter=1)', () => {
+    expect(parseUrlState('?commuter=up-n,bnsf').selectedCommuterLines).toEqual(['up-n', 'bnsf']);
+    expect(parseUrlState('?commuter=UP-N,fake').selectedCommuterLines).toEqual(['up-n']);
+    // The old gate param `?commuter=1` has no valid line → no narrowing.
+    expect(parseUrlState('?commuter=1').selectedCommuterLines).toEqual([]);
   });
 
   it('parses range=all as null', () => {
@@ -189,11 +189,11 @@ describe('buildSearch', () => {
       selectedLines: ['red'],
       showBus: false,
       selectedBusRoutes: ['66'],
-      selectedMetraLines: ['up-n', 'bnsf'],
+      selectedCommuterLines: ['up-n', 'bnsf'],
       dateRange: 30,
       selectedDay: null,
       selectedSignals: [],
-      selectedSources: ['cta', 'bot', 'merged'],
+      selectedSources: ['official', 'bot', 'merged'],
       search: '',
       selectedAgency: 'all',
     };
@@ -206,11 +206,11 @@ describe('buildSearch', () => {
       selectedLines: null,
       showBus: true,
       selectedBusRoutes: [],
-      selectedMetraLines: [],
+      selectedCommuterLines: [],
       dateRange: 7,
       selectedDay: dayUtc,
       selectedSignals: [],
-      selectedSources: ['cta', 'bot', 'merged'],
+      selectedSources: ['official', 'bot', 'merged'],
       search: '',
       selectedAgency: 'all',
     };

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEventSummaryText,
   computeBotLead,
-  computeCtaEstimate,
-  computeCtaPlanned,
+  computeOfficialEstimate,
+  computeOfficialPlanned,
   findIncidentNeighbors,
   formatLeadTime,
 } from '../components/event/callouts.js';
@@ -27,10 +27,10 @@ describe('formatLeadTime', () => {
 });
 
 describe('computeBotLead', () => {
-  it('reports how far the earliest observation predates the CTA post', () => {
+  it('reports how far the earliest observation predates the MARTA post', () => {
     const out = computeBotLead({
       isMerged: true,
-      ctaFirstSeenTs: NOW,
+      officialFirstSeenTs: NOW,
       observations: [{ ts: NOW - 5 * MIN }, { onset_ts: NOW - 20 * MIN, ts: NOW - 10 * MIN }],
     });
     expect(out).toEqual({ phrase: '20 min', onsetTs: NOW - 20 * MIN });
@@ -40,57 +40,61 @@ describe('computeBotLead', () => {
     expect(
       computeBotLead({
         isMerged: true,
-        ctaFirstSeenTs: NOW,
+        officialFirstSeenTs: NOW,
         observations: [{ ts: NOW - 1 * MIN }],
       }),
     ).toBeNull();
   });
 
-  it('returns null for non-merged incidents or missing CTA time', () => {
-    expect(computeBotLead({ isMerged: false, ctaFirstSeenTs: NOW, observations: [] })).toBeNull();
+  it('returns null for non-merged incidents or missing MARTA time', () => {
     expect(
-      computeBotLead({ isMerged: true, ctaFirstSeenTs: null, observations: [{ ts: NOW }] }),
+      computeBotLead({ isMerged: false, officialFirstSeenTs: NOW, observations: [] }),
+    ).toBeNull();
+    expect(
+      computeBotLead({ isMerged: true, officialFirstSeenTs: null, observations: [{ ts: NOW }] }),
     ).toBeNull();
   });
 });
 
-describe('computeCtaPlanned', () => {
-  it('returns null when CTA fired within 10 minutes (effectively live)', () => {
-    expect(computeCtaPlanned({ ctaStartTs: NOW - 5 * MIN, startTs: NOW })).toBeNull();
+describe('computeOfficialPlanned', () => {
+  it('returns null when MARTA fired within 10 minutes (effectively live)', () => {
+    expect(computeOfficialPlanned({ officialStartTs: NOW - 5 * MIN, startTs: NOW })).toBeNull();
   });
 
   it('formats a minutes-ahead gap', () => {
-    expect(computeCtaPlanned({ ctaStartTs: NOW - 45 * MIN, startTs: NOW })).toBe('45 min ahead');
+    expect(computeOfficialPlanned({ officialStartTs: NOW - 45 * MIN, startTs: NOW })).toBe(
+      '45 min ahead',
+    );
   });
 
   it('formats an hours-ahead gap', () => {
-    expect(computeCtaPlanned({ ctaStartTs: NOW - (2 * HOUR + 30 * MIN), startTs: NOW })).toBe(
-      '2h 30m ahead',
-    );
+    expect(
+      computeOfficialPlanned({ officialStartTs: NOW - (2 * HOUR + 30 * MIN), startTs: NOW }),
+    ).toBe('2h 30m ahead');
   });
 
   it('formats a days-ahead gap', () => {
-    expect(computeCtaPlanned({ ctaStartTs: NOW - (3 * DAY + 2 * HOUR), startTs: NOW })).toBe(
-      '3d 2h ahead',
-    );
+    expect(
+      computeOfficialPlanned({ officialStartTs: NOW - (3 * DAY + 2 * HOUR), startTs: NOW }),
+    ).toBe('3d 2h ahead');
   });
 
   it('returns null for a stale EventStart beyond 14 days', () => {
-    expect(computeCtaPlanned({ ctaStartTs: NOW - 20 * DAY, startTs: NOW })).toBeNull();
+    expect(computeOfficialPlanned({ officialStartTs: NOW - 20 * DAY, startTs: NOW })).toBeNull();
   });
 });
 
-describe('computeCtaEstimate', () => {
+describe('computeOfficialEstimate', () => {
   it('flags resolving after the stated end as "late"', () => {
     expect(
-      computeCtaEstimate({ ctaEndTs: NOW, resolvedTs: NOW + 20 * MIN, dateOnly: false }),
+      computeOfficialEstimate({ officialEndTs: NOW, resolvedTs: NOW + 20 * MIN, dateOnly: false }),
     ).toEqual({ sameMinute: false, phrase: '20 min late' });
   });
 
   it('flags resolving before the stated end as "early", with hour formatting', () => {
     expect(
-      computeCtaEstimate({
-        ctaEndTs: NOW,
+      computeOfficialEstimate({
+        officialEndTs: NOW,
         resolvedTs: NOW - (1 * HOUR + 5 * MIN),
         dateOnly: false,
       }),
@@ -98,7 +102,9 @@ describe('computeCtaEstimate', () => {
   });
 
   it('reports "right on schedule" within the same minute', () => {
-    expect(computeCtaEstimate({ ctaEndTs: NOW, resolvedTs: NOW, dateOnly: false })).toEqual({
+    expect(
+      computeOfficialEstimate({ officialEndTs: NOW, resolvedTs: NOW, dateOnly: false }),
+    ).toEqual({
       sameMinute: true,
       phrase: 'cleared right on schedule',
     });
@@ -106,10 +112,10 @@ describe('computeCtaEstimate', () => {
 
   it('skips date-only EventEnd and gaps beyond a week', () => {
     expect(
-      computeCtaEstimate({ ctaEndTs: NOW, resolvedTs: NOW + 20 * MIN, dateOnly: true }),
+      computeOfficialEstimate({ officialEndTs: NOW, resolvedTs: NOW + 20 * MIN, dateOnly: true }),
     ).toBeNull();
     expect(
-      computeCtaEstimate({ ctaEndTs: NOW, resolvedTs: NOW + 8 * DAY, dateOnly: false }),
+      computeOfficialEstimate({ officialEndTs: NOW, resolvedTs: NOW + 8 * DAY, dateOnly: false }),
     ).toBeNull();
   });
 });
@@ -149,10 +155,10 @@ describe('buildEventSummaryText', () => {
         dateText: 'May 28, 2026',
         durationText: '59 min',
         active: false,
-        url: 'https://chicagotransitalerts.app/event/abc',
+        url: 'https://atlantatransitalerts.app/event/abc',
       }),
     ).toBe(
-      'Orange Line: Trains standing near Ashland\nMay 28, 2026 · lasted 59 min\nhttps://chicagotransitalerts.app/event/abc',
+      'Orange Line: Trains standing near Ashland\nMay 28, 2026 · lasted 59 min\nhttps://atlantatransitalerts.app/event/abc',
     );
   });
 

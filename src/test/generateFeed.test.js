@@ -205,15 +205,15 @@ describe('emitAtom', () => {
   });
 });
 
-// A Metra cancellation/delay: website-data-first, so NO Bluesky post, and a
+// A Commuter cancellation/delay: website-data-first, so NO Bluesky post, and a
 // zero-duration point event (resolved_ts == first_seen_ts).
-const metraInc = (over = {}) => ({
-  kind: 'metra',
-  id: 'metra-678',
+const commuterInc = (over = {}) => ({
+  kind: 'commuter',
+  id: 'commuter-678',
   routes: ['md-n'],
   detection_source: 'delay',
   from_station: 'Fox Lake',
-  to_station: 'Chicago Union Station',
+  to_station: 'Atlanta Union Station',
   first_seen_ts: NOW,
   ts: NOW,
   resolved_ts: NOW,
@@ -221,29 +221,29 @@ const metraInc = (over = {}) => ({
   ...over,
 });
 
-describe('Metra incidents in the feed', () => {
-  it('links a postless Metra record to its SPA event page by id', () => {
-    const rec = buildEntryRecord(metraInc());
-    expect(rec.link).toBe('https://atlantatransitalerts.app/event/metra-678');
-    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:obs-metra-678');
-    expect(rec.thumb).toBe(null); // no OG card for postless Metra
+describe('Commuter incidents in the feed', () => {
+  it('links a postless Commuter record to its SPA event page by id', () => {
+    const rec = buildEntryRecord(commuterInc());
+    expect(rec.link).toBe('https://atlantatransitalerts.app/event/commuter-678');
+    expect(rec.id).toBe('tag:atlantatransitalerts.app,2026:obs-commuter-678');
+    expect(rec.thumb).toBe(null); // no OG card for postless Commuter
   });
 
   it('is never treated as a detector blip despite zero duration', () => {
-    expect(isLikelyDetectorBlip(metraInc())).toBe(false);
+    expect(isLikelyDetectorBlip(commuterInc())).toBe(false);
   });
 
-  it('tags a Metra entry with the Metra mode + line category', () => {
-    const rec = buildEntryRecord(metraInc());
+  it('tags a Commuter entry with the Commuter mode + line category', () => {
+    const rec = buildEntryRecord(commuterInc());
     const terms = rec.categories.map((c) => c.term);
-    expect(terms).toContain('metra');
-    expect(terms).toContain('metra-line-md-n');
+    expect(terms).toContain('commuter');
+    expect(terms).toContain('commuter-line-md-n');
   });
 
-  it('scopes per-line Metra feeds by the lowercase line key', () => {
-    const pool = [metraInc(), metraInc({ id: 'metra-9', routes: ['up-n'] })];
-    expect(scopedRecords(pool, 'metra', 'md-n')).toHaveLength(1);
-    expect(scopedRecords(pool, 'metra', 'up-n')).toHaveLength(1);
-    expect(scopedRecords(pool, 'metra', 'bnsf')).toHaveLength(0);
+  it('scopes per-line Commuter feeds by the lowercase line key', () => {
+    const pool = [commuterInc(), commuterInc({ id: 'commuter-9', routes: ['up-n'] })];
+    expect(scopedRecords(pool, 'commuter', 'md-n')).toHaveLength(1);
+    expect(scopedRecords(pool, 'commuter', 'up-n')).toHaveLength(1);
+    expect(scopedRecords(pool, 'commuter', 'bnsf')).toHaveLength(0);
   });
 });

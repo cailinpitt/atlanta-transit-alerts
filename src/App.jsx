@@ -23,13 +23,12 @@ import { compareBusRoutes } from './lib/busRoutes.js';
 import { dataUrl } from './lib/dataSource.js';
 import {
   filterIncidents,
-  incidentAgency,
   incidentLifecycle,
   incidentRecords,
+  isWebsiteIncident,
   observationSignals,
   SOURCE_TYPES,
 } from './lib/incidents.js';
-import { gateIncidents } from './lib/metraGate.js';
 import { buildStationIndex } from './lib/stations.js';
 import {
   buildSearch,
@@ -39,16 +38,6 @@ import {
 } from './lib/urlState.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Page-level agency scope options, in display order. The label is what the
-// segmented control shows; the value is matched against an incident's agency
-// (`metra` for kind='metra', else `cta`).
-const AGENCY_SCOPES = ['all', 'cta', 'metra'];
-const AGENCY_OPTIONS = [
-  ['all', 'All'],
-  ['cta', 'CTA'],
-  ['metra', 'Metra'],
-];
 
 export default function App() {
   const [dark, toggleDark] = useDarkMode();
@@ -78,35 +67,23 @@ export default function App() {
   const [selectedLines, setSelectedLines] = useState(initial.selectedLines); // null = all lines; [] = no lines
   const [showBus, setShowBus] = useState(initial.showBus);
   const [selectedBusRoutes, setSelectedBusRoutes] = useState(initial.selectedBusRoutes);
-  const [selectedMetraLines, setSelectedMetraLines] = useState(initial.selectedMetraLines ?? []);
   const [dateRange, setDateRange] = useState(initial.dateRange); // days; null = all time
-  // selectedDay is a Chicago-day UTC midnight epoch, or null. When set it
+  // selectedDay is an Atlanta-day UTC midnight epoch, or null. When set it
   // overrides dateRange for the incident list — the user is drilled into a
   // single day from the timeline.
   const [selectedDay, setSelectedDay] = useState(initial.selectedDay);
   const [selectedSignals, setSelectedSignals] = useState(initial.selectedSignals);
   const [selectedSources, setSelectedSources] = useState(initial.selectedSources);
   const [search, setSearch] = useState(initial.search);
-  // Agency scope for the All/CTA/Metra control: 'all' | 'cta' | 'metra'. This is
-  // a page-level scope (not just a list filter) — it narrows the active-now
-  // banner, summary stats, timeline, and everything else, since a rider almost
-  // always cares about one agency at a time. Persisted to localStorage; a stale
-  // or garbage stored value falls back to 'all' rather than emptying the page.
-  const [selectedAgency, setSelectedAgency] = useState(() =>
-    AGENCY_SCOPES.includes(initial.selectedAgency) ? initial.selectedAgency : 'all',
-  );
-
   function resetFilters() {
     setSelectedLines(null);
     setShowBus(true);
     setSelectedBusRoutes([]);
-    setSelectedMetraLines([]);
     setDateRange(7);
     setSelectedDay(null);
     setSelectedSignals([]);
     setSelectedSources([...SOURCE_TYPES]);
     setSearch('');
-    setSelectedAgency('all');
   }
 
   // Picking any range pill drops the day pin — the two are mutually exclusive
@@ -135,7 +112,6 @@ export default function App() {
       selectedLines,
       showBus,
       selectedBusRoutes,
-      selectedMetraLines,
       dateRange,
       selectedDay,
       selectedSignals,
@@ -150,7 +126,6 @@ export default function App() {
     selectedLines,
     showBus,
     selectedBusRoutes,
-    selectedMetraLines,
     dateRange,
     selectedDay,
     selectedSignals,
@@ -167,20 +142,10 @@ export default function App() {
       selectedLines,
       showBus,
       selectedBusRoutes,
-      selectedMetraLines,
       selectedSignals,
       selectedSources,
-      selectedAgency,
     });
-  }, [
-    selectedLines,
-    showBus,
-    selectedBusRoutes,
-    selectedMetraLines,
-    selectedSignals,
-    selectedSources,
-    selectedAgency,
-  ]);
+  }, [selectedLines, showBus, selectedBusRoutes, selectedSignals, selectedSources]);
 
   useEffect(() => {
     const url = dataUrl('alerts.json');
@@ -204,12 +169,9 @@ export default function App() {
           return r.json();
         })
         .then((fresh) => {
-          // In the browser gateIncidents is a pass-through (Metra is launched);
-          // it only strips Metra in the Node build scripts. Kept here as the
-          // single load boundary so the split lives in exactly one place.
           const gated = {
             ...fresh,
-            incidents: gateIncidents(fresh.incidents),
+            incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
           };
           setData((prev) => {
             // Only update if generated_at changed (or on first load).
@@ -258,15 +220,12 @@ export default function App() {
     };
   }, []);
 
-  // The whole page is scoped to the selected agency. Everything downstream
-  // (flat view, active-now banner, summary stats, timeline, incident list)
-  // derives from this slice, so toggling CTA/Metra rescopes the page as a unit
-  // rather than just filtering the list at the bottom.
+  // The website is MARTA-only. Drop any inherited commuter-rail records from
+  // downstream views if they are still present in an older shared data file.
   const agencyIncidents = useMemo(() => {
     if (!data) return [];
-    if (selectedAgency === 'all') return data.incidents;
-    return data.incidents.filter((inc) => incidentAgency(inc) === selectedAgency);
-  }, [data, selectedAgency]);
+    return (data.incidents || []).filter((inc) => isWebsiteIncident(inc));
+  }, [data]);
 
   // Incident-derived official/detection records for analytics helpers
   // (summary stats, station index, timeline, ActiveAlerts/Gantt). The incident
@@ -302,7 +261,7 @@ export default function App() {
   // Surface the active count in the tab title so a pinned tab tells the user
   // something is wrong without them having to switch to it.
   useEffect(() => {
-    const base = 'Chicago Transit Alerts';
+    const base = 'Atlanta Transit Alerts';
     document.title = activeIncidents.length > 0 ? `(${activeIncidents.length}) ${base}` : base;
   }, [activeIncidents.length]);
 
@@ -356,7 +315,7 @@ export default function App() {
     if (valid.length !== selectedBusRoutes.length) setSelectedBusRoutes(valid);
   }, [data, availableBusRoutes, selectedBusRoutes]);
 
-  // Visualization data — `data` minus standalone CTA alerts that the signal
+  // Visualization data — `data` minus standalone official alerts that the signal
   // filter would drop, plus observations restricted to those carrying any of
   // the selected signal kinds. Used for the Timeline grid and the hour-of-
   // week heatmap so the signal chips actually narrow what those views show.
@@ -424,7 +383,6 @@ export default function App() {
       startTs,
       showBus,
       busRoutes: selectedBusRoutes.length > 0 ? selectedBusRoutes : null,
-      metraLines: selectedMetraLines.length > 0 ? selectedMetraLines : null,
       selectedDay,
       signals: selectedSignals.length > 0 ? selectedSignals : null,
       // Only narrow when the user picked a subset; default (all three) ⇒
@@ -438,7 +396,6 @@ export default function App() {
     selectedLines,
     showBus,
     selectedBusRoutes,
-    selectedMetraLines,
     dateRange,
     selectedDay,
     selectedSignals,
@@ -476,30 +433,6 @@ export default function App() {
         )}
         {data && (
           <>
-            {/* Page-level agency scope. Sits above the status banner so it
-                governs the active-now count and every stat below — a rider
-                almost always cares about one agency at a time. */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400">Showing</span>
-              <div className="inline-flex rounded-lg border border-slate-300 dark:border-gh-border overflow-hidden text-xs font-semibold">
-                {AGENCY_OPTIONS.map(([value, label]) => (
-                  <button
-                    type="button"
-                    key={value}
-                    onClick={() => setSelectedAgency(value)}
-                    className={`px-3 py-1 transition-colors ${
-                      selectedAgency === value
-                        ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
-                        : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-gh-border/40'
-                    }`}
-                    aria-pressed={selectedAgency === value}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Status, top of page: live alerts when something's active, or a
                 friendly all-clear banner on a quiet day — so a first-time
                 visitor always lands on a clear answer to "is anything wrong
@@ -525,13 +458,7 @@ export default function App() {
                     All clear
                   </p>
                   <p className="text-xs text-green-700/80 dark:text-green-400/80">
-                    No active{' '}
-                    {selectedAgency === 'cta'
-                      ? 'CTA'
-                      : selectedAgency === 'metra'
-                        ? 'Metra'
-                        : 'CTA or Metra'}{' '}
-                    disruptions right now.
+                    No active MARTA disruptions right now.
                   </p>
                 </div>
               </section>
@@ -573,7 +500,7 @@ export default function App() {
                     alerts={flat.officialRecords}
                     observations={flat.detectionRecords}
                     showActive={false}
-                    agency={selectedAgency}
+                    agency="all"
                   />
                 )}
               </section>
@@ -587,7 +514,7 @@ export default function App() {
             <section className="space-y-3">
               <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-slate-50/95 dark:bg-gh-canvas/95 backdrop-blur-sm">
                 <HomeFilters
-                  agency={selectedAgency}
+                  agency="all"
                   selectedLines={selectedLines}
                   onLinesChange={handleLinesChange}
                   showBus={showBus}
@@ -598,8 +525,6 @@ export default function App() {
                   availableBusRoutes={availableBusRoutes}
                   selectedBusRoutes={selectedBusRoutes}
                   onBusRoutesChange={setSelectedBusRoutes}
-                  selectedMetraLines={selectedMetraLines}
-                  onMetraLinesChange={setSelectedMetraLines}
                   dateRange={dateRange}
                   onDateRangeChange={handleDateRangeChange}
                   selectedDay={selectedDay}
@@ -618,11 +543,9 @@ export default function App() {
                 highlightedIds={highlightedIds}
                 stationIndex={stationIndex}
                 isFiltered={
-                  // Out-of-scope agency selections are hidden and don't narrow
-                  // the list, so they don't count toward the "filtered" state.
-                  (selectedAgency !== 'metra' &&
-                    (selectedLines !== null || !showBus || selectedBusRoutes.length > 0)) ||
-                  (selectedAgency !== 'cta' && selectedMetraLines.length > 0) ||
+                  selectedLines !== null ||
+                  !showBus ||
+                  selectedBusRoutes.length > 0 ||
                   dateRange !== 7 ||
                   selectedDay !== null ||
                   selectedSignals.length > 0 ||

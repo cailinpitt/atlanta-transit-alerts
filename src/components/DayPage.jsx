@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { useNow } from '../hooks/useNow.js';
 import { dayTrail } from '../lib/breadcrumbs.js';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { chicagoDayUTC, formatChicagoDay } from '../lib/format.js';
-import { filterIncidents, incidentRecords, legacyKind } from '../lib/incidents.js';
-import { METRA_LINES } from '../lib/metraLines.js';
+import { atlantaDayUTC, formatAtlantaDay } from '../lib/format.js';
+import {
+  filterIncidents,
+  incidentRecords,
+  isWebsiteIncident,
+  legacyKind,
+} from '../lib/incidents.js';
 import { buildStationIndex } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 import { dayStringToUtc, parseUrlState } from '../lib/urlState.js';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
@@ -18,7 +22,7 @@ import NotFoundPage from './NotFoundPage.jsx';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// `/day/:date` — focused view of a single Chicago calendar day. Same data
+// `/day/:date` — focused view of a single Atlanta calendar day. Same data
 // the homepage shows when you pin a day via the timeline, but as a proper
 // permalink: clean URL, dedicated <title>, prerendered OG card.
 //
@@ -34,7 +38,7 @@ export default function DayPage({ dateStr }) {
   // Parse the URL date once. Invalid strings (e.g. /day/foo) render a
   // not-found card without bothering to fetch.
   const dayUtc = useMemo(() => dayStringToUtc(dateStr), [dateStr]);
-  const dayLabel = dayUtc != null ? formatChicagoDay(dayUtc) : null;
+  const dayLabel = dayUtc != null ? formatAtlantaDay(dayUtc) : null;
 
   // Optional line/route scope carried in the query string (?lines=orange,
   // ?lines=none&routes=66). Lets a "view this day" link from a line-scoped
@@ -45,25 +49,14 @@ export default function DayPage({ dateStr }) {
   const scopedLines =
     scope.selectedLines && scope.selectedLines.length > 0 ? scope.selectedLines : null;
   const scopedBusRoutes = scope.selectedBusRoutes.length > 0 ? scope.selectedBusRoutes : null;
-  const scopedMetraLines =
-    scope.selectedMetraLines && scope.selectedMetraLines.length > 0
-      ? scope.selectedMetraLines
-      : null;
-  const isScoped = scopedLines != null || scopedBusRoutes != null || scopedMetraLines != null;
-  // Keep a scoped day view within one agency: a Metra-scoped link shows only
-  // Metra; a CTA line/route-scoped link shows only CTA. Unscoped shows both.
-  const scopedAgencies = scopedMetraLines
-    ? ['metra']
-    : scopedLines || scopedBusRoutes
-      ? ['cta']
-      : null;
+  const isScoped = scopedLines != null || scopedBusRoutes != null;
 
   // Future days never have data; show a friendly state rather than an empty
   // list. Past-but-out-of-window days fall through to the "no incidents"
   // branch (consistent with the rest of the site's 90-day archive).
   const isFuture = useMemo(() => {
     if (dayUtc == null) return false;
-    return dayUtc > chicagoDayUTC(now);
+    return dayUtc > atlantaDayUTC(now);
   }, [dayUtc, now]);
 
   useEffect(() => {
@@ -74,7 +67,12 @@ export default function DayPage({ dateStr }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((fresh) => setData({ ...fresh, incidents: fresh.incidents || [] }))
+      .then((fresh) =>
+        setData({
+          ...fresh,
+          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
+        }),
+      )
       .catch(setError);
   }, [dayUtc]);
 
@@ -95,14 +93,12 @@ export default function DayPage({ dateStr }) {
       startTs: null,
       showBus: scope.showBus,
       busRoutes: scopedBusRoutes,
-      metraLines: scopedMetraLines,
-      agencies: scopedAgencies,
       selectedDay: dayUtc,
       signals: null,
       search: '',
       now,
     });
-  }, [data, dayUtc, now, scope, scopedBusRoutes, scopedMetraLines, scopedAgencies]);
+  }, [data, dayUtc, now, scope, scopedBusRoutes]);
 
   const stationIndex = useMemo(() => {
     if (!flat) return null;
@@ -115,20 +111,18 @@ export default function DayPage({ dateStr }) {
   const breakdown = useMemo(() => {
     const trains = new Set();
     const buses = new Set();
-    const metra = new Set();
     for (const inc of filtered) {
       const kind = legacyKind(inc);
       if (kind === 'train') for (const r of inc.routes ?? []) trains.add(r);
       else if (kind === 'bus') for (const r of inc.routes ?? []) buses.add(String(r));
-      else if (kind === 'metra') for (const r of inc.routes ?? []) metra.add(String(r));
     }
-    return { trains: [...trains], buses: [...buses].sort(), metra: [...metra].sort() };
+    return { trains: [...trains], buses: [...buses].sort() };
   }, [filtered]);
 
   const totalCount = filtered.length;
 
   useEffect(() => {
-    const base = 'Chicago Transit Alerts';
+    const base = 'Atlanta Transit Alerts';
     if (!dayLabel) {
       document.title = base;
       return;
@@ -155,7 +149,7 @@ export default function DayPage({ dateStr }) {
   // streak of bad days. Tomorrow is hidden when it'd land in the future.
   const prevStr = new Date(dayUtc - DAY_MS).toISOString().slice(0, 10);
   const nextStr = new Date(dayUtc + DAY_MS).toISOString().slice(0, 10);
-  const showNext = dayUtc + DAY_MS <= chicagoDayUTC(now);
+  const showNext = dayUtc + DAY_MS <= atlantaDayUTC(now);
   // Carry the scope filter onto the neighbor links so walking a streak of
   // days stays pinned to the same line/route instead of springing open to
   // the whole system on the next click.
@@ -218,54 +212,33 @@ export default function DayPage({ dateStr }) {
           )}
           {/* Line/route pills touched this day — suppressed under a scope
               filter, where the banner above already names the single line. */}
-          {!isScoped &&
-            data &&
-            (breakdown.trains.length > 0 ||
-              breakdown.buses.length > 0 ||
-              breakdown.metra.length > 0) && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {breakdown.trains.map((line) => {
-                  const info = TRAIN_LINES[line];
-                  if (!info) return null;
-                  return (
-                    <a
-                      key={`train-${line}`}
-                      href={`/line/${line}`}
-                      className="inline-flex items-center min-h-[24px] px-2 py-0.5 rounded-full text-xs font-bold hover:opacity-80 transition-opacity"
-                      style={{ backgroundColor: info.color, color: info.textColor }}
-                    >
-                      {info.label}
-                    </a>
-                  );
-                })}
-                {breakdown.metra.map((line) => {
-                  const info = METRA_LINES[line];
-                  return (
-                    <a
-                      key={`metra-${line}`}
-                      href={`/metra/line/${line}`}
-                      title={info?.label ?? line}
-                      className="inline-flex items-center min-h-[24px] px-2 py-0.5 rounded-full text-xs font-bold hover:opacity-80 transition-opacity"
-                      style={{
-                        backgroundColor: info?.color ?? '#64748b',
-                        color: info?.textColor ?? '#fff',
-                      }}
-                    >
-                      {line.toUpperCase()}
-                    </a>
-                  );
-                })}
-                {breakdown.buses.map((route) => (
+          {!isScoped && data && (breakdown.trains.length > 0 || breakdown.buses.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {breakdown.trains.map((line) => {
+                const info = TRAIN_LINES[line];
+                if (!info) return null;
+                return (
                   <a
-                    key={`bus-${route}`}
-                    href={`/route/${route}`}
-                    className="inline-flex items-center min-h-[24px] px-2 py-0.5 rounded-full text-xs font-bold bg-slate-500 text-white hover:opacity-80 transition-opacity"
+                    key={`train-${line}`}
+                    href={`/line/${line}`}
+                    className="inline-flex items-center min-h-[24px] px-2 py-0.5 rounded-full text-xs font-bold hover:opacity-80 transition-opacity"
+                    style={{ backgroundColor: info.color, color: info.textColor }}
                   >
-                    #{route}
+                    {info.label}
                   </a>
-                ))}
-              </div>
-            )}
+                );
+              })}
+              {breakdown.buses.map((route) => (
+                <a
+                  key={`bus-${route}`}
+                  href={`/route/${route}`}
+                  className="inline-flex items-center min-h-[24px] px-2 py-0.5 rounded-full text-xs font-bold bg-slate-500 text-white hover:opacity-80 transition-opacity"
+                >
+                  #{route}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         {!data && (

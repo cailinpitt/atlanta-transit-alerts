@@ -10,19 +10,18 @@ import {
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
-import { cancellationInfo } from '../lib/cancellation.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/ctaLines.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { chicagoDayUTC, formatChicagoDay, formatMinutesAsHours } from '../lib/format.js';
+import { atlantaDayUTC, formatAtlantaDay, formatMinutesAsHours } from '../lib/format.js';
 import {
   filterIncidents,
   groupIncidentRecords,
   incidentLifecycle,
   incidentRecords,
+  isWebsiteIncident,
   legacyKind,
 } from '../lib/incidents.js';
-import { METRA_LINE_ORDER, METRA_LINES } from '../lib/metraLines.js';
 import { buildStationIndex } from '../lib/stations.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 import ActiveAlerts from './ActiveAlerts.jsx';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
@@ -30,7 +29,6 @@ import Header from './Header.jsx';
 import HourOfWeekHeatmap from './HourOfWeekHeatmap.jsx';
 import IncidentList from './IncidentList.jsx';
 import { LONG_RUNNING_THRESHOLD_MS } from './LongRunningBanner.jsx';
-import MetraUpcomingCancellations from './MetraUpcomingCancellations.jsx';
 import TrendSparkline from './TrendSparkline.jsx';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -41,14 +39,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BUS_GRID_MIN_INCIDENTS_90D = 1;
 const LEADERBOARD_LIMIT = 5;
 
-// Train and Metra are "line-like": a fixed roster shown in canonical order and
-// labeled by line. Buses are an open route set filtered to recent activity.
-const isLineLike = (kind) => kind === 'train' || kind === 'metra';
+// Rail is line-like: a fixed roster shown in canonical order and labeled by
+// line. Buses are an open route set filtered to recent activity.
+const isLineLike = (kind) => kind === 'train';
 
 // Dedicated page for a route in this mode.
 function routeHref(kind, route) {
   if (kind === 'bus') return `/route/${route}`;
-  if (kind === 'metra') return `/metra/line/${route}`;
   return `/line/${route}`;
 }
 
@@ -87,8 +84,6 @@ function buildRouteStats({ kind, alerts, observations, now }) {
   let routes;
   if (kind === 'train') {
     routes = [...TRAIN_LINE_ORDER];
-  } else if (kind === 'metra') {
-    routes = [...METRA_LINE_ORDER];
   } else {
     routes = [...buckets.keys()].sort(compareBusRoutes);
   }
@@ -146,7 +141,7 @@ function buildRouteStats({ kind, alerts, observations, now }) {
     };
   });
 
-  // Line-like modes (train/Metra) keep the full canonical roster; buses filter
+  // Rail keeps the full canonical roster; buses filter
   // to routes with material recent activity.
   if (lineLike) return rows;
   return rows.filter((r) => r.count90d >= BUS_GRID_MIN_INCIDENTS_90D);
@@ -161,24 +156,6 @@ function RouteLabel({ kind, route }) {
         style={{ backgroundColor: info?.color ?? '#64748b', color: info?.textColor ?? '#fff' }}
       >
         {info?.label ?? route}
-      </span>
-    );
-  }
-  if (kind === 'metra') {
-    // Colored route-code pill + the full line name beside it (mirrors the bus
-    // "#route + name" layout), since Metra's full names are too long for a pill.
-    const info = METRA_LINES[route];
-    return (
-      <span className="inline-flex items-baseline gap-1.5 min-w-0">
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0"
-          style={{ backgroundColor: info?.color ?? '#64748b', color: info?.textColor ?? '#fff' }}
-        >
-          {String(route).toUpperCase()}
-        </span>
-        {info?.label && (
-          <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{info.label}</span>
-        )}
       </span>
     );
   }
@@ -399,12 +376,12 @@ export default function SystemHealthPage({ kind }) {
   const [sortKey, setSortKey] = useState('default');
   const [search, setSearch] = useState('');
   // Date scope for the incident list: 'all' (no cutoff), 'today' (incidents
-  // whose [start, end] span overlaps the current Chicago calendar day), or
+  // whose [start, end] span overlaps the current Atlanta calendar day), or
   // '7d' (last 7 days, matching the homepage default).
   const [dateScope, setDateScope] = useState('all');
 
   const lineLike = isLineLike(kind);
-  const modeLabel = kind === 'train' ? 'Trains' : kind === 'metra' ? 'Metra' : 'Buses';
+  const modeLabel = kind === 'train' ? 'Rail' : 'Buses';
 
   useEffect(() => {
     const url = dataUrl('alerts.json');
@@ -413,7 +390,12 @@ export default function SystemHealthPage({ kind }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((fresh) => setData({ ...fresh, incidents: fresh.incidents || [] }))
+      .then((fresh) =>
+        setData({
+          ...fresh,
+          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
+        }),
+      )
       .catch(setError);
   }, []);
 
@@ -422,9 +404,9 @@ export default function SystemHealthPage({ kind }) {
   const flat = useMemo(() => (data ? incidentRecords(data.incidents) : null), [data]);
 
   useEffect(() => {
-    document.title = `${modeLabel} system health · Chicago Transit Alerts`;
+    document.title = `${modeLabel} system health · Atlanta Transit Alerts`;
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, [modeLabel]);
 
@@ -459,9 +441,6 @@ export default function SystemHealthPage({ kind }) {
     const recent = [];
     const longRunning = [];
     for (const i of activeIncidents) {
-      // Upcoming single-train cancellations get their own forward-looking strip,
-      // not the "active disruptions" cards or the long-running framing.
-      if (cancellationInfo(i)) continue;
       const startTs = incidentLifecycle(i).first_seen_ts;
       if (startTs != null && now - startTs >= LONG_RUNNING_THRESHOLD_MS) longRunning.push(i);
       else recent.push(i);
@@ -525,11 +504,11 @@ export default function SystemHealthPage({ kind }) {
 
   // Narrow the incident list by search + the selected date scope. The mode
   // is already locked by the modeAlerts/modeObservations slice. 'today'
-  // pins to the current Chicago calendar day (so an incident that started
+  // pins to the current Atlanta calendar day (so an incident that started
   // yesterday and is still active still shows up — overlapping the day),
   // '7d' uses a rolling 7-day cutoff.
   const listFiltered = useMemo(() => {
-    const selectedDay = dateScope === 'today' ? chicagoDayUTC(now) : null;
+    const selectedDay = dateScope === 'today' ? atlantaDayUTC(now) : null;
     const startTs = dateScope === '7d' ? now - 7 * DAY_MS : null;
     return filterIncidents(modeIncidents, {
       lines: null,
@@ -552,18 +531,11 @@ export default function SystemHealthPage({ kind }) {
     );
   }
 
-  const headline =
-    kind === 'train'
-      ? 'Train system health'
-      : kind === 'metra'
-        ? 'Metra system health'
-        : 'Bus system health';
+  const headline = kind === 'train' ? 'Rail system health' : 'Bus system health';
   const subhead =
     kind === 'train'
-      ? 'All eight L lines at a glance — active disruptions, recent activity, and disruption time over the last 30 days.'
-      : kind === 'metra'
-        ? 'Every Metra line at a glance — active disruptions, cancellations, and delays over the last 30 days.'
-        : 'Every bus route with recent incidents — active disruptions, recent activity, and disruption time over the last 30 days.';
+      ? 'All MARTA rail and streetcar lines at a glance — active disruptions, recent activity, and disruption time over the last 30 days.'
+      : 'Every bus route with recent incidents — active disruptions, recent activity, and disruption time over the last 30 days.';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gh-canvas flex flex-col">
@@ -594,10 +566,6 @@ export default function SystemHealthPage({ kind }) {
 
         {data && (
           <>
-            {kind === 'metra' && (
-              <MetraUpcomingCancellations incidents={modeIncidents} now={now} showLine />
-            )}
-
             {(recentActive.length > 0 || longRunningActive.length > 0) && (
               <ActiveAlerts
                 incidents={recentActive}
@@ -672,7 +640,7 @@ export default function SystemHealthPage({ kind }) {
                         href={`/day/${new Date(worstDay.dayUtc).toISOString().slice(0, 10)}`}
                         className="text-blue-500 hover:text-blue-400 hover:underline"
                       >
-                        <strong>{formatChicagoDay(worstDay.dayUtc)}</strong>
+                        <strong>{formatAtlantaDay(worstDay.dayUtc)}</strong>
                       </a>{' '}
                       ({worstDay.count} incident{worstDay.count === 1 ? '' : 's'})
                     </p>

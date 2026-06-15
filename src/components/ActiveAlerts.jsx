@@ -1,11 +1,5 @@
 import { useMemo, useState } from 'react';
 import { typicalDurationKey } from '../lib/aggregate.js';
-import {
-  cancellationInfo,
-  cancellationSchedulePhrase,
-  cancellationStatusLabel,
-} from '../lib/cancellation.js';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { formatDuration, formatEstimatedEnd } from '../lib/format.js';
 import {
   botSummaryText,
@@ -14,22 +8,19 @@ import {
   incidentHeadlineText,
   incidentLifecycle,
   legacyKind,
-  metraIncidentStatus,
-  metraPointEventTitle,
   modeLabel,
   officialAlert,
   splitObservations,
 } from '../lib/incidents.js';
-import { METRA_LINES } from '../lib/metraLines.js';
 import { displayStationName } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 import LinePill from './LinePill.jsx';
-import MetraPointBadge from './MetraPointBadge.jsx';
 import ShareLink from './ShareLink.jsx';
 import StationName from './StationName.jsx';
 
 const BUS_COLOR = '#64748b';
 
-// Per-incident colors for the gantt bar. Train and Metra incidents that touch
+// Per-incident colors for the gantt bar. Rail incidents that touch
 // multiple lines (e.g. Red+Purple shared trackage) get one color per route so
 // the bar renders as alternating bands rather than collapsing to the first
 // line's color. Buses always slot into the shared slate tint — bus alerts can
@@ -38,7 +29,7 @@ function incidentColors(incident) {
   // Brand-color palette by agency. Buses (and any unknown kind) have no
   // per-route colors, so they fall back to the shared slate tint.
   const kind = legacyKind(incident);
-  const palette = kind === 'train' ? TRAIN_LINES : kind === 'metra' ? METRA_LINES : null;
+  const palette = kind === 'train' ? TRAIN_LINES : null;
   if (palette && Array.isArray(incident.routes) && incident.routes.length > 0) {
     return incident.routes.map((r) => palette[r]?.color ?? BUS_COLOR);
   }
@@ -73,7 +64,7 @@ const GANTT_MIN_SPAN_MS = 15 * 60 * 1000;
 
 // Snap-up ladder for the active-incidents gantt axis. The span anchors on
 // the longest-running active incident, then ceiling-rounds to the next rung
-// so the axis labels read as predictable round numbers ("1h ago", "6h ago")
+// so the axis labels read as prediofficialble round numbers ("1h ago", "6h ago")
 // and don't jiggle every render as `now - earliest` ticks forward. Without
 // this, a 3h47m-old alert produced a left-edge label of "3h 47m ago" that
 // shifted every minute, and the longest bar always reached the literal left
@@ -133,8 +124,6 @@ function describeIncident(incident, stationIndex) {
     return { description: headline, descriptionText: headline };
   }
   const { primary } = splitObservations(incident);
-  const metraTitle = metraPointEventTitle(incident);
-  if (metraTitle) return { description: metraTitle, descriptionText: metraTitle };
   const hasStations = !!(primary?.from_station && primary?.to_station);
 
   if (hasStations) {
@@ -177,12 +166,8 @@ function ActiveCard({ incident, now, isNew, typicalDurations, stationIndex, show
   const lifecycle = incidentLifecycle(incident);
   const startTs = lifecycle.first_seen_ts;
   const elapsedText = elapsed(now, startTs);
-  // Single-train cancellation: show the schedule, not an "ongoing" elapsed timer.
-  const cancel = cancellationInfo(incident);
-  const cancelPhrase = cancellationSchedulePhrase(cancel);
-  const metraStatus = !cancel ? metraIncidentStatus(incident) : null;
   // The cohort key buckets on kind + line + signal; for a nested incident that
-  // comes off the primary observation (CTA-only incidents have no signal key).
+  // comes off the primary observation (official-only incidents have no signal key).
   const typicalKey = typicalDurationKey({
     kind,
     line: primary?.line,
@@ -255,43 +240,25 @@ function ActiveCard({ incident, now, isNew, typicalDurations, stationIndex, show
               +{desktopOverflow}
             </span>
           )}
-          {cancel ? (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              <span className="font-semibold text-purple-600 dark:text-purple-400">
-                {cancellationStatusLabel(cancel)}
-              </span>
-              {cancelPhrase && ` · ${cancelPhrase}`}
-            </span>
-          ) : metraStatus ? (
-            <>
-              <MetraPointBadge source={metraStatus.source} />
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                · {elapsedText} ongoing
-              </span>
-            </>
-          ) : (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              {elapsedText} ongoing
-              {typicalText && (
-                <>
-                  {' · '}
-                  <span
-                    title={`Median over ${typical.count} past similar incidents (last 90 days)`}
-                  >
-                    typically {typicalText}
-                  </span>
-                </>
-              )}
-              {estimatedEndText && (
-                <>
-                  {' · '}
-                  <span title="CTA tagged this alert with an estimated end time when it was posted.">
-                    CTA estimated end {estimatedEndText}
-                  </span>
-                </>
-              )}
-            </span>
-          )}
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {elapsedText} ongoing
+            {typicalText && (
+              <>
+                {' · '}
+                <span title={`Median over ${typical.count} past similar incidents (last 90 days)`}>
+                  typically {typicalText}
+                </span>
+              </>
+            )}
+            {estimatedEndText && (
+              <>
+                {' · '}
+                <span title="MARTA tagged this alert with an estimated end time when it was posted.">
+                  MARTA estimated end {estimatedEndText}
+                </span>
+              </>
+            )}
+          </span>
         </div>
         <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug">
           {description}
@@ -334,9 +301,8 @@ const COMPACT_PILL_LIMIT = 1;
 // typical-duration hint (signal-to-noise loss in a single line). Pills are
 // capped and the description is truncated so the row stays exactly one line
 // regardless of how many routes the alert touches.
-// Border tint per row tone. Disruptions keep the urgent red treatment;
-// delays — routine, lower-stakes "running late" events — get a calmer amber
-// so a screen full of Metra delays doesn't read as an emergency.
+// Border tint per row tone. Disruptions keep the urgent red treatment; delays
+// get a calmer amber.
 const ROW_TONE = {
   disruption: 'border-red-200 dark:border-red-900 hover:border-red-300 dark:hover:border-red-800',
   delay:
@@ -346,9 +312,7 @@ const ROW_TONE = {
 function ActiveRow({ incident, now, isNew, tone = 'disruption', showAgency = false }) {
   const kind = legacyKind(incident);
   const startTs = incidentLifecycle(incident).first_seen_ts;
-  const cancel = cancellationInfo(incident);
-  const metraStatus = !cancel ? metraIncidentStatus(incident) : null;
-  const elapsedText = cancel ? cancellationStatusLabel(cancel) : elapsed(now, startTs);
+  const elapsedText = elapsed(now, startTs);
   const { descriptionText } = describeIncident(incident, null);
   const eventId = incident.id;
 
@@ -378,7 +342,6 @@ function ActiveRow({ incident, now, isNew, tone = 'disruption', showAgency = fal
         {descriptionText}
       </span>
       <span className="text-xs text-slate-500 dark:text-slate-400 flex-shrink-0 tabular-nums inline-flex items-center gap-1.5">
-        {metraStatus && <MetraPointBadge source={metraStatus.source} />}
         <span>{elapsedText}</span>
       </span>
     </>
@@ -463,9 +426,7 @@ function ActiveMiniGantt({ incidents, now }) {
           const routesLabel =
             kind === 'train'
               ? routesForLabel.map((r) => TRAIN_LINES[r]?.label ?? r).join(' + ')
-              : kind === 'metra'
-                ? routesForLabel.map((r) => METRA_LINES[r]?.label ?? r).join(' + ')
-                : routesForLabel.map((r) => `#${r}`).join(' + ');
+              : routesForLabel.map((r) => `#${r}`).join(' + ');
           const elapsedText = elapsed(now, start);
           const label = `${routesLabel}: ${elapsedText} ago`;
           // Only the colored bar is interactive — wrapping the whole track
@@ -535,14 +496,11 @@ function ActiveMiniGantt({ incidents, now }) {
 const BURST_RATIO_THRESHOLD = 2;
 const BURST_MIN_RECENT = 3;
 
-// Stable agency order for the per-section sub-groups: CTA rail, CTA bus, then
-// Metra. Keeps the "Showing: All" view from reshuffling as incidents come and
-// go.
-const MODE_ORDER = ['train', 'bus', 'metra'];
+// Stable mode order for the per-section sub-groups.
+const MODE_ORDER = ['train', 'bus'];
 
 // Split a list into agency sub-groups in MODE_ORDER, dropping empties. Lets a
-// section render a "CTA Bus" / "Metra" label above each cluster so a reader
-// scans by agency without the page-level toggle.
+// section render a mode label above each cluster.
 function groupByMode(incidents) {
   const byMode = new Map();
   for (const inc of incidents) {
@@ -612,7 +570,7 @@ function CollapsibleBand({ label, count, dotClass, textClass, defaultOpen = true
   );
 }
 
-// Tiny agency sub-label inside a multi-agency section ("CTA Bus", "Metra").
+// Tiny mode sub-label inside a multi-mode section.
 function AgencyHeader({ kind }) {
   return (
     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-1 mb-1 px-0.5">
@@ -621,9 +579,7 @@ function AgencyHeader({ kind }) {
   );
 }
 
-// Routine in-progress delays — calmer amber rows, grouped by agency. These are
-// high-volume and low-stakes (a single train running late), so they sit below
-// the red disruptions band and never get the full-card treatment.
+// Routine in-progress delays — calmer amber rows, grouped by mode.
 function DelaySection({ incidents, now, highlightedIds }) {
   const groups = groupByMode(incidents);
   const labelGroups = groups.length > 1;
@@ -698,7 +654,7 @@ function PlannedRow({ incident, now }) {
 }
 
 // Planned & scheduled work — advance notices and multi-day reroutes, grouped
-// by agency. Lifted out of the live bands so a future "track construction this
+// by mode. Lifted out of the live bands so a future "track construction this
 // weekend" notice isn't mistimed as something ongoing right now.
 function PlannedSection({ incidents, now }) {
   const groups = groupByMode(incidents);

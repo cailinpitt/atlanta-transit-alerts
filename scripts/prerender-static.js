@@ -32,17 +32,15 @@ const PAGES = [
   {
     path: '/subscribe',
     title: 'Subscribe',
-    desc: 'Subscribe to CTA service-alert feeds — a global Atom/JSON feed plus a feed for every train line and bus route.',
+    desc: 'Subscribe to MARTA service-alert feeds — a global Atom/JSON feed plus a feed for every train line and bus route.',
   },
   {
     path: '/privacy',
     title: 'Privacy',
     desc: 'Privacy policy for Atlanta Transit Alerts: no accounts, no cookies, no advertising, and only cookieless Cloudflare Web Analytics for aggregate page-view counts.',
   },
-  // Note: Metra line pages and /system/metra are prerendered by
-  // prerender-pages.js (which runs before this step) with their own OG cards,
-  // so they're intentionally NOT listed here — re-adding them would clobber
-  // those richer stubs with the homepage-card variant.
+  // Data-driven line, route, station, and system pages are prerendered by
+  // prerender-pages.js with their own OG cards.
 ];
 
 const shell = readFileSync(SHELL, 'utf8');

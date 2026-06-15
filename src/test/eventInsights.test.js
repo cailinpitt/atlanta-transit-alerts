@@ -9,7 +9,7 @@ import { incident } from './v2TestHelpers.js';
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
-// A fixed Chicago-afternoon anchor so hour bucketing is deterministic.
+// A fixed Atlanta-afternoon anchor so hour bucketing is deterministic.
 const NOW = Date.UTC(2026, 4, 28, 20, 0, 0); // 2026-05-28 20:00 UTC ≈ 15:00 CDT
 
 function obs(line, from, to, source = 'pulse-cold') {
@@ -20,7 +20,7 @@ function inc(over = {}) {
   return incident({
     kind: 'train',
     routes: over.routes ?? [over.observations?.[0]?.line ?? 'red'],
-    cta: null,
+    official: null,
     ...over,
   });
 }
@@ -150,7 +150,7 @@ describe('computeLineDurationRank', () => {
 });
 
 describe('computeHourOfDayContext', () => {
-  // Pile 30 incidents into the same Chicago hour as NOW (15:00 CDT) so that
+  // Pile 30 incidents into the same Atlanta hour as NOW (15:00 CDT) so that
   // hour is far above the flat mean.
   const incidents = [];
   for (let i = 0; i < 30; i++) {
@@ -174,7 +174,7 @@ describe('computeHourOfDayContext', () => {
 
   it('does not flag a thin daytime hour that only clears the ratio (4 of 54)', () => {
     // Reproduces the "11 AM is a relatively busy hour … 4 of the last 54" noise:
-    // 4/54 ≈ 1.78× the flat mean but only ~1.2σ above expectation, so it must
+    // 4/54 ≈ 1.78× the flat mean but only ~1.2σ above expeofficialtion, so it must
     // not read as busy.
     const THIS_HOUR = NOW; // subject's hour
     const list = [inc({ id: 'subj', kind: 'train', routes: ['blue'], first_seen_ts: THIS_HOUR })];

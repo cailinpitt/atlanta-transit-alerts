@@ -67,9 +67,7 @@ export default function EventNav({ incident, incidents }) {
         ? `/line/${routes[0]}`
         : kind === 'bus'
           ? `/route/${routes[0]}`
-          : kind === 'metra'
-            ? `/metra/line/${routes[0]}`
-            : null
+          : null
       : null;
 
   return (

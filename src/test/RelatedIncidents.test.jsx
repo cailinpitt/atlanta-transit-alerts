@@ -9,16 +9,16 @@ const NOW = 1_000_000_000_000;
 // (same line, ±24h) picks up the rows below.
 const parent = incident({
   id: 'parent',
-  kind: 'metra',
+  kind: 'commuter',
   routes: ['ri'],
   first_seen_ts: NOW,
   resolved_ts: NOW,
   active: false,
-  cta: null,
+  official: null,
   observations: [
     {
       id: 'parent',
-      kind: 'metra',
+      kind: 'commuter',
       line: 'ri',
       detection_source: 'delay',
       from_station: 'Joliet',
@@ -32,17 +32,17 @@ const parent = incident({
 });
 
 const inferred = incident({
-  id: 'metra-972',
-  kind: 'metra',
+  id: 'commuter-972',
+  kind: 'commuter',
   routes: ['ri'],
   first_seen_ts: NOW - 60 * 60_000,
   resolved_ts: NOW - 60 * 60_000,
   active: false,
-  cta: null,
+  official: null,
   observations: [
     {
-      id: 'metra-972',
-      kind: 'metra',
+      id: 'commuter-972',
+      kind: 'commuter',
       line: 'ri',
       detection_source: 'cancellation-inferred',
       from_station: 'LaSalle Street',
@@ -55,11 +55,11 @@ const inferred = incident({
   ],
 });
 
-// A Metra alert that annuls one scheduled train carries a top-level
+// A Commuter alert that annuls one scheduled train carries a top-level
 // `cancellation` block (state 'cancelled') and renders as a stable train-title.
 const cancelled = incident({
   id: 'rid413',
-  kind: 'metra',
+  kind: 'commuter',
   routes: ['ri'],
   first_seen_ts: NOW - 30 * 60_000,
   resolved_ts: NOW - 30 * 60_000,
@@ -71,7 +71,7 @@ const cancelled = incident({
     train_number: '413',
     origin: 'LaSalle Street',
   },
-  cta: {
+  official: {
     alert_id: 'a413',
     headline: 'RID #413 Will Not Operate',
     first_seen_ts: NOW - 30 * 60_000,
@@ -90,7 +90,7 @@ describe('RelatedIncidents', () => {
     expect(screen.getByText('possible cancellation')).toBeInTheDocument();
   });
 
-  it('shows a cancelled badge for a single-train Metra cancellation', () => {
+  it('shows a cancelled badge for a single-train Commuter cancellation', () => {
     render(<RelatedIncidents incident={parent} incidents={[parent, cancelled]} />);
     expect(screen.getByText('Rock Island train #413 cancelled')).toBeInTheDocument();
     expect(screen.getByText('cancelled')).toBeInTheDocument();

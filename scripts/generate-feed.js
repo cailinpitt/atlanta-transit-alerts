@@ -9,20 +9,19 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../src/lib/busRoutes.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../src/lib/ctaLines.js';
 import { formatDuration, formatEstimatedEnd } from '../src/lib/format.js';
 import {
   formatEvidenceChip,
   formatRoutesLabel,
   groupIncidentRecords,
   incidentRecords,
+  isWebsiteIncident,
   observationSignals,
   postUrlRkey,
   SIGNAL_LABELS,
   summarizeSignals,
 } from '../src/lib/incidents.js';
-import { gateIncidents } from '../src/lib/metraGate.js';
-import { METRA_LINE_ORDER, METRA_LINES } from '../src/lib/metraLines.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../src/lib/trainLines.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -39,7 +38,7 @@ const ENTRY_LIMIT = 50;
 // Skip standalone observation-only incidents that resolved within this window
 // — almost always a transient detector hiccup (single missed snapshot, etc.)
 // rather than a real outage worth pushing to subscribers. Anything backed by
-// a CTA alert is surfaced regardless of duration; a CTA alert that came and
+// an official alert is surfaced regardless of duration; an alert that came and
 // went in 2 minutes is itself signal.
 const FP_FILTER_MS = 5 * 60 * 1000;
 
@@ -75,9 +74,6 @@ function routesFor(incident) {
 export function entryId(incident) {
   const rkey = postUrlRkey(incident.post_url) ?? postUrlRkey(incident.obs_post_url);
   if (rkey) return `${TAG_AUTHORITY}:event/${rkey}`;
-  // Postless records — Metra cancellations/delays are website-data-first (no
-  // individual Bluesky post), so they reach this path normally. Their stable
-  // identity is the incident id, which the SPA routes by (`/event/:id`).
   return `${TAG_AUTHORITY}:${incident.alert_id ?? `obs-${incident.id}`}`;
 }
 
@@ -85,7 +81,6 @@ function entryLink(incident) {
   const rkey = postUrlRkey(incident.post_url) ?? postUrlRkey(incident.obs_post_url);
   if (rkey) return `${SITE}/event/${rkey}`;
   // No post → link to the SPA event page keyed by incident id (findIncidentById
-  // matches inc.id), so postless Metra records still get a real detail page.
   return incident.id ? `${SITE}/event/${encodeURIComponent(incident.id)}` : SITE;
 }
 
@@ -122,7 +117,7 @@ function headlineNamesRoute(headline, kind, routes) {
   if (!headline || !routes || routes.length === 0) return false;
   const lower = headline.toLowerCase();
   if (kind === 'bus') {
-    // CTA bus headlines almost always lead with `#NN`; match that token
+    // MARTA bus headlines often lead with `#NN`; match that token
     // form to avoid stray substring hits like "53" inside a date or address.
     return new RegExp(`#${routes[0]}\\b`).test(lower);
   }
@@ -188,20 +183,20 @@ function entrySummary(incident) {
 function entryContentHtml(incident, thumb) {
   const start = startTs(incident);
   const resolved = incident.resolved_ts ?? null;
-  // For still-ongoing incidents, append CTA's posted EventEnd ("estimated
+  // For still-ongoing incidents, append the agency's posted EventEnd ("estimated
   // end") when present and meaningfully in the future. Skipped on resolved
   // entries: the actual resolution time is more useful than a stale
   // estimate at that point.
   const estimatedEndText = !resolved
-    ? formatEstimatedEnd(incident.cta_event_end_ts, undefined, {
-        dateOnly: incident.cta_event_end_is_date_only === true,
+    ? formatEstimatedEnd(incident.agency_event_end_ts, undefined, {
+        dateOnly: incident.agency_event_end_is_date_only === true,
       })
     : null;
   const stateLine = resolved
     ? `<strong>Resolved</strong> after ${escapeXml(formatDuration(resolved - start) ?? '')}`
     : incident.active
       ? estimatedEndText
-        ? `<strong>Ongoing</strong> · CTA estimated end ${escapeXml(estimatedEndText)}`
+        ? `<strong>Ongoing</strong> · MARTA estimated end ${escapeXml(estimatedEndText)}`
         : '<strong>Ongoing</strong>'
       : '';
   const stations = [incident.from_station, incident.to_station].filter(Boolean).join(' → ');
@@ -244,8 +239,6 @@ function entryCategories(incident) {
   const kind = incident.kind;
   if (kind === 'bus' || kind === 'train') {
     cats.push({ term: kind, label: kind === 'bus' ? 'Bus' : 'Train' });
-  } else if (kind === 'metra') {
-    cats.push({ term: 'metra', label: 'Metra' });
   }
   const routes = routesFor(incident);
   if (kind === 'train') {
@@ -255,11 +248,6 @@ function entryCategories(incident) {
     }
   } else if (kind === 'bus') {
     for (const r of routes) cats.push({ term: `route-${r}`, label: `#${r}` });
-  } else if (kind === 'metra') {
-    for (const r of routes) {
-      const label = METRA_LINES[r]?.label;
-      cats.push({ term: `metra-line-${r}`, label: label ?? r });
-    }
   }
   cats.push(
     incident.resolved_ts
@@ -293,14 +281,10 @@ function toIso(ms) {
 // Filter out standalone observations that resolved within FP_FILTER_MS — they
 // almost always represent a transient detector hiccup (single missed
 // snapshot, a pulse that flips back inside the same minute) rather than a
-// real outage worth a push notification. Anything backed by a CTA alert
+// real outage worth a push notification. Anything backed by an official alert
 // (merged or standalone alert) passes regardless of duration.
 export function isLikelyDetectorBlip(incident) {
   if (incident.alert_id || incident.headline) return false; // alert-backed
-  // Metra cancellations/delays are point-in-time records (resolved_ts ==
-  // first_seen_ts), not detector flicker — the zero "duration" is by design, so
-  // the duration-based blip filter must not drop them.
-  if (incident.kind === 'metra') return false;
   if (!incident.resolved_ts) return false;
   const start = startTs(incident);
   if (!start) return false;
@@ -441,10 +425,7 @@ export function scopedRecords(pool, kind, route) {
 
 function main() {
   const raw = JSON.parse(readFileSync(DATA, 'utf8'));
-  // Feeds (global + per-line) and the CSV are Metra-aware, so opt in explicitly
-  // (showMetra=true) — the Node-default gate stays CTA-only for the not-yet-Metra
-  // build outputs (OG-prerendered event/sitemap pages).
-  raw.incidents = gateIncidents(raw.incidents || [], true);
+  raw.incidents = (raw.incidents || []).filter((inc) => isWebsiteIncident(inc));
   const payload = { ...raw, ...incidentRecords(raw.incidents || []) };
   const { merged, standaloneAlerts, standaloneObs } = groupIncidentRecords(
     payload.officialRecords || [],
@@ -480,7 +461,7 @@ function main() {
     feedMeta({
       idPath: 'feed',
       title: 'Atlanta Transit Alerts',
-      subtitle: 'Chicago Transit Authority service alerts and bot-detected disruptions.',
+      subtitle: 'Atlanta Transit Authority service alerts and bot-detected disruptions.',
       homePath: '/',
       selfBase: '/feed',
     }),
@@ -489,7 +470,7 @@ function main() {
     OUT_JSON,
   );
 
-  // One feed per train line (all eight) and one per bus route in the CTA
+  // One feed per train line and one per bus route in the MARTA
   // roster — every line/route is subscribable up front, so a rider can follow
   // their route today and just get a quiet feed until something happens,
   // rather than waiting for a first incident to bring the feed into existence.
@@ -533,34 +514,10 @@ function main() {
     );
     routeFeeds++;
   }
-
-  // One feed per Metra line, under /feed/metra/line/{key} so it never collides
-  // with the CTA /feed/line/{key} namespace (a CTA key and a Metra key could
-  // otherwise coincide). Same proactive-coverage rationale as the CTA feeds.
-  let metraFeeds = 0;
-  for (const line of METRA_LINE_ORDER) {
-    const records = scopedRecords(pool, 'metra', line);
-    const label = METRA_LINES[line]?.label ?? line;
-    writeFeed(
-      records,
-      feedMeta({
-        idPath: `feed/metra/line/${line}`,
-        title: `Atlanta Transit Alerts · Metra ${label}`,
-        subtitle: `Metra service alerts and bot-detected cancellations/delays on the ${label} line.`,
-        homePath: `/metra/line/${line}`,
-        selfBase: `/feed/metra/line/${line}`,
-      }),
-      isoUpdated(records),
-      resolve(ROOT, 'dist', 'feed', 'metra', 'line', `${line}.xml`),
-      resolve(ROOT, 'dist', 'feed', 'metra', 'line', `${line}.json`),
-    );
-    metraFeeds++;
-  }
-
   const droppedNote = dropped > 0 ? ` (${dropped} short-lived obs skipped)` : '';
   console.log(
     `generate-feed: wrote ${globalRecords.length} entries to feed.xml + feed.json, ` +
-      `plus ${lineFeeds} line + ${routeFeeds} route + ${metraFeeds} metra feeds${droppedNote}`,
+      `plus ${lineFeeds} line + ${routeFeeds} route feeds${droppedNote}`,
   );
 }
 

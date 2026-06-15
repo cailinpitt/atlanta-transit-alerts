@@ -1,13 +1,13 @@
 // Helpers for the /calendar page. Reads the slim daily-counts.json
-// produced by cta-insights/bin/export-daily.js and shapes it into a
-// 12-month grid keyed by Chicago calendar day.
+// produced by atlanta-transit-insights/bin/export-daily.js and shapes it into a
+// 12-month grid keyed by Atlanta calendar day.
 
-import { normalizeTrainLine } from './ctaLines.js';
+import { normalizeTrainLine } from './trainLines.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Parse "YYYY-MM-DD" → UTC-midnight epoch encoding that Chicago Y/M/D
-// (same convention as chicagoDayUTC). Returns null on malformed input.
+// Parse "YYYY-MM-DD" → UTC-midnight epoch encoding that Atlanta Y/M/D
+// (same convention as atlantaDayUTC). Returns null on malformed input.
 export function dateStringToUtc(s) {
   if (typeof s !== 'string') return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -37,7 +37,7 @@ function indexDays(days) {
 // `{ trainCount, busCount }` reflecting only the selected lines/routes.
 // Recognizes the same filter keys parseUrlState produces — line keys are
 // normalized to full names (`green`, not `g`), but daily-counts.json still
-// uses CTA short codes inside `by_line`, so the comparison walks both.
+// uses MARTA short codes inside `by_line`, so the comparison walks both.
 //
 //   selectedLines     null = all train lines; [] = no train lines.
 //   showBus           false = drop all bus counts.
@@ -50,7 +50,7 @@ function indexDays(days) {
 function filterCounts(day, { selectedLines, showBus, selectedBusRoutes }) {
   let trainCount = 0;
   if (selectedLines === null) {
-    // All train lines pass — use the merged total (CTA alert + matching bot
+    // All train lines pass — use the merged total (MARTA alert + matching bot
     // observation collapsed into one incident) so the tile matches Timeline.
     // Falls back to raw train_count for any pre-merge daily-counts.json.
     trainCount = day.train_merged_count ?? day.train_count ?? 0;
@@ -85,7 +85,7 @@ function filterCounts(day, { selectedLines, showBus, selectedBusRoutes }) {
 // flag so the renderer can skip them. Cells that ended on or before
 // `dataStartTs` get `noData: true` so the renderer can hatch them.
 //
-// `now` defaults to Date.now() — pinned to Chicago calendar terms via the
+// `now` defaults to Date.now() — pinned to Atlanta calendar terms via the
 // payload's date strings, so timezone of `now` doesn't matter for cell
 // alignment, only for "what's the current month."
 //
@@ -121,9 +121,9 @@ export function buildCalendarMonths(
 ) {
   const idx = indexDays(days);
   const today = new Date(now);
-  // Anchor month uses Chicago-local Y/M to avoid edge-of-month drift.
+  // Anchor month uses Atlanta-local Y/M to avoid edge-of-month drift.
   const anchorParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Chicago',
+    timeZone: 'America/New_York',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -248,9 +248,9 @@ export function buildCalendarWeeks(
 ) {
   const idx = indexDays(days);
 
-  // Anchor today in Chicago Y/M/D so we don't drift around midnight.
+  // Anchor today in Atlanta Y/M/D so we don't drift around midnight.
   const todayParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Chicago',
+    timeZone: 'America/New_York',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

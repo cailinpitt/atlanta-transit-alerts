@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { buildDailyTrend, computeDisruptionMinutes } from '../lib/aggregate.js';
 import { formatBusRoute } from '../lib/busRoutes.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/ctaLines.js';
 import { formatMinutesAsHours } from '../lib/format.js';
-import { METRA_LINE_ORDER, METRA_LINES } from '../lib/metraLines.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 import TrendSparkline from './TrendSparkline.jsx';
 
 // Callout threshold: only surface a "X% busier/quieter than the prior week"
@@ -15,14 +14,6 @@ const CALLOUT_MIN_PRIOR = 3;
 
 function Sep() {
   return <span className="mx-2 text-slate-300 dark:text-slate-600">·</span>;
-}
-
-// Leading agency tag on each most-affected / quietest line, so a reader can
-// tell a CTA line from a Metra line at a glance in the combined "All" view.
-function AgencyTag({ children }) {
-  return (
-    <span className="font-semibold text-slate-400 dark:text-slate-500 mr-1.5">{children}</span>
-  );
 }
 
 // One sentence-group worth of inline stat phrases, joined by `·`. The outer
@@ -53,26 +44,20 @@ export default function SummaryStats({
   mostAffectedId,
   quietestLineId,
   quietestLineDays,
-  metraMostAffectedId,
-  metraQuietestLineId,
-  metraQuietestLineDays,
   alerts,
   observations,
   // Homepage hides the active-now figure because the Active Now / All-clear
   // status header right above already states it — repeating it here is noise.
   // Other pages (line, system) keep it since they have no such header.
   showActive = true,
-  agency = 'all',
+  agency: _agency = 'all',
 }) {
   const trend = useMemo(
     () => (alerts && observations ? buildDailyTrend(alerts, observations) : null),
     [alerts, observations],
   );
 
-  // System-wide disruption-hours over the last 7 days, sized to match the
-  // existing "X incidents in the last 7 days" phrase. Line-hours are summed
-  // across each agency's rail lines, keeping CTA and Metra visually distinct.
-  const ctaDisruption7d = useMemo(() => {
+  const railDisruption7d = useMemo(() => {
     if (!alerts || !observations) return null;
     return computeDisruptionMinutes(
       alerts.filter((a) => a.kind === 'train'),
@@ -84,55 +69,22 @@ export default function SummaryStats({
     );
   }, [alerts, observations]);
 
-  const metraDisruption7d = useMemo(() => {
-    if (!alerts || !observations) return null;
-    return computeDisruptionMinutes(
-      alerts.filter((a) => a.kind === 'metra'),
-      observations.filter((o) => o.kind === 'metra'),
-      {
-        windowDays: 7,
-        lines: METRA_LINE_ORDER.map((line) => ({ kind: 'metra', line })),
-      },
-    );
-  }, [alerts, observations]);
-
-  // CTA and Metra each surface their own "most affected" / "quietest" line, and
-  // only while the page-level agency filter covers that agency (the data is
-  // already agency-scoped, so the off-agency phrases come back empty anyway —
-  // this gate just makes the intent explicit and matches the disruption cards).
-  const showCta = agency !== 'metra';
-  const showMetra = agency !== 'cta';
-
   let affectedPhrase = null;
-  if (showCta && mostAffectedKind === 'train' && TRAIN_LINES[mostAffectedId]) {
+  if (mostAffectedKind === 'train' && TRAIN_LINES[mostAffectedId]) {
     const info = TRAIN_LINES[mostAffectedId];
     affectedPhrase = (
       <>
-        <AgencyTag>CTA</AgencyTag>
         <strong style={{ color: info.color }}>{info.label} Line</strong> most affected (last 30
         days)
       </>
     );
-  } else if (showCta && mostAffectedKind === 'bus') {
+  } else if (mostAffectedKind === 'bus') {
     affectedPhrase = (
       <>
-        <AgencyTag>CTA</AgencyTag>
         <strong className="text-slate-800 dark:text-slate-100">
           {formatBusRoute(mostAffectedId)}
         </strong>{' '}
         most affected (last 30 days)
-      </>
-    );
-  }
-
-  // Metra lines carry their own name ("BNSF", "Metra Electric") — no " Line".
-  let metraAffectedPhrase = null;
-  if (showMetra && metraMostAffectedId && METRA_LINES[metraMostAffectedId]) {
-    const info = METRA_LINES[metraMostAffectedId];
-    metraAffectedPhrase = (
-      <>
-        <AgencyTag>Metra</AgencyTag>
-        <strong style={{ color: info.color }}>{info.label}</strong> most affected (last 30 days)
       </>
     );
   }
@@ -159,30 +111,12 @@ export default function SummaryStats({
   // Quietest streak: positive callout, surfaced only when the streak is
   // long enough to be interesting. <2 days clears that bar most of the time.
   let quietestPhrase = null;
-  if (showCta && quietestLineId && TRAIN_LINES[quietestLineId] && quietestLineDays >= 2) {
+  if (quietestLineId && TRAIN_LINES[quietestLineId] && quietestLineDays >= 2) {
     const info = TRAIN_LINES[quietestLineId];
     quietestPhrase = (
       <>
-        <AgencyTag>CTA</AgencyTag>
         <strong style={{ color: info.color }}>{info.label} Line</strong> quietest:{' '}
         {quietestLineDays} days since last incident
-      </>
-    );
-  }
-
-  let metraQuietestPhrase = null;
-  if (
-    showMetra &&
-    metraQuietestLineId &&
-    METRA_LINES[metraQuietestLineId] &&
-    metraQuietestLineDays >= 2
-  ) {
-    const info = METRA_LINES[metraQuietestLineId];
-    metraQuietestPhrase = (
-      <>
-        <AgencyTag>Metra</AgencyTag>
-        <strong style={{ color: info.color }}>{info.label}</strong> quietest:{' '}
-        {metraQuietestLineDays} days since last incident
       </>
     );
   }
@@ -211,22 +145,11 @@ export default function SummaryStats({
       />
     );
   };
-  const ctaDisruptionCard =
-    agency !== 'metra'
-      ? buildDisruptionCard(
-          ctaDisruption7d,
-          'CTA',
-          'Total CTA train line-hours in a detected disruption over the last 7 days, summed across the 8 lines (overlapping detections on one line are unioned; separate lines are summed). The percentage is that share of scheduled CTA train service hours.',
-        )
-      : null;
-  const metraDisruptionCard =
-    agency !== 'cta'
-      ? buildDisruptionCard(
-          metraDisruption7d,
-          'Metra',
-          'Total Metra line-hours in a detected disruption over the last 7 days, summed across the 11 lines (overlapping detections on one line are unioned; separate lines are summed). The percentage is that share of estimated Metra service hours.',
-        )
-      : null;
+  const railDisruptionCard = buildDisruptionCard(
+    railDisruption7d,
+    'MARTA rail',
+    'Total MARTA rail line-hours in a detected disruption over the last 7 days, summed across rail and streetcar lines. Overlapping detections on one line are unioned; separate lines are summed.',
+  );
   const trendCard = (() => {
     if (trend?.trendRatio == null) return null;
     const priorTotal = trend.prior7Avg * 7;
@@ -248,19 +171,15 @@ export default function SummaryStats({
   const mobileCards = [
     showActive ? activeCard : null,
     weekCard,
-    ctaDisruptionCard,
-    metraDisruptionCard,
+    railDisruptionCard,
     trendCard,
   ].filter(Boolean);
   // Desktop strip omits the trend card (rendered as a phrase + sparkline row
   // below) and, like mobile, drops the active card when the host page already
   // shows an active/all-clear status above.
-  const desktopCards = [
-    showActive ? activeCard : null,
-    weekCard,
-    ctaDisruptionCard,
-    metraDisruptionCard,
-  ].filter(Boolean);
+  const desktopCards = [showActive ? activeCard : null, weekCard, railDisruptionCard].filter(
+    Boolean,
+  );
 
   // Two layouts share data but diverge structurally:
   //   - Mobile (<sm): 2x2 grid of stat cards, then the affected/quietest
@@ -291,12 +210,6 @@ export default function SummaryStats({
           {quietestPhrase && (
             <p className="text-sm text-slate-600 dark:text-slate-300">{quietestPhrase}</p>
           )}
-          {metraAffectedPhrase && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">{metraAffectedPhrase}</p>
-          )}
-          {metraQuietestPhrase && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">{metraQuietestPhrase}</p>
-          )}
         </div>
       </div>
 
@@ -319,7 +232,6 @@ export default function SummaryStats({
           </div>
         )}
         <StatRow>{[affectedPhrase, quietestPhrase]}</StatRow>
-        <StatRow>{[metraAffectedPhrase, metraQuietestPhrase]}</StatRow>
       </div>
     </div>
   );

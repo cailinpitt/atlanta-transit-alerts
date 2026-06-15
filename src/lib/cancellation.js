@@ -1,9 +1,9 @@
-// Display helpers for schedule-anchored single-train Metra cancellations.
+// Display helpers for schedule-anchored single-train Commuter cancellations.
 //
-// The cta-insights pipeline ships a top-level `cancellation` object on an incident
-// when a Metra alert annuls exactly one scheduled train (see export-web.js). It's
-// an incident-level fact, not alert metadata — deliberately NOT under the `cta`
-// block, whose name is a CTA-era misnomer for the official-alert slot.
+// The atlanta-transit-insights pipeline ships a top-level `cancellation` object on an incident
+// when a Commuter alert annuls exactly one scheduled train (see export-web.js). It's
+// an incident-level fact, not alert metadata — deliberately NOT under the `official`
+// block, whose name is a MARTA-era misnomer for the official-alert slot.
 // It carries the rider-facing label and the train's timetable, computed upstream —
 // so the frontend stays a dumb renderer: no clock math, no "is it past?" logic
 // here. We just read `state` and the scheduled times and present them.

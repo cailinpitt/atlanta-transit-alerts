@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/ctaLines.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { METRA_LINE_ORDER, METRA_LINES } from '../lib/metraLines.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 
 const LINK = 'text-blue-500 hover:text-blue-400 hover:underline';
-const SITE = 'https://chicagotransitalerts.app';
+const SITE = 'https://atlantatransitalerts.app';
 const FEED_URL = `${SITE}/feed.xml`;
 const CSV_URL = dataUrl('alerts.csv');
 const JSON_URL = dataUrl('alerts.json');
-const CHANGELOG_URL = 'https://chicagotransitalerts.app/data/CHANGELOG.md';
+const CHANGELOG_URL = 'https://atlantatransitalerts.app/data/CHANGELOG.md';
 
 const CURL_CMD = `curl -s ${JSON_URL} | jq '.incidents | length'`;
 
@@ -25,19 +24,10 @@ const ROUTE_FEED_OPTIONS = Object.keys(BUS_ROUTE_NAMES)
     value: `route/${r}`,
     label: BUS_ROUTE_NAMES[r] ? `#${r} ${BUS_ROUTE_NAMES[r]}` : `#${r}`,
   }));
-// Metra feeds live under their own namespace (`metra/line/:line`) so a Metra
-// route_id can never collide with a CTA train-line key.
-const METRA_FEED_OPTIONS = METRA_LINE_ORDER.map((id) => ({
-  value: `metra/line/${id}`,
-  label: METRA_LINES[id]?.label ?? id,
-}));
-
 export default function SubscribeContent() {
   const [copied, setCopied] = useState(null);
-  const [pickedCtaFeed, setPickedCtaFeed] = useState('line/red');
-  const [pickedMetraFeed, setPickedMetraFeed] = useState('metra/line/me');
-  const pickedCtaFeedUrl = `${SITE}/feed/${pickedCtaFeed}.xml`;
-  const pickedMetraFeedUrl = `${SITE}/feed/${pickedMetraFeed}.xml`;
+  const [pickedOfficialFeed, setPickedOfficialFeed] = useState('line/red');
+  const pickedOfficialFeedUrl = `${SITE}/feed/${pickedOfficialFeed}.xml`;
 
   useEffect(() => {
     if (!copied) return;
@@ -51,7 +41,7 @@ export default function SubscribeContent() {
       setCopied(key);
     } catch {
       // Clipboard API can fail in older Safari / restrictive contexts; the
-      // text is visible and selectable either way.
+      // text is visible and seleofficialble either way.
     }
   };
 
@@ -66,65 +56,43 @@ export default function SubscribeContent() {
         <li>
           <a
             className={LINK}
-            href="https://bsky.app/profile/ctaalertinsights.chicagotransitalerts.app"
+            href="https://bsky.app/profile/martaalertinsights.atlantatransitalerts.app"
             target="_blank"
             rel="noopener noreferrer"
           >
-            @ctaalertinsights
+            @martaalertinsights
           </a>{' '}
-          — official CTA alerts plus full-line/route blackouts and roundups.
+          — official MARTA alerts plus bot-detected disruption roundups.
         </li>
         <li>
           <a
             className={LINK}
-            href="https://bsky.app/profile/ctatraininsights.chicagotransitalerts.appl"
+            href="https://bsky.app/profile/martatraininsights.atlantatransitalerts.app"
             target="_blank"
             rel="noopener noreferrer"
           >
-            @ctatraininsights
+            @martatraininsights
           </a>{' '}
-          — bunching, gaps, and ghost-hour detections on the L.
+          — MARTA rail speedmaps, bunching, gaps, ghosts, and recaps.
         </li>
         <li>
           <a
             className={LINK}
-            href="https://bsky.app/profile/ctabusinsights.chicagotransitalerts.app"
+            href="https://bsky.app/profile/martabusinsights.atlantatransitalerts.app"
             target="_blank"
             rel="noopener noreferrer"
           >
-            @ctabusinsights
+            @martabusinsights
           </a>{' '}
-          — same, for bus routes.
-        </li>
-        <li>
-          <a
-            className={LINK}
-            href="https://bsky.app/profile/metraalertinsights.chicagotransitalerts.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            @metraalertinsights
-          </a>{' '}
-          — Metra cancellations, late trains, and republished Metra alerts.
-        </li>
-        <li>
-          <a
-            className={LINK}
-            href="https://bsky.app/profile/metrainsights.chicagotransitalerts.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            @metrainsights
-          </a>{' '}
-          — Metra speed maps and performance recaps.
+          — MARTA bus speedmaps, bunching, gaps, ghosts, and recaps.
         </li>
       </ul>
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-3">RSS / Atom feed</h3>
       <p>
-        An Atom feed of the 50 most recent incidents — official CTA and Metra alerts plus
-        bot-detected disruptions, across every line and route. Drop the URL below into any feed
-        reader to follow along.
+        An Atom feed of the 50 most recent incidents — official MARTA alerts plus bot-detected
+        disruptions, across every line and route. Drop the URL below into any feed reader to follow
+        along.
       </p>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Capped at 50 entries, which typically covers the last 3–7 days depending on how active the
@@ -153,23 +121,22 @@ export default function SubscribeContent() {
         Just one line or route
       </h3>
       <p>
-        Only care about your commute? Pick a CTA line or route, or a Metra line, to get its own
-        feed. Every CTA train line, every bus route, and every Metra line has one at a predictable
-        URL (<code className="text-xs">/feed/line/:line.xml</code>,{' '}
-        <code className="text-xs">/feed/route/:route.xml</code>, or{' '}
-        <code className="text-xs">/feed/metra/line/:line.xml</code>):
+        Only care about your commute? Pick a MARTA rail line, streetcar, or bus route to get its own
+        feed. Every rail line and bus route has one at a prediofficialble URL (
+        <code className="text-xs">/feed/line/:line.xml</code> or{' '}
+        <code className="text-xs">/feed/route/:route.xml</code>):
       </p>
       <div className="grid gap-3 md:grid-cols-2">
         <FeedPicker
-          id="cta-feed-picker"
-          label="CTA line or route"
-          value={pickedCtaFeed}
-          onChange={setPickedCtaFeed}
-          url={pickedCtaFeedUrl}
-          copied={copied === 'cta-picked'}
-          onCopy={copy('cta-picked', pickedCtaFeedUrl)}
+          id="marta-feed-picker"
+          label="MARTA line or route"
+          value={pickedOfficialFeed}
+          onChange={setPickedOfficialFeed}
+          url={pickedOfficialFeedUrl}
+          copied={copied === 'official-picked'}
+          onCopy={copy('official-picked', pickedOfficialFeedUrl)}
         >
-          <optgroup label="Train Lines">
+          <optgroup label="Rail Lines">
             {LINE_FEED_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -184,26 +151,11 @@ export default function SubscribeContent() {
             ))}
           </optgroup>
         </FeedPicker>
-        <FeedPicker
-          id="metra-feed-picker"
-          label="Metra line"
-          value={pickedMetraFeed}
-          onChange={setPickedMetraFeed}
-          url={pickedMetraFeedUrl}
-          copied={copied === 'metra-picked'}
-          onCopy={copy('metra-picked', pickedMetraFeedUrl)}
-        >
-          {METRA_FEED_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </FeedPicker>
       </div>
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        Feeds exist for every CTA line, every roster route, and every Metra line up front, so you
-        can subscribe to your route today — it just stays quiet until something happens, then fills
-        in automatically. Every line and route page also carries a{' '}
+        Feeds exist for every MARTA rail line and roster route up front, so you can subscribe to
+        your route today — it just stays quiet until something happens, then fills in automatically.
+        Every line and route page also carries a{' '}
         <span className="whitespace-nowrap">“🔔 Subscribe (RSS)”</span> link. A JSON Feed version
         lives at the same path with a <code>.json</code> extension.
       </p>

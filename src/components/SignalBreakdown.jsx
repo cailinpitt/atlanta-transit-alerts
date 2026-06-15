@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { buildSignalsByLine } from '../lib/aggregate.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/ctaLines.js';
 import { observationSignals, SIGNAL_LABELS, SIGNAL_TYPES } from '../lib/incidents.js';
-import { METRA_LINE_ORDER, METRA_LINES, normalizeMetraLine } from '../lib/metraLines.js';
+import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 
 // Distinct, accessible colors for each signal category. Tied to the
 // disruption "feel" — gap/ghost (absence) sit cool, bunching (excess) sits
@@ -16,16 +15,7 @@ const SIGNAL_COLORS = {
   'thin-gap': '#8b5cf6', // violet-500 — most extreme absence (whole route silent)
 };
 
-// Metra's signal vocabulary is cancellations + delays, not the CTA gap/ghost
-// set. Matches the colors used on the Compare page's Metra signal mix.
-const METRA_SIGNAL_TYPES = ['cancellation', 'cancellation-inferred', 'delay'];
-const METRA_SIGNAL_COLORS = {
-  cancellation: '#dc2626', // red-600 — confirmed cancellation
-  'cancellation-inferred': '#fb923c', // orange-400 — inferred (hedged)
-  delay: '#eab308', // yellow-500 — running late
-};
-
-function lineTotal(counts, types = SIGNAL_TYPES) {
+function lineTotal(counts = {}, types = SIGNAL_TYPES) {
   return types.reduce((sum, sig) => sum + (counts[sig] || 0), 0);
 }
 
@@ -88,20 +78,6 @@ function SignalLegend({ types = SIGNAL_TYPES, colors = SIGNAL_COLORS }) {
   );
 }
 
-// Tally Metra cancellation/delay observations per line → { lineKey: { src: n } }.
-function buildMetraSignalsByLine(observations) {
-  const byLine = {};
-  for (const o of observations || []) {
-    if (o.kind !== 'metra' || !o.line) continue;
-    const src = o.detection_source;
-    if (!METRA_SIGNAL_TYPES.includes(src)) continue;
-    const key = normalizeMetraLine(o.line);
-    if (!byLine[key]) byLine[key] = {};
-    byLine[key][src] = (byLine[key][src] || 0) + 1;
-  }
-  return byLine;
-}
-
 // Build a flat `{ signalKey: count }` tally for an arbitrary observation
 // list. Mirrors the per-line bookkeeping in `buildSignalsByLine` but for
 // one arbitrary cohort — used by the single-row bus-route variant below.
@@ -122,84 +98,45 @@ function tallySignals(observations) {
 // routes get the dedicated `<SignalBreakdown.SingleRoute>` variant below.
 export default function SignalBreakdown({ observations }) {
   const { byLine, totals } = useMemo(() => buildSignalsByLine(observations), [observations]);
-  const metraByLine = useMemo(() => buildMetraSignalsByLine(observations), [observations]);
 
   const linesWithData = TRAIN_LINE_ORDER.filter((line) => lineTotal(byLine[line]) > 0);
   const grandTotal = SIGNAL_TYPES.reduce((s, sig) => s + (totals[sig] || 0), 0);
 
-  const metraLinesWithData = METRA_LINE_ORDER.filter(
-    (line) => lineTotal(metraByLine[line], METRA_SIGNAL_TYPES) > 0,
-  );
-
-  // Nothing on either agency → render nothing (keeps the homepage quiet).
-  if (grandTotal === 0 && metraLinesWithData.length === 0) return null;
+  // Nothing in the rail observations -> render nothing (keeps the homepage quiet).
+  if (grandTotal === 0) return null;
 
   return (
-    <div className="space-y-6">
-      {grandTotal > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-            Signal mix by train line
-          </h2>
-          <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-4">
-            <div className="space-y-2">
-              {linesWithData.map((line) => {
-                const info = TRAIN_LINES[line];
-                const counts = byLine[line];
-                const total = lineTotal(counts);
-                return (
-                  <SignalBar
-                    key={line}
-                    labelText={info.label}
-                    labelColor={info.color}
-                    counts={counts}
-                    total={total}
-                    ariaPrefix={`${info.label} Line`}
-                  />
-                );
-              })}
-            </div>
-            <SignalLegend />
-          </div>
-        </section>
-      )}
-
-      {metraLinesWithData.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-            Metra signal mix by line
-          </h2>
-          <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-4">
-            <div className="space-y-2">
-              {metraLinesWithData.map((line) => {
-                const info = METRA_LINES[line];
-                const counts = metraByLine[line];
-                const total = lineTotal(counts, METRA_SIGNAL_TYPES);
-                return (
-                  <SignalBar
-                    key={line}
-                    labelText={line.toUpperCase()}
-                    labelColor={info.color}
-                    counts={counts}
-                    total={total}
-                    ariaPrefix={info.label}
-                    types={METRA_SIGNAL_TYPES}
-                    colors={METRA_SIGNAL_COLORS}
-                  />
-                );
-              })}
-            </div>
-            <SignalLegend types={METRA_SIGNAL_TYPES} colors={METRA_SIGNAL_COLORS} />
-          </div>
-        </section>
-      )}
-    </div>
+    <section>
+      <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+        Signal mix by rail line
+      </h2>
+      <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-4">
+        <div className="space-y-2">
+          {linesWithData.map((line) => {
+            const info = TRAIN_LINES[line];
+            const counts = byLine[line];
+            const total = lineTotal(counts);
+            return (
+              <SignalBar
+                key={line}
+                labelText={info.label}
+                labelColor={info.color}
+                counts={counts}
+                total={total}
+                ariaPrefix={`${info.label} Line`}
+              />
+            );
+          })}
+        </div>
+        <SignalLegend />
+      </div>
+    </section>
   );
 }
 
 // Single-row variant for /route/:id pages. The route is already locked, so
 // just one bar and the same legend. Hidden when the route has no signals
-// to break down (e.g. a bus route that only has CTA alerts but no bot
+// to break down (e.g. a bus route that only has official alerts but no bot
 // observations yet).
 export function SignalBreakdownSingleRoute({ observations, label, labelColor }) {
   const counts = useMemo(() => tallySignals(observations), [observations]);

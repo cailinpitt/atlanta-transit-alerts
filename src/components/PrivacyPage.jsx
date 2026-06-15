@@ -12,9 +12,9 @@ export default function PrivacyPage() {
   const [dark, toggleDark] = useDarkMode();
 
   useEffect(() => {
-    document.title = 'Privacy · Chicago Transit Alerts';
+    document.title = 'Privacy · Atlanta Transit Alerts';
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, []);
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Privacy</h1>
           <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
             <p>
-              Chicago Transit Alerts is a static website with no accounts, no backend, and no
+              Atlanta Transit Alerts is a static website with no accounts, no backend, and no
               database of visitors. The short version: it doesn't collect personal data about you.
             </p>
 
@@ -79,9 +79,8 @@ export default function PrivacyPage() {
             <p>
               The only third-party script on the site is the Cloudflare Web Analytics beacon
               described above, and it's cookieless and doesn't profile you. Aside from that, no
-              trackers, fonts, or embeds run here. Links out to Bluesky, GitHub, the CTA, or Metra
-              only load when you choose to click them, and those sites have their own privacy
-              policies.
+              trackers, fonts, or embeds run here. Links out to Bluesky, GitHub, or MARTA only load
+              when you choose to click them, and those sites have their own privacy policies.
             </p>
 
             <h2 className={H2}>Hosting and server logs</h2>
@@ -110,9 +109,9 @@ export default function PrivacyPage() {
 
             <h2 className={H2}>The data shown on the site</h2>
             <p>
-              The incidents shown here are built from public CTA and Metra service alerts and public
-              posts by the project's Bluesky bots. None of it is personal information about site
-              visitors.
+              The incidents shown here are built from MARTA service alerts, MARTA realtime data, and
+              public posts by the project's Bluesky bots. None of it is personal information about
+              site visitors.
             </p>
 
             <h2 className={H2}>Questions</h2>
@@ -120,7 +119,7 @@ export default function PrivacyPage() {
               Questions or concerns? Reach out via the{' '}
               <a
                 className={LINK}
-                href="https://github.com/cailinpitt/chicago-transit-alerts"
+                href="https://github.com/cailinpitt/atlanta-transit-alerts"
                 target="_blank"
                 rel="noopener noreferrer"
               >

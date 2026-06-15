@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { hexToRgba } from '../lib/format.js';
 import { buildMultiLineMap, sliceTrackBetween } from '../lib/lineMap.js';
 import { displayStationName } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 import { MapScroller, normalize } from './EventMap.jsx';
 
 // Combined event map for an incident touching more than one train line — a
@@ -152,13 +152,13 @@ export default function MultiLineEventMap({
 
   // When the highlighted stretches come from bot detections (any segment owns a
   // specific line), the bold sections are where the bot saw trains stop — which
-  // can spread well beyond the CTA's reported epicenter as the disruption
+  // can spread well beyond MARTA's reported epicenter as the disruption
   // cascades to the branches. "Where this happened" overstates that, so label it
-  // as bot-observed impact. A pure multi-line CTA alert (only line-agnostic
+  // as bot-observed impact. A pure multi-line official alert (only line-agnostic
   // segments) keeps the plain framing, since that IS the reported location.
   const hasBotSegments = (segments || []).some((s) => s.line);
   // When the stretch was fanned across shared trackage, the bold sections on
-  // the sibling line(s) are inferred from the CTA's line scope + the roster,
+  // the sibling line(s) are inferred from the alert's line scope + the roster,
   // not a separate bot detection — so don't credit the bot for all of them.
   const heading = sharedTrackage
     ? 'Affected stretches'
@@ -168,7 +168,7 @@ export default function MultiLineEventMap({
         ? 'Where this is happening'
         : 'Where this happened';
   const note = sharedTrackage
-    ? 'The bot saw trains stop on one line; the same stretch runs on the other line(s) over shared track, which the CTA alert confirms are affected too.'
+    ? 'The bot saw trains stop on one line; the same stretch runs on the other line(s) over shared track, which the MARTA alert confirms are affected too.'
     : 'Stretches where the bot saw trains stop, which can spread across the affected lines as the disruption cascades beyond where it started.';
 
   return (

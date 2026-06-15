@@ -7,11 +7,6 @@ import {
   computeStretchRecurrence,
 } from '../../lib/aggregate.js';
 import {
-  cancellationInfo,
-  cancellationSchedulePhrase,
-  cancellationStatusLabel,
-} from '../../lib/cancellation.js';
-import {
   formatDate,
   formatDuration,
   formatEstimatedEnd,
@@ -28,8 +23,6 @@ import {
   incidentRecords,
   isPlannedIncident,
   legacyKind,
-  metraIncidentStatus,
-  metraPointEvent,
   officialAlert,
   SIGNAL_LABELS,
   splitObservations,
@@ -38,13 +31,12 @@ import { stationsServingLines } from '../../lib/stations.js';
 import EventMap from '../EventMap.jsx';
 import EventReplay from '../EventReplay.jsx';
 import LinePill from '../LinePill.jsx';
-import MetraPointBadge from '../MetraPointBadge.jsx';
 import MultiLineEventMap from '../MultiLineEventMap.jsx';
 import OfficialBadge from '../OfficialBadge.jsx';
 import ShareLink from '../ShareLink.jsx';
 import StationName from '../StationName.jsx';
 import {
-  collectAffectedStations,
+  collectImpactedStations,
   expandSharedTrackageSegments,
   groupAffectedStationsByLine,
   linkifyMentionedStations,
@@ -55,13 +47,13 @@ import CopySummary from './CopySummary.jsx';
 import {
   buildEventSummaryText,
   computeBotLead,
-  computeCtaEstimate,
-  computeCtaPlanned,
+  computeOfficialEstimate,
+  computeOfficialPlanned,
 } from './callouts.js';
 import { describe, describeText, incidentRoutes } from './incidentText.jsx';
 import { MiniTimeline } from './MiniTimeline.jsx';
 
-// 0–23 Chicago clock hour → "3 PM" / "12 AM". Used by the time-of-day context
+// 0–23 Atlanta clock hour → "3 PM" / "12 AM". Used by the time-of-day context
 // line; kept local since it's the only consumer.
 function formatHourLabel(hour) {
   const period = hour < 12 ? 'AM' : 'PM';
@@ -104,7 +96,7 @@ function formatAffected(incident) {
 //   - The incident is still active (no final duration yet).
 //   - The cohort is below the helper's minCohort threshold (any median is
 //     too volatile to anchor a comparison).
-//   - The incident has no signal to bucket on (pure CTA alerts).
+//   - The incident has no signal to bucket on (pure MARTA alerts).
 function DurationScale({ stats }) {
   if (!stats || stats.thisMs == null) return null;
   // Scale extends to the max of (this incident, cohort p90) so a much-
@@ -193,17 +185,14 @@ export function EventDetail({ incident, incidents, alerts, observations, station
     );
     return merged[0] ?? standaloneAlerts[0] ?? standaloneObs[0] ?? null;
   }, [incident]);
-  const cta = flatSubject?.alert_id ? flatSubject : null;
+  const official = flatSubject?.alert_id ? flatSubject : null;
   const kind = legacyKind(incident);
   const lifecycle = incidentLifecycle(incident);
-  // The official-source agency for this incident's alert block — "Metra" for
-  // Metra incidents (whose `cta` block holds Metra's own republished alert),
-  // "CTA" otherwise. Threaded through all the "Per CTA" / "via CTA" copy.
   const agency = agencyLabel(kind);
   const { primary, extras } = splitObservations(incident);
-  const isMerged = !!cta && !!primary;
-  const isAlert = !!cta && !primary;
-  const isObsOnly = !cta;
+  const isMerged = !!official && !!primary;
+  const isAlert = !!official && !primary;
+  const isObsOnly = !official;
 
   // For absence-style observations (pulse-cold/thin-gap) the export publishes an
   // onset_ts back-dated to the last observed train; use it as the start so
@@ -228,7 +217,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   // dated by its scheduled window, not an elapsed clock — the disruption may
   // not have started yet. So we suppress the "Ongoing for" timer and the red
   // "ongoing" pill for these and relabel "First seen" as "Announced" (the
-  // moment CTA posted the notice). Mirrors the homepage's planned-work band,
+  // moment MARTA posted the notice). Mirrors the homepage's planned-work band,
   // which also drops the timer.
   const isPlanned = isPlannedIncident(incident, now);
   const elapsedMs =
@@ -241,7 +230,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   const lineLabel = formatRoutesLabel(kind, routes);
 
   // Line-wide severity: where this incident's duration ranks among ALL
-  // incidents on the line over 30d (any signal, incl. pure CTA alerts).
+  // incidents on the line over 30d (any signal, incl. pure MARTA alerts).
   const lineRank = useMemo(
     () => computeLineDurationRank(incident, incidents, { windowDays: 30 }),
     [incident, incidents],
@@ -249,7 +238,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
 
   // Signal-cohort severity: derived from the same cohort the DurationScale
   // bar draws (same kind+line+signal, 90d). "Longest" when at/above the
-  // cohort max, "top 10%" when at/above p90. Pure CTA alerts have no cohort
+  // cohort max, "top 10%" when at/above p90. Pure MARTA alerts have no cohort
   // (cohortStats null) and get no signal badge.
   const signalSeverity = useMemo(() => {
     if (!cohortStats || cohortStats.thisMs == null || cohortStats.count < 5) return null;
@@ -283,40 +272,42 @@ export function EventDetail({ incident, incidents, alerts, observations, station
 
   // Bot-lead-time callout. When our bot's earliest observation (back-dated to
   // the last train through the cold stretch / earliest signal) predates the
-  // CTA alert's post time, surface the lead so the UI doesn't read as if CTA
-  // detected first. Skipped under 2 min (CTA effectively kept pace).
+  // MARTA alert's post time, surface the lead so the UI doesn't read as if MARTA
+  // detected first. Skipped under 2 min (MARTA effectively kept pace).
   const botLead = computeBotLead({
     isMerged,
-    ctaFirstSeenTs: cta?.first_seen_ts ?? null,
+    officialFirstSeenTs: official?.first_seen_ts ?? null,
     observations: [primary, ...extras].filter(Boolean),
   });
   const botLeadPhrase = botLead?.phrase ?? null;
   const botLeadOnsetTs = botLead?.onsetTs ?? null;
 
-  // CTA-planned-start callout. When CTA tagged the alert with an EventStart
+  // MARTA-planned-start callout. When MARTA tagged the alert with an EventStart
   // that meaningfully predates our first sighting, the disruption was a
   // planned event scheduled in advance rather than a live reactive post.
-  // Skipped when the gap is < 10 minutes (CTA fired effectively in real
+  // Skipped when the gap is < 10 minutes (MARTA fired effectively in real
   // time) or > 14 days (a stale EventStart from a long-running planned
   // alert isn't informative).
-  const ctaStart = cta?.cta_event_start_ts ?? null;
-  const ctaPlannedPhrase = computeCtaPlanned({ ctaStartTs: ctaStart, startTs });
+  const officialStart = official?.agency_event_start_ts ?? null;
+  const officialPlannedPhrase = computeOfficialPlanned({ officialStartTs: officialStart, startTs });
 
-  // CTA's claimed end-time vs actual resolution. Pure CTA alerts and merged
-  // records carry `cta_event_end_ts` when CTA originally tagged the alert
-  // with an EventEnd. When the alert resolved before the stated end, CTA
+  // MARTA's claimed end-time vs actual resolution. Pure MARTA alerts and merged
+  // records carry `agency_event_end_ts` when MARTA originally tagged the alert
+  // with an EventEnd. When the alert resolved before the stated end, MARTA
   // beat their own estimate; when it resolved after, they were optimistic.
   // Skip when only one side is known or the values are >1 week apart (a
   // stale EventEnd from a multi-day planned alert isn't a useful comparison).
-  // For still-active incidents, surface CTA's posted end-time as a
+  // For still-active incidents, surface MARTA's posted end-time as a
   // forward-looking "expected to clear" line rather than the retrospective
   // comparison below. `formatEstimatedEnd` returns null when the estimate
   // is already past or imminent (≤2 min), so an alert running past its
   // estimate quietly hides the now-stale label instead of advertising it.
-  const ctaEndIsDateOnly = cta?.cta_event_end_is_date_only === true;
+  const officialEndIsDateOnly = official?.agency_event_end_is_date_only === true;
   const activeEndPhrase =
-    lifecycle.active && cta?.cta_event_end_ts != null
-      ? formatEstimatedEnd(cta.cta_event_end_ts, undefined, { dateOnly: ctaEndIsDateOnly })
+    lifecycle.active && official?.agency_event_end_ts != null
+      ? formatEstimatedEnd(official.agency_event_end_ts, undefined, {
+          dateOnly: officialEndIsDateOnly,
+        })
       : null;
   // Only show the parenthetical when it adds genuinely new info (a short
   // countdown like "in ~45m", or "later today"). For far-future estimates
@@ -327,19 +318,19 @@ export function EventDetail({ incident, incidents, alerts, observations, station
     (activeEndPhrase.startsWith('in ~') || activeEndPhrase === 'later today');
 
   // The retrospective "X min early/late" comparison is only meaningful when
-  // CTA posted a time. Date-only EventEnd ("through May 25") has no minute
+  // MARTA posted a time. Date-only EventEnd ("through May 25") has no minute
   // precision to compare against, so it's skipped (and the date shown as
-  // context elsewhere). See computeCtaEstimate.
-  const ctaEnd = cta?.cta_event_end_ts ?? null;
-  const ctaEstimateBlock = computeCtaEstimate({
-    ctaEndTs: ctaEnd,
+  // context elsewhere). See computeOfficialEstimate.
+  const officialEnd = official?.agency_event_end_ts ?? null;
+  const officialEstimateBlock = computeOfficialEstimate({
+    officialEndTs: officialEnd,
     resolvedTs: lifecycle.resolved_ts ?? null,
-    dateOnly: ctaEndIsDateOnly,
+    dateOnly: officialEndIsDateOnly,
   });
 
-  // Stabilization delta: only meaningful when the CTA alert cleared before
+  // Stabilization delta: only meaningful when the MARTA alert cleared before
   // the bot saw service return. The bot's resolved_ts represents sustained
-  // recovery (CLEAR_TICKS_TO_RESET consecutive clean passes upstream); CTA
+  // recovery (CLEAR_TICKS_TO_RESET consecutive clean passes upstream); MARTA
   // often clears its alert the moment the underlying incident ends, even if
   // there's still a backlog working through. The gap between the two is the
   // honest "service back to normal" delay riders feel.
@@ -358,7 +349,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   }
   const description = describe(incident, stationIndex);
   const affected = formatAffected(incident);
-  const affectedStations = collectAffectedStations(incident);
+  const affectedStations = collectImpactedStations(incident);
   // Affected stretches as { line, from, to } segments. A bot scopes its
   // detection to one line, but on shared trackage the same stations carry the
   // incident's other lines too — fan the stretch onto them so a Pink+Green
@@ -368,36 +359,19 @@ export function EventDetail({ incident, incidents, alerts, observations, station
     incidentRoutes(incident),
   );
   // Multi-line incidents split the station list per line (mirrors the map);
-  // null for single-line / pure-CTA incidents, which keep the flat chips.
+  // null for single-line / pure-MARTA incidents, which keep the flat chips.
   const stationsByLine = groupAffectedStationsByLine(segments);
-  const resolvedUrl = cta ? (cta.resolved_reply_url ?? null) : (primary?.resolved_post_url ?? null);
+  const resolvedUrl = official
+    ? (official.resolved_reply_url ?? null)
+    : (primary?.resolved_post_url ?? null);
   const obsResolvedUrl =
     isMerged && !lifecycle.active ? (primary?.resolved_post_url ?? null) : null;
   const eventId = incident.id;
-  // The main post link: CTA's announcement when present, else the bot post.
-  const primaryUrl = cta ? cta.post_url : (primary?.post_url ?? null);
+  // The main post link: MARTA's announcement when present, else the bot post.
+  const primaryUrl = official ? official.post_url : (primary?.post_url ?? null);
 
-  // Single-train Metra cancellation: replaces the ongoing/resolved pill and the
-  // duration framing with the train's schedule (this isn't an open disruption
-  // with a duration — it's an annulled train tied to a timetable slot).
-  const cancel = cancellationInfo(incident);
-  const cancelPhrase = cancellationSchedulePhrase(cancel);
-  // Metra point event (late / cancelled / not-seen-running train): a status pill
-  // in place of the resolved/ongoing pill (the title already leads with the
-  // pre-rendered sentence via describe()). Null for the timetable-cancellation
-  // path above, which has its own schedule summary.
-  const pointEvent = !cancel ? metraPointEvent(incident) : null;
-  const metraStatus = !cancel ? metraIncidentStatus(incident) : null;
-  // The timetable cancellation and every bot point event (late / cancelled /
-  // not-seen-running) describe a single scheduled train at a point in time, not
-  // a running disruption — so none of them get a map, a "last seen", a duration,
-  // or duration-ranked severity. The rider-facing magnitude (how late, or that
-  // it was cancelled) is already in the title sentence.
-  const isPointInTime = !!cancel || !!pointEvent;
-  // For a bot point event the "start" timestamp is the train's scheduled
-  // departure (onset_ts = scheduledDepTs upstream), not a "first seen" — relabel
-  // it when we have that anchor.
-  const startIsScheduledDep = !!pointEvent && primary?.onset_ts != null;
+  const isPointInTime = false;
+  const startIsScheduledDep = false;
 
   return (
     <article className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border p-6">
@@ -424,59 +398,18 @@ export function EventDetail({ incident, incidents, alerts, observations, station
             via auto-detection
           </span>
         )}
-        {cancel ? (
-          <span
-            className={`text-xs font-semibold ${
-              cancel.isUpcoming
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            {cancellationStatusLabel(cancel)}
-          </span>
-        ) : metraStatus ? (
-          <>
-            {/* The Metra status badge already reads "planned work" for planned
-                incidents, so don't also tack on a "planned" pill — just drop
-                the "ongoing" marker, which doesn't apply before the work
-                starts. */}
-            <MetraPointBadge source={metraStatus.source} />
-            {lifecycle.active && !isPlanned && (
-              <span className="text-xs font-semibold text-red-500">ongoing</span>
-            )}
-          </>
-        ) : (
-          <>
-            {lifecycle.active &&
-              (isPlanned ? (
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  planned
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-red-500">ongoing</span>
-              ))}
-            {!lifecycle.active && lifecycle.resolved_ts != null && (
-              <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-                resolved
-              </span>
-            )}
-          </>
+        {lifecycle.active &&
+          (isPlanned ? (
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              planned
+            </span>
+          ) : (
+            <span className="text-xs font-semibold text-red-500">ongoing</span>
+          ))}
+        {!lifecycle.active && lifecycle.resolved_ts != null && (
+          <span className="text-xs font-semibold text-green-600 dark:text-green-400">resolved</span>
         )}
       </div>
-
-      {/* Schedule-anchored cancellation summary — the cancelled train's
-          timetable slot, in place of a "duration" that doesn't apply to a
-          train that never ran. */}
-      {cancel && cancelPhrase && (
-        <div className="mb-3 text-sm text-slate-600 dark:text-slate-300">
-          <span className="font-medium">
-            {cancel.trainNumber ? `Train #${cancel.trainNumber}` : 'Train'}
-          </span>{' '}
-          scheduled {cancelPhrase}
-          {cancel.origin ? ` from ${cancel.origin}` : ''}
-          {cancel.isUpcoming ? ' — will not operate.' : ' — did not operate.'}
-        </div>
-      )}
 
       {/* Severity badges — "was this a bad one?" at a glance. The line-wide
           badge ranks duration against every incident on the line (30d); the
@@ -511,40 +444,16 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         {description}
       </h1>
 
-      {/* Bot-only incidents had no matching official CTA alert — say so
-          plainly. The bot caught something the CTA's own channels didn't
-          announce, which is the point of the auto-detection layer. Neutral
-          phrasing: plenty of minor disruptions legitimately don't warrant a
-          CTA post. */}
       {isObsOnly && (
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 italic">
           No matching {agencyLabel(kind)} alert — surfaced from live vehicle tracking only.
         </p>
       )}
 
-      {pointEvent?.lede && pointEvent.lede !== description && (
-        <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">{pointEvent.lede}</p>
-      )}
-
-      {/* Point events lead the title with the lateness/cancellation sentence and
-          draw no map, so the train's run (origin → destination) would otherwise
-          be lost. Show it here as a compact line. */}
-      {pointEvent?.fromStation && pointEvent.toStation && (
-        <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
-          <StationName name={pointEvent.fromStation} kind="metra" stationIndex={stationIndex} /> →{' '}
-          <StationName name={pointEvent.toStation} kind="metra" stationIndex={stationIndex} />
-          {pointEvent.directionLabel && (
-            <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
-              ({pointEvent.directionLabel})
-            </span>
-          )}
-        </p>
-      )}
-
       {/* Chips only when the headline isn't already the station pair. For
           pure observations the description IS "From → To" — rendering the
           same stations a second time as chunky chips is just redundant
-          visual noise. CTA alerts (headlines like "Temporary Reroute" or
+          visual noise. MARTA alerts (headlines like "Temporary Reroute" or
           "Service Change") are the case where the chips actually add
           information that isn't already in the headline.
           Skipped for bus events: upstream's affected_from/to_station for
@@ -553,34 +462,17 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           design — linking them produces /station/wacker pages with no
           incidents on record. The cross-street info is already in the bus
           alert headline, so the chips row adds nothing useful. */}
-      {cta &&
+      {official &&
         kind === 'train' &&
         (stationsByLine ? (
           <StationsByLine
             groups={stationsByLine}
-            direction={cta.affected_direction}
+            direction={official.affected_direction}
             sharedTrackage={sharedTrackage}
           />
         ) : (
-          <StationChips stations={affectedStations} direction={cta.affected_direction} />
+          <StationChips stations={affectedStations} direction={official.affected_direction} />
         ))}
-
-      {/* Metra: stations referenced in the alert text, resolved upstream to
-          canonical GTFS names (free-text Metra names don't match the roster, so
-          this can't be done in-line). Each links to its Metra station page. */}
-      {cta && kind === 'metra' && cta.mentioned_stations?.length > 0 && (
-        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1">
-            Stations
-          </span>
-          {cta.mentioned_stations.map((name, i) => (
-            <span key={name} className="inline-flex items-center">
-              <StationName name={name} kind="metra" />
-              {i < cta.mentioned_stations.length - 1 ? ',' : ''}
-            </span>
-          ))}
-        </p>
-      )}
 
       {isObsOnly && primary?.signals?.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -631,23 +523,20 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         </p>
       )}
 
-      {/* CTA's own body text for the alert — the reroute/closure details the
-          CTA published alongside the headline. Rendered verbatim in a quoted
+      {/* MARTA's own body text for the alert — the reroute/closure details the
+          MARTA published alongside the headline. Rendered verbatim in a quoted
           block so it's visually distinct from the page's derived data and
-          attributable to the CTA. Newlines preserved via whitespace-pre-line
-          since the CTA feed sometimes uses line breaks to separate
+          attributable to the MARTA. Newlines preserved via whitespace-pre-line
+          since the MARTA feed sometimes uses line breaks to separate
           instructions. */}
       {/* Plain-English narrative for pure bot observations — the "Per bot"
-          counterpart to "Per CTA" below. Both sentences are pre-rendered
-          server-side in cta-insights/bin/export-web.js so this stays a dumb
+          counterpart to "Per MARTA" below. Both sentences are pre-rendered
+          server-side in atlanta-transit-insights/bin/export-web.js so this stays a dumb
           renderer. When the observation is resolved, the detection +
           resolution sentences become two entries on a LinkedIn-style rail
-          matching the "Per CTA · N updates" pattern. */}
+          matching the "Per MARTA · N updates" pattern. */}
       {(() => {
-        // Metra point events lead the title with this exact sentence and carry
-        // no onset/resolution/evidence rail, so the "Per bot" entry would just
-        // restate the title — suppress it for them.
-        const detection = isObsOnly && !pointEvent ? primary?.bot_description : null;
+        const detection = isObsOnly ? primary?.bot_description : null;
         const resolution = isObsOnly ? primary?.bot_resolved_description : null;
         const bullets = isObsOnly ? primary?.bot_evidence_bullets : null;
         const onsetText = isObsOnly ? (primary?.onset_description ?? null) : null;
@@ -765,36 +654,33 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         // hoisted so multi-version rendering can apply it per entry without
         // recomputing.
         const linkPool = [
-          ...(cta?.mentioned_stations || []),
+          ...(official?.mentioned_stations || []),
           ...stationsServingLines(incidentRoutes(incident)),
         ];
         // Normalize to a versions list. The export omits `versions` for a
         // single-version alert, so synthesize one entry from the alert's own
-        // fields when there's CTA body text to anchor the section.
-        const rawVersions = Array.isArray(cta?.versions) ? cta.versions : null;
+        // fields when there's MARTA body text to anchor the section.
+        const rawVersions = Array.isArray(official?.versions) ? official.versions : null;
         const versions =
           rawVersions && rawVersions.length > 0
             ? rawVersions
-            : cta?.short_description
+            : official?.short_description
               ? // No headline on the synthesized entry — the page <h1> already
                 // shows it, so repeating it in the rail would just duplicate.
-                [{ ts: cta.first_seen_ts, short_description: cta.short_description }]
+                [{ ts: official.first_seen_ts, short_description: official.short_description }]
               : [];
 
-        // Build the timeline: CTA's text versions (newest first) plus a
+        // Build the timeline: MARTA's text versions (newest first) plus a
         // synthesized "cleared" entry when the alert is no longer active.
         // Without it, a resolved alert ends on a stale "trains standing"
         // message tagged as the Latest update, which reads as if it's still
-        // happening. The clear entry only makes sense once there's CTA copy to
+        // happening. The clear entry only makes sense once there's official copy to
         // anchor the rail, so a content-less alert stays untouched.
         //
-        // For merged CTA+bot incidents, interleave bot detection entries
+        // For merged official+bot incidents, interleave bot detection entries
         // (back-dated to obs.onset_ts) so the chronology answers "who detected
         // this first." Each entry is tagged with its source label below.
-        // A cancellation is terminal but not "cleared" — no resolution entry
-        // (and an annulment Metra dropped from the feed before this lifecycle
-        // shipped may carry an old "resolved" reply we must not surface).
-        const hasResolved = !cancel && !lifecycle.active && lifecycle.resolved_ts != null;
+        const hasResolved = !lifecycle.active && lifecycle.resolved_ts != null;
         const obsDetections = isMerged
           ? [primary, ...extras].filter(Boolean).map((o) => ({
               type: 'obs-detect',
@@ -818,7 +704,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         const sourceLabel = (e) => (e.type === 'obs-detect' ? 'Per bot' : `Per ${agency}`);
         const joinBullets = (items) => items.map((b) => b.replace(/\.\s*$/, '')).join('; ') + '.';
 
-        // A single CTA message with no clear yet — and no bot entries to
+        // A single MARTA message with no clear yet — and no bot entries to
         // interleave — stays a simple quote block. Merged incidents always
         // get the rail since they carry at least one obs detection.
         if (entries.length === 1 && !hasObsEntries) {
@@ -841,7 +727,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           <section className="mt-4">
             <p className="flex items-center text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
               {sectionTitle}
-              {/* Badge only on the agency-scoped title ("Per CTA · N updates");
+              {/* Badge only on the agency-scoped title ("Per MARTA · N updates");
                   the mixed "Timeline" variant tags official entries inline via
                   the per-entry source label below. */}
               {!hasObsEntries && <OfficialBadge agency={agency} className="ml-1" />}
@@ -984,8 +870,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         )}
         {/* Live elapsed time for an active incident — ticks each minute. The
             "Duration" row above only renders once resolved, so this is the
-            running counterpart while it's still open. Suppressed for a
-            cancellation — a train that won't run has no "ongoing" time. */}
+            running counterpart while it's still open. */}
         {!isPointInTime && elapsedMs != null && (
           <div title="Time since this incident was first seen — still ongoing.">
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -1003,7 +888,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         {botLeadPhrase && (
           <div
             className="sm:col-span-2"
-            title="Our bot's observation predates CTA's alert post time."
+            title="Our bot's observation predates MARTA's alert post time."
           >
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Bot lead time
@@ -1012,23 +897,23 @@ export function EventDetail({ incident, incidents, alerts, observations, station
               Bot flagged this <strong>{botLeadPhrase}</strong> before {agency}{' '}
               <span className="text-slate-500 dark:text-slate-400 text-xs">
                 (first observed {formatTime(botLeadOnsetTs)} on {formatDate(botLeadOnsetTs)};{' '}
-                {agency} posted {formatTime(cta.first_seen_ts)})
+                {agency} posted {formatTime(official.first_seen_ts)})
               </span>
             </dd>
           </div>
         )}
-        {ctaPlannedPhrase && (
+        {officialPlannedPhrase && (
           <div
             className="sm:col-span-2"
-            title="CTA's EventStart predates our first sighting — the alert was planned in advance rather than fired live."
+            title="MARTA's EventStart predates our first sighting — the alert was planned in advance rather than fired live."
           >
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              CTA scheduled
+              MARTA scheduled
             </dt>
             <dd className="text-slate-700 dark:text-slate-200">
-              <strong>{ctaPlannedPhrase}</strong> of the first sighting{' '}
+              <strong>{officialPlannedPhrase}</strong> of the first sighting{' '}
               <span className="text-slate-500 dark:text-slate-400 text-xs">
-                (tagged {formatTime(ctaStart)} on {formatDate(ctaStart)})
+                (tagged {formatTime(officialStart)} on {formatDate(officialStart)})
               </span>
             </dd>
           </div>
@@ -1036,15 +921,15 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         {activeEndPhrase && (
           <div
             className="sm:col-span-2"
-            title="CTA tagged this alert with an estimated end time (EventEnd) when it was posted."
+            title="MARTA tagged this alert with an estimated end time (EventEnd) when it was posted."
           >
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              CTA estimated end
+              MARTA estimated end
             </dt>
             <dd className="text-slate-700 dark:text-slate-200">
-              {ctaEndIsDateOnly ? (
+              {officialEndIsDateOnly ? (
                 <>
-                  <strong>{formatDate(ctaEnd)}</strong>
+                  <strong>{formatDate(officialEnd)}</strong>
                   {showRelativeParenthetical && (
                     <>
                       {' '}
@@ -1056,7 +941,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
                 </>
               ) : (
                 <>
-                  <strong>{formatTime(ctaEnd)}</strong> on {formatDate(ctaEnd)}
+                  <strong>{formatTime(officialEnd)}</strong> on {formatDate(officialEnd)}
                   {showRelativeParenthetical && (
                     <>
                       {' '}
@@ -1071,34 +956,34 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           </div>
         )}
         {/* Date-only EventEnd on a resolved alert: no minute-precision
-            comparison to make, so just show CTA's stated through-date as
+            comparison to make, so just show MARTA's stated through-date as
             context. Skipped when the active block already covered it. */}
         {!lifecycle.active &&
-          ctaEndIsDateOnly &&
-          ctaEnd != null &&
+          officialEndIsDateOnly &&
+          officialEnd != null &&
           lifecycle.resolved_ts != null && (
             <div
               className="sm:col-span-2"
-              title="CTA posted this alert's EventEnd as a date with no time, so there's no minute-level comparison to make."
+              title="MARTA posted this alert's EventEnd as a date with no time, so there's no minute-level comparison to make."
             >
               <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                CTA estimated end
+                MARTA estimated end
               </dt>
-              <dd className="text-slate-700 dark:text-slate-200">{formatDate(ctaEnd)}</dd>
+              <dd className="text-slate-700 dark:text-slate-200">{formatDate(officialEnd)}</dd>
             </div>
           )}
-        {ctaEstimateBlock && (
+        {officialEstimateBlock && (
           <div
             className="sm:col-span-2"
-            title="CTA tagged this alert with an estimated end time (EventEnd) when it was first posted. This compares that estimate to when the alert actually cleared."
+            title="MARTA tagged this alert with an estimated end time (EventEnd) when it was first posted. This compares that estimate to when the alert actually cleared."
           >
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              vs CTA's stated end
+              vs MARTA's stated end
             </dt>
             <dd className="text-slate-700 dark:text-slate-200">
-              {ctaEstimateBlock.phrase}{' '}
+              {officialEstimateBlock.phrase}{' '}
               <span className="text-slate-500 dark:text-slate-400 text-xs">
-                (estimated {formatTime(ctaEnd)} on {formatDate(ctaEnd)})
+                (estimated {formatTime(officialEnd)} on {formatDate(officialEnd)})
               </span>
             </dd>
           </div>
@@ -1106,7 +991,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         {stabilizationDelta && (
           <div
             className="sm:col-span-2"
-            title="Time between CTA marking the alert cleared and the bot seeing sustained normal service. The bot's clear requires several consecutive clean passes, so this is closer to the felt return-to-normal than the CTA timestamp alone."
+            title="Time between MARTA marking the alert cleared and the bot seeing sustained normal service. The bot's clear requires several consecutive clean passes, so this is closer to the felt return-to-normal than the MARTA timestamp alone."
           >
             <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Service stabilized
@@ -1135,25 +1020,11 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         ) : (
           <EventMap
             lineKey={Array.isArray(incident.routes) ? incident.routes[0] : null}
-            fromStation={primary?.from_station ?? cta?.affected_from_station ?? null}
-            toStation={primary?.to_station ?? cta?.affected_to_station ?? null}
+            fromStation={primary?.from_station ?? official?.affected_from_station ?? null}
+            toStation={primary?.to_station ?? official?.affected_to_station ?? null}
             active={!!lifecycle.active}
           />
         ))}
-
-      {/* Metra incidents are single-line (one route key), so they always use
-          the single-line EventMap — never the multi-line Loop variant. A
-          cancellation (timetable, confirmed, or inferred) describes a train that
-          never ran, so there's no stretch to map — suppress it. */}
-      {kind === 'metra' && !isPointInTime && (
-        <EventMap
-          kind="metra"
-          lineKey={Array.isArray(incident.routes) ? incident.routes[0] : null}
-          fromStation={primary?.from_station ?? cta?.affected_from_station ?? null}
-          toStation={primary?.to_station ?? cta?.affected_to_station ?? null}
-          active={!!lifecycle.active}
-        />
-      )}
 
       {/* Replay — animates the actual vehicle positions from this incident's
           window across the schematic. Renders only when a track file exists
@@ -1166,9 +1037,9 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           // (e.g. a shared Orange/Green stretch) projects onto the line the
           // segment is actually on, not whichever route sorts first.
           lineKey={primary?.line ?? (Array.isArray(incident.routes) ? incident.routes[0] : null)}
-          fromStation={primary?.from_station ?? cta?.affected_from_station ?? null}
-          toStation={primary?.to_station ?? cta?.affected_to_station ?? null}
-          directionLabel={primary?.direction_label ?? cta?.affected_direction ?? null}
+          fromStation={primary?.from_station ?? official?.affected_from_station ?? null}
+          toStation={primary?.to_station ?? official?.affected_to_station ?? null}
+          directionLabel={primary?.direction_label ?? official?.affected_direction ?? null}
         />
       )}
 
@@ -1178,7 +1049,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
           clear their notability thresholds, so a one-off in a quiet hour
           shows nothing here. */}
       {/* Context insights are anchored to when the incident started — which for
-          planned work is just when CTA posted the advance notice, not when the
+          planned work is just when MARTA posted the advance notice, not when the
           disruption happens. "A quiet hour for disruptions" applied to a 4 AM
           construction post is noise, so suppress the whole section for planned
           work. */}
@@ -1283,7 +1154,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
                 </a>
               ),
           )}
-        {!cancel && resolvedUrl && (
+        {resolvedUrl && (
           <a
             href={resolvedUrl}
             target="_blank"
@@ -1293,7 +1164,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
             Resolution post →
           </a>
         )}
-        {!cancel && obsResolvedUrl && obsResolvedUrl !== resolvedUrl && (
+        {obsResolvedUrl && obsResolvedUrl !== resolvedUrl && (
           <a
             href={obsResolvedUrl}
             target="_blank"

@@ -1,54 +1,46 @@
-// Geographic line-map helpers for the LinePage train heatmap. Loads station
-// and track data (CTA-derived, lat/lon) and projects it into SVG coordinates
-// so the rendered map has real Chicago shape rather than a stylized strip.
+// Geographic line-map helpers for the LinePage rail heatmap. Loads station
+// and track data (MARTA GTFS-derived, lat/lon) and projects it into SVG
+// coordinates so the rendered map has real Atlanta shape rather than a
+// stylized strip.
 //
 // Bus is excluded by design — the data files cover the L only, and a bus
 // route's stop count makes a per-stop heatmap noisy at this scale.
 
-import { normalizeTrainLine, TRAIN_LINE_ORDER, TRAIN_LINES } from './ctaLines.js';
 import { slugifyStation } from './stations.js';
+import { normalizeTrainLine, TRAIN_LINE_ORDER, TRAIN_LINES } from './trainLines.js';
 import lines from './trainLines.json';
 import stations from './trainStations.json';
 
-// trainStations.json + trainLines.json use CTA short codes (brn, g, org, p,
-// y). Map the rest of the app's full-name keys back to short codes for
-// data lookup. Identity for the lines whose codes already match their name.
+// trainStations.json + trainLines.json use normalized MARTA line keys.
 const FULL_TO_SHORT = {
   red: 'red',
   blue: 'blue',
-  brown: 'brn',
-  green: 'g',
-  orange: 'org',
-  pink: 'pink',
-  purple: 'p',
-  yellow: 'y',
+  gold: 'gold',
+  green: 'green',
+  streetcar: 'streetcar',
 };
 
-// Bounding box around downtown Chicago — covers the elevated Loop, the
-// Red Line subway through the Loop, and Blue's Dearborn subway. Lines with
+// Bounding box around downtown Atlanta. Lines with
 // ≥4 stations inside this box get a zoom inset on their map page so the
 // dense cluster doesn't render as overlapping dots.
 const DOWNTOWN_BBOX = {
-  latLo: 41.872,
-  latHi: 41.89,
-  lonLo: -87.645,
-  lonHi: -87.62,
+  latLo: 33.745,
+  latHi: 33.79,
+  lonLo: -84.405,
+  lonHi: -84.37,
 };
 const DOWNTOWN_INSET_THRESHOLD = 4;
 
 // Terminal stations per line. Used as anchors for the only labels we render
 // on the main map — labeling every station overcrowds the SVG, but flagging
-// the endpoints gives a rider enough context to orient ("Howard at the top,
-// 95th at the bottom"). Names match trainStations.json exactly.
+// the endpoints gives a rider enough context to orient. Names match
+// trainStations.json exactly.
 const LINE_TERMINALS = {
-  red: ['Howard', '95th/Dan Ryan'],
-  blue: ["O'Hare", 'Forest Park'],
-  brown: ['Kimball'],
-  green: ['Harlem/Lake', 'Ashland/63rd', 'Cottage Grove'],
-  orange: ['Midway'],
-  pink: ['54th/Cermak'],
-  purple: ['Linden', 'Howard'],
-  yellow: ['Dempster-Skokie', 'Howard'],
+  blue: ['Hamilton E Holmes Station', 'Indian Creek Station'],
+  gold: ['Doraville Station', 'Airport Station'],
+  green: ['Bankhead Station', 'Edgewood-Candler Park Station'],
+  red: ['North Springs Station', 'Airport Station'],
+  streetcar: ['Centennial Olympic Park', 'King Historic District'],
 };
 
 export function shortCodeFor(lineKey) {
@@ -100,7 +92,7 @@ function makeProjection(points, { maxWidth, maxHeight, margin, minHeight = 200, 
   const lonRange = Math.max(maxLon - minLon, 1e-6);
 
   // Cosine-of-latitude correction: 1° of longitude is shorter than 1° of
-  // latitude in distance terms. At Chicago (~41.85°N) the ratio is ~0.74.
+  // latitude in distance terms. At Atlanta (~41.85°N) the ratio is ~0.74.
   // Multiplying lonRange by this factor lets us treat them as equivalent
   // distances downstream, so the rendered map preserves visual scale.
   const meanLat = (minLat + maxLat) / 2;
@@ -223,8 +215,8 @@ export function sliceTrackBetween(tracks, a, b) {
 
 // Project a set of stations + track segments into a target SVG box. Thin
 // wrapper over makeProjection that also maps the station + track geometry
-// through the resulting projection. Exported so the parallel Metra builder
-// (metraLineMap.js) shares the exact same projection math.
+// through the resulting projection. Exported so the parallel Commuter builder
+// (commuterLineMap.js) shares the exact same projection math.
 export function projectInto(rawStations, segments, opts) {
   if (rawStations.length === 0) return null;
   const points = [];

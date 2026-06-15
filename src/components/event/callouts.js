@@ -7,7 +7,7 @@ import { incidentLifecycle, legacyKind } from '../../lib/incidents.js';
 const MIN = 60_000;
 
 // "5 min", "1h 30m", or "2h" from a positive millisecond span. Used for the
-// bot-lead callout; ctaPlanned/ctaEstimate have their own suffixes.
+// bot-lead callout; planned/estimate callouts have their own suffixes.
 export function formatLeadTime(ms) {
   const min = Math.round(ms / MIN);
   if (min < 60) return `${min} min`;
@@ -16,28 +16,28 @@ export function formatLeadTime(ms) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-// How far the earliest bot observation predates CTA's alert post — surfaced so
-// the page doesn't read as if CTA detected first. Only for merged CTA+bot
-// incidents; skipped under 2 min (CTA effectively kept pace). Returns
+// How far the earliest bot observation predates MARTA's alert post — surfaced so
+// the page doesn't read as if MARTA detected first. Only for merged alert+bot
+// incidents; skipped under 2 min (MARTA effectively kept pace). Returns
 // `{ phrase, onsetTs }` or null.
-export function computeBotLead({ isMerged, ctaFirstSeenTs, observations }) {
-  if (!isMerged || ctaFirstSeenTs == null) return null;
+export function computeBotLead({ isMerged, officialFirstSeenTs, observations }) {
+  if (!isMerged || officialFirstSeenTs == null) return null;
   const earliestOnset = (observations || []).reduce(
     (min, o) => Math.min(min, o.onset_ts ?? o.ts),
     Number.POSITIVE_INFINITY,
   );
   if (!Number.isFinite(earliestOnset)) return null;
-  const leadMs = ctaFirstSeenTs - earliestOnset;
+  const leadMs = officialFirstSeenTs - earliestOnset;
   if (leadMs < 2 * MIN) return null;
   return { phrase: formatLeadTime(leadMs), onsetTs: earliestOnset };
 }
 
-// CTA-planned-ahead callout: an EventStart that predates our first sighting by
+// Planned-ahead callout: an EventStart that predates our first sighting by
 // 10 min–14 days marks a planned event rather than a live reactive post.
 // Returns the "…ahead" phrase or null (gap too small, too large, or unknown).
-export function computeCtaPlanned({ ctaStartTs, startTs }) {
-  if (ctaStartTs == null || startTs == null) return null;
-  const aheadMs = startTs - ctaStartTs;
+export function computeOfficialPlanned({ officialStartTs, startTs }) {
+  if (officialStartTs == null || startTs == null) return null;
+  const aheadMs = startTs - officialStartTs;
   const TEN_MIN = 10 * MIN;
   const FOURTEEN_DAYS = 14 * 24 * 60 * MIN;
   if (aheadMs < TEN_MIN || aheadMs > FOURTEEN_DAYS) return null;
@@ -53,13 +53,13 @@ export function computeCtaPlanned({ ctaStartTs, startTs }) {
   return hours > 0 ? `${d}d ${hours}h ahead` : `${d}d ahead`;
 }
 
-// Retrospective comparison of actual resolution vs CTA's stated EventEnd.
+// Retrospective comparison of actual resolution vs MARTA's stated EventEnd.
 // Returns `{ sameMinute, phrase }` or null. Skipped for date-only EventEnd (no
 // minute precision to compare) and when the two are more than a week apart (a
 // stale estimate from a multi-day planned alert isn't a useful comparison).
-export function computeCtaEstimate({ ctaEndTs, resolvedTs, dateOnly }) {
-  if (ctaEndTs == null || resolvedTs == null || dateOnly) return null;
-  const deltaMs = resolvedTs - ctaEndTs;
+export function computeOfficialEstimate({ officialEndTs, resolvedTs, dateOnly }) {
+  if (officialEndTs == null || resolvedTs == null || dateOnly) return null;
+  const deltaMs = resolvedTs - officialEndTs;
   const WEEK_MS = 7 * 24 * 60 * MIN;
   if (Math.abs(deltaMs) > WEEK_MS) return null;
   const absMin = Math.round(Math.abs(deltaMs) / MIN);

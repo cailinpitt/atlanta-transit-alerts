@@ -67,13 +67,13 @@ describe('buildStationIndex', () => {
     // line context — this is the Ashland (Green/Pink) bug class.
     const obs = [makeObs({ id: 1, line: 'red' })];
     const r = buildStationIndex([], obs, { now: NOW });
-    // Sorted in CTA canonical order: red, brown, green, orange, pink, purple, yellow.
+    // Sorted in MARTA canonical order: red, brown, green, orange, pink, purple, yellow.
     // Howard's served set after normalization: red, purple, yellow.
     expect(r.get('howard').lines).toEqual(['red', 'purple', 'yellow']);
   });
 
   it('normalizes raw short-code line keys so they merge with the master roster', () => {
-    // A hand-built record passes `line: 'p'` (raw CTA short code). The index
+    // A hand-built record passes `line: 'p'` (raw MARTA short code). The index
     // should not end up with both `'p'` and `'purple'` as distinct entries.
     const r = buildStationIndex([], [makeObs({ line: 'p' })], { now: NOW });
     expect(r.get('howard').lines).not.toContain('p');
@@ -108,7 +108,7 @@ describe('buildStationIndex', () => {
   it('indexes alert mentioned_stations alongside the segment endpoints', () => {
     // The Monroe sick-customer alert names a single station ("delays at
     // Monroe") so it has no segment endpoints, only mentioned_stations.
-    // Without indexing mentions, /station/monroe-red would show no CTA
+    // Without indexing mentions, /station/monroe-red would show no MARTA
     // alerts for this incident.
     const a = makeAlert({
       affected_from_station: null,

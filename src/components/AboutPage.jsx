@@ -10,9 +10,9 @@ export default function AboutPage() {
   const [dark, toggleDark] = useDarkMode();
 
   useEffect(() => {
-    document.title = 'About · Chicago Transit Alerts';
+    document.title = 'About · Atlanta Transit Alerts';
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, []);
 

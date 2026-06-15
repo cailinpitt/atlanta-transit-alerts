@@ -86,14 +86,14 @@ describe('buildMultiLineMap', () => {
 
 describe('affectedLineSegments', () => {
   it('returns one segment per merged observation, each on its own line', () => {
-    // Observation ts ordering vs the CTA anchor decides the primary (closest)
+    // Observation ts ordering vs the MARTA anchor decides the primary (closest)
     // and the order of the extras: brown (anchor), then pink, then orange.
     const T = 1_000_000_000_000;
     const incident = v2Incident({
       id: '115102',
       kind: 'train',
       routes: ['purple', 'pink', 'green', 'brown', 'orange'],
-      cta: {
+      official: {
         alert_id: '115102',
         first_seen_ts: T,
         affected_from_station: null,
@@ -103,7 +103,7 @@ describe('affectedLineSegments', () => {
         {
           line: 'brown',
           from_station: 'Armitage (Brown/Purple)',
-          to_station: 'Chicago (Brown/Purple)',
+          to_station: 'Atlanta (Brown/Purple)',
           ts: T,
         },
         {
@@ -122,18 +122,18 @@ describe('affectedLineSegments', () => {
     });
     const segs = affectedLineSegments(incident);
     expect(segs).toEqual([
-      { line: 'brown', from: 'Armitage (Brown/Purple)', to: 'Chicago (Brown/Purple)' },
+      { line: 'brown', from: 'Armitage (Brown/Purple)', to: 'Atlanta (Brown/Purple)' },
       { line: 'pink', from: 'Ashland (Green/Pink)', to: 'Washington/Wabash' },
       { line: 'orange', from: '35th/Archer', to: 'Halsted (Orange)' },
     ]);
   });
 
-  it('uses the alert-level segment (line null) for a pure CTA alert', () => {
+  it('uses the alert-level segment (line null) for a pure MARTA alert', () => {
     const incident = v2Incident({
       id: 'a1',
       kind: 'train',
       routes: ['red', 'purple'],
-      cta: { alert_id: 'a1', affected_from_station: 'Belmont', affected_to_station: 'Howard' },
+      official: { alert_id: 'a1', affected_from_station: 'Belmont', affected_to_station: 'Howard' },
       observations: [],
     });
     expect(affectedLineSegments(incident)).toEqual([{ line: null, from: 'Belmont', to: 'Howard' }]);
@@ -144,7 +144,7 @@ describe('affectedLineSegments', () => {
       id: 'o1',
       kind: 'train',
       routes: ['red'],
-      cta: null,
+      official: null,
       observations: [{ line: 'red', from_station: 'Howard', to_station: 'Loyola', ts: 1 }],
     });
     expect(affectedLineSegments(incident)).toEqual([{ line: 'red', from: 'Howard', to: 'Loyola' }]);
@@ -155,7 +155,7 @@ describe('affectedLineSegments', () => {
       id: 'm1',
       kind: 'train',
       routes: ['red'],
-      cta: { alert_id: 'm1', affected_from_station: null, affected_to_station: null },
+      official: { alert_id: 'm1', affected_from_station: null, affected_to_station: null },
       observations: [{ line: 'red', from_station: null, to_station: null, ts: 1 }],
     });
     expect(affectedLineSegments(incident)).toEqual([]);

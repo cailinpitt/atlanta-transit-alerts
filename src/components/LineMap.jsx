@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { hexToRgba } from '../lib/format.js';
 import { buildLineMap } from '../lib/lineMap.js';
-import { buildMetraLineMap } from '../lib/metraLineMap.js';
-import { METRA_LINES } from '../lib/metraLines.js';
 import { displayStationName } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 
 // Five intensity stops keyed off the line's max station count so the
 // busiest station is fully saturated and the rest scale linearly. Mirrors
@@ -122,15 +120,14 @@ function TerminalLabel({ station, mapWidth, mapHeight, radius }) {
 // When ≥4 stations cluster downtown (true for every line except Yellow),
 // a zoom inset is rendered in the lower-right corner so the dense Loop
 // stations are individually clickable rather than overlapping dots.
-export default function LineMap({ lineKey, stationIndex, kind = 'train' }) {
-  const isMetra = kind === 'metra';
+export default function LineMap({ lineKey, stationIndex }) {
   const map = useMemo(
     () =>
-      (isMetra ? buildMetraLineMap : buildLineMap)(lineKey, stationIndex, {
+      buildLineMap(lineKey, stationIndex, {
         maxWidth: 720,
         maxHeight: 540,
       }),
-    [lineKey, stationIndex, isMetra],
+    [lineKey, stationIndex],
   );
   // Track whether the map's horizontal scroll has more content to the right.
   // The fade overlay is `position: absolute; right: 0` inside the scroll
@@ -158,13 +155,11 @@ export default function LineMap({ lineKey, stationIndex, kind = 'train' }) {
     };
   }, []);
   if (!map) return null;
-  const info = isMetra ? METRA_LINES[lineKey] : TRAIN_LINES[lineKey];
+  const info = TRAIN_LINES[lineKey];
   const accent = info?.color ?? '#475569';
-  // CTA lines read "Red Line"; Metra lines are named outright ("Union Pacific
-  // North"), so only the train side gets the " Line" suffix.
   const lineName = info?.label ?? lineKey;
-  const mapLabel = isMetra ? lineName : `${lineName} Line`;
-  const hrefBase = isMetra ? '/metra/station' : '/station';
+  const mapLabel = `${lineName} Line`;
+  const hrefBase = '/station';
 
   const trackPaths = map.tracks.filter((t) => t.length >= 2).map(pathFor);
   const inset = map.downtown;
@@ -229,7 +224,7 @@ export default function LineMap({ lineKey, stationIndex, kind = 'train' }) {
                     hrefBase={hrefBase}
                   />
                 ))}
-                {/* Marker rectangle on the main map showing where the
+                {/* Marker reofficialngle on the main map showing where the
                     downtown inset zooms in. Dashed slate so it reads as a
                     reference frame, not part of the data. */}
                 {inset && (

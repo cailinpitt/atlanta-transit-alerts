@@ -21,17 +21,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { breadcrumbJsonLd, eventTrail } from '../src/lib/breadcrumbs.js';
-import { normalizeTrainLine, TRAIN_LINES } from '../src/lib/ctaLines.js';
 import { formatDate, formatTime } from '../src/lib/format.js';
 import {
   formatRoutesLabel,
   groupIncidentRecords,
   incidentRecords,
+  isWebsiteIncident,
   observationSignals,
   summarizeSignals,
 } from '../src/lib/incidents.js';
-import { gateIncidents } from '../src/lib/metraGate.js';
-import { METRA_LINES, normalizeMetraLine } from '../src/lib/metraLines.js';
+import { normalizeTrainLine, TRAIN_LINES } from '../src/lib/trainLines.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -79,7 +78,7 @@ function accentFor(incident) {
       : incident.line
         ? [incident.line]
         : [];
-  const label = formatRoutesLabel(incident.kind, routes) || 'CTA';
+  const label = formatRoutesLabel(incident.kind, routes) || 'MARTA';
 
   // `chips` renders one pill per affected line/route on the card, mirroring the
   // SPA's LinePill — a Pink+Green incident shows a pink chip *and* a green chip
@@ -95,33 +94,6 @@ function accentFor(incident) {
     // The left bar + background tint stay a single accent (the first line) —
     // a gradient across N brand colors reads as noise at card size.
     const first = TRAIN_LINES[normalizeTrainLine(routes[0] ?? '')];
-    if (first) {
-      return {
-        color: first.color,
-        soft: softColor(first.color, 0.22),
-        text: first.textColor,
-        label,
-        chips: chips.length > 0 ? chips : [{ ...stripSoft(BUS_ACCENT), label }],
-      };
-    }
-    return {
-      ...BUS_ACCENT,
-      label,
-      chips: chips.length > 0 ? chips : [{ ...stripSoft(BUS_ACCENT), label }],
-    };
-  }
-  // Metra — same chip-per-line treatment as train, but keyed off METRA_LINES
-  // (lowercase web keys) and without the " Line" suffix (Metra lines are named
-  // outright, e.g. "Rock Island"). Metra incidents are single-line in practice,
-  // but the map handles a multi-route payload the same way.
-  if (incident.kind === 'metra') {
-    const chips = routes.map((r) => {
-      const line = METRA_LINES[normalizeMetraLine(r)];
-      return line
-        ? { color: line.color, text: line.textColor, label: line.label }
-        : { color: BUS_ACCENT.color, text: BUS_ACCENT.text, label: r };
-    });
-    const first = METRA_LINES[normalizeMetraLine(routes[0] ?? '')];
     if (first) {
       return {
         color: first.color,
@@ -155,7 +127,7 @@ function describeObservation(obs) {
   const summary = summarizeSignals(observationSignals(obs), obs.kind);
   if (!summary) return 'Service disruption detected by bot.';
   const impact = `${summary[0].toLowerCase()}${summary.slice(1)}`;
-  // Buses run on a "route", trains and Metra on a "line". Skip the suffix
+  // Buses run on a "route", trains on a "line". Skip the suffix
   // entirely when the phrase already names the route (thin-gap → "route not
   // running"), so it doesn't read "route not running on this route".
   const where = obs.kind === 'bus' ? ' on this route' : ' on this line';
@@ -164,7 +136,7 @@ function describeObservation(obs) {
 }
 
 // When the incident first occurred, for the OG card — matches the event
-// page's "First seen" line ("May 14, 2024 · 4:43 PM", Chicago time) so a
+// page's "First seen" line so a
 // shared card reads the same as the page it links to, and a months-old
 // incident no longer looks like it's happening right now. Uses the same
 // start instant as the JSON-LD `startDate`.
@@ -182,10 +154,9 @@ const BOT_IMPACT = 'Disruption detected';
 
 function summarize(incident) {
   if (incident.headline) {
-    const agency = incident.kind === 'metra' ? 'Metra' : 'CTA';
     return {
       title: incident.headline,
-      subtitle: `${agency} service alert · archived on atlantatransitalerts.app`,
+      subtitle: 'MARTA service alert · archived on atlantatransitalerts.app',
     };
   }
   const accent = accentFor(incident);
@@ -270,13 +241,13 @@ function buildJsonLd(incident, { ogTitle, desc, url }) {
     ld.location = {
       '@type': 'Place',
       name: locationName,
-      address: { '@type': 'PostalAddress', addressLocality: 'Chicago', addressRegion: 'IL' },
+      address: { '@type': 'PostalAddress', addressLocality: 'Atlanta', addressRegion: 'GA' },
     };
   } else {
     ld.location = {
       '@type': 'Place',
-      name: incident.kind === 'metra' ? 'Metra' : 'Chicago Transit Authority',
-      address: { '@type': 'PostalAddress', addressLocality: 'Chicago', addressRegion: 'IL' },
+      name: 'Metropolitan Atlanta Rapid Transit Authority',
+      address: { '@type': 'PostalAddress', addressLocality: 'Atlanta', addressRegion: 'GA' },
     };
   }
   ld.organizer = {
@@ -299,7 +270,7 @@ function buildHtmlStub(shell, { id, title, subtitle, accent, incident, variant =
   const image = `${url}/og.png`;
   // Link/unfurl title leads with the line/route. For bot events the card title
   // ends with the line (it's also a chip), so build the meta title from the bare
-  // impact to avoid repeating it ("Red Line · Disruption detected"). CTA titles
+  // impact to avoid repeating it ("Red Line · Disruption detected"). Alert titles
   // keep the label prefix — a bare headline like "Temporary Reroute" otherwise
   // names no route.
   const ogTitle = (
@@ -378,15 +349,6 @@ function buildHtmlStub(shell, { id, title, subtitle, accent, incident, variant =
   return html;
 }
 
-// Swap the static "…with the CTA" disclaimer to "…with Metra" on Metra event
-// cards, mirroring applyDisclaimer in prerender-pages.js. Keeps the shared OG
-// template otherwise untouched.
-function applyDisclaimer(html, kind) {
-  return kind === 'metra'
-    ? html.replace('Not affiliated with the CTA', 'Not affiliated with Metra')
-    : html;
-}
-
 function fillTemplate(tpl, fields) {
   // One pill per affected line/route. Colors are inlined per chip so each
   // carries its own brand color (the template's `--accent` only drives the
@@ -414,17 +376,14 @@ function fillTemplate(tpl, fields) {
     .replaceAll('__TITLE__', escHtml(fields.title))
     .replaceAll('__SUBTITLE__', escHtml(fields.subtitle))
     .replaceAll('__EVENT_ID__', escHtml(fields.id));
-  return applyDisclaimer(html, fields.kind);
+  return html;
 }
 
 // Hash the inputs that affect the rendered PNG. If this is unchanged from the
 // last build's signature, we can skip Playwright entirely for this event.
-function signatureFor({ id, title, subtitle, badge, date, accent, templateHash, kind }) {
+function signatureFor({ id, title, subtitle, badge, date, accent, templateHash }) {
   const h = createHash('sha256');
-  // The Metra disclaimer swap (fillTemplate) changes the rendered PNG without
-  // touching any field below, so fold the agency in to bust the cache.
-  const disc = kind === 'metra' ? 'metra' : undefined;
-  h.update(JSON.stringify({ id, title, subtitle, badge, date, accent, templateHash, disc }));
+  h.update(JSON.stringify({ id, title, subtitle, badge, date, accent, templateHash }));
   return h.digest('hex');
 }
 
@@ -464,10 +423,7 @@ async function main() {
   // keys arrive already normalized to full names ('green') from the export, so
   // formatRoutesLabel can look them up in TRAIN_LINES directly.
   const raw = JSON.parse(readFileSync(DATA, 'utf8'));
-  // Metra is launched and the event OG card is Metra-aware (accentFor +
-  // describeObservation handle kind='metra'), so opt in explicitly — Metra event
-  // pages get their own prerendered stub + per-event OG image like CTA events.
-  raw.incidents = gateIncidents(raw.incidents || [], true);
+  raw.incidents = (raw.incidents || []).filter((inc) => isWebsiteIncident(inc));
   const payload = { ...raw, ...incidentRecords(raw.incidents || []) };
   const shell = readFileSync(SHELL, 'utf8');
   const template = readFileSync(TEMPLATE, 'utf8');
@@ -487,7 +443,7 @@ async function main() {
   // Two variants per event:
   //   /event/:id           — canonical URL; badge tracks `incident.active`.
   //   /event/:id/resolved  — same view, badge HARDCODED to 'Archived'. Used
-  //     by cta-insights resolution replies so Bluesky's URL-keyed card
+  //     by resolution replies so Bluesky's URL-keyed card
   //     cache shows the correct status. The 'Active' variant of an incident
   //     that later resolves still stays correct because the canonical URL
   //     is re-rendered on the next build.
@@ -509,7 +465,6 @@ async function main() {
       date,
       accent,
       templateHash,
-      kind: incident.kind,
     });
     const canonicalDir = resolve(DIST, 'event', id);
     mkdirSync(canonicalDir, { recursive: true });

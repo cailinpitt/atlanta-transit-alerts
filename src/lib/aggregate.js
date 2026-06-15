@@ -1,21 +1,25 @@
 // Aggregation helpers — turn the raw alerts/observations feed into the shapes
 // the timeline grid and the at-a-glance summary line need.
 
-import { TRAIN_LINE_ORDER } from './ctaLines.js';
-import { chicagoDayUTC } from './format.js';
+import { atlantaDayUTC } from './format.js';
 import {
   groupIncidentRecords,
   incidentDetections,
   incidentLifecycle,
+  isWebsiteIncident,
   legacyKind,
-  metraIncidentStatus,
   observationSignals,
   officialAlert,
   postUrlRkey,
   SIGNAL_TYPES,
 } from './incidents.js';
-import { METRA_LINE_ORDER } from './metraLines.js';
 import { buildStationIndex } from './stations.js';
+import { TRAIN_LINE_ORDER } from './trainLines.js';
+
+const COMMUTER_LINE_ORDER = [];
+function commuterIncidentStatus() {
+  return null;
+}
 
 // Identity-based cache so the eight aggregators downstream of a single
 // `data` poll don't re-run the O(alerts × observations) merge in lockstep.
@@ -32,9 +36,9 @@ function getMerge(alerts, observations) {
   return result;
 }
 
-const CHICAGO_TZ = 'America/Chicago';
-const chicagoHourFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: CHICAGO_TZ,
+const ATLANTA_TZ = 'America/New_York';
+const atlantaHourFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: ATLANTA_TZ,
   weekday: 'short',
   hour: 'numeric',
   hour12: false,
@@ -44,10 +48,10 @@ const chicagoHourFmt = new Intl.DateTimeFormat('en-US', {
 // callers can index with the same model they already use elsewhere.
 const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-function chicagoWeekdayHour(ts) {
+function atlantaWeekdayHour(ts) {
   let weekday = null;
   let hour = null;
-  for (const p of chicagoHourFmt.formatToParts(new Date(ts))) {
+  for (const p of atlantaHourFmt.formatToParts(new Date(ts))) {
     if (p.type === 'weekday') weekday = WEEKDAY_INDEX[p.value];
     else if (p.type === 'hour') hour = Number(p.value);
   }
@@ -70,15 +74,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export function buildIncidentsByDay(alerts, observations, numDays = 90, now = Date.now()) {
   const result = {};
-  const todayUTC = chicagoDayUTC(now);
+  const todayUTC = atlantaDayUTC(now);
 
   function addSpan(lineId, startTs, endTs) {
     if (!TRAIN_LINE_ORDER.includes(lineId)) return;
     if (!result[lineId]) result[lineId] = {};
 
     const end = endTs || now;
-    const startDayIdx = Math.round((todayUTC - chicagoDayUTC(startTs)) / DAY_MS);
-    const endDayIdx = Math.round((todayUTC - chicagoDayUTC(end)) / DAY_MS);
+    const startDayIdx = Math.round((todayUTC - atlantaDayUTC(startTs)) / DAY_MS);
+    const endDayIdx = Math.round((todayUTC - atlantaDayUTC(end)) / DAY_MS);
 
     const lo = Math.max(0, endDayIdx);
     const hi = Math.min(numDays - 1, startDayIdx);
@@ -113,20 +117,20 @@ export function buildIncidentsByDay(alerts, observations, numDays = 90, now = Da
   return result;
 }
 
-// Metra analog of buildIncidentsByDay: per-Metra-line incident counts keyed by
+// Commuter analog of buildIncidentsByDay: per-Commuter-line incident counts keyed by
 // day index for the timeline grid. Returns { lineKey: { dayIdx: count } } for
-// the 11 Metra lines (keys absent until a line has activity). Same merge +
+// the 11 Commuter lines (keys absent until a line has activity). Same merge +
 // span-bucketing model as the train version.
-export function buildMetraIncidentsByDay(alerts, observations, numDays = 90, now = Date.now()) {
+export function buildCommuterIncidentsByDay(alerts, observations, numDays = 90, now = Date.now()) {
   const result = {};
-  const todayUTC = chicagoDayUTC(now);
+  const todayUTC = atlantaDayUTC(now);
 
   function addSpan(lineId, startTs, endTs) {
-    if (!METRA_LINE_ORDER.includes(lineId)) return;
+    if (!COMMUTER_LINE_ORDER.includes(lineId)) return;
     if (!result[lineId]) result[lineId] = {};
     const end = endTs || now;
-    const startDayIdx = Math.round((todayUTC - chicagoDayUTC(startTs)) / DAY_MS);
-    const endDayIdx = Math.round((todayUTC - chicagoDayUTC(end)) / DAY_MS);
+    const startDayIdx = Math.round((todayUTC - atlantaDayUTC(startTs)) / DAY_MS);
+    const endDayIdx = Math.round((todayUTC - atlantaDayUTC(end)) / DAY_MS);
     const lo = Math.max(0, endDayIdx);
     const hi = Math.min(numDays - 1, startDayIdx);
     for (let d = lo; d <= hi; d++) {
@@ -135,8 +139,8 @@ export function buildMetraIncidentsByDay(alerts, observations, numDays = 90, now
   }
 
   const { merged, standaloneAlerts, standaloneObs } = groupIncidentRecords(
-    alerts.filter((a) => a.kind === 'metra'),
-    observations.filter((o) => o.kind === 'metra'),
+    alerts.filter((a) => a.kind === 'commuter'),
+    observations.filter((o) => o.kind === 'commuter'),
   );
   for (const m of merged) {
     for (const route of m.routes) addSpan(route, m.first_seen_ts, m.resolved_ts);
@@ -180,14 +184,14 @@ export function buildBusIncidentsByDay(
 ) {
   const byRoute = {};
   const routesPerDay = {}; // { dayIdx: Set<routeId> } — for dedup in aggregate
-  const todayUTC = chicagoDayUTC(now);
+  const todayUTC = atlantaDayUTC(now);
 
   function addSpan(routeId, startTs, endTs) {
     const key = String(routeId);
     if (!byRoute[key]) byRoute[key] = {};
     const end = endTs || now;
-    const startDayIdx = Math.round((todayUTC - chicagoDayUTC(startTs)) / DAY_MS);
-    const endDayIdx = Math.round((todayUTC - chicagoDayUTC(end)) / DAY_MS);
+    const startDayIdx = Math.round((todayUTC - atlantaDayUTC(startTs)) / DAY_MS);
+    const endDayIdx = Math.round((todayUTC - atlantaDayUTC(end)) / DAY_MS);
     const lo = Math.max(0, endDayIdx);
     const hi = Math.min(numDays - 1, startDayIdx);
     for (let d = lo; d <= hi; d++) {
@@ -197,7 +201,7 @@ export function buildBusIncidentsByDay(
     }
   }
 
-  // Merge to avoid double-counting bus incidents that have both a CTA alert
+  // Merge to avoid double-counting bus incidents that have both a MARTA alert
   // and a matching bot observation on the same route.
   const { merged, standaloneAlerts, standaloneObs } = groupIncidentRecords(
     alerts.filter((a) => a.kind === 'bus'),
@@ -240,9 +244,9 @@ export function buildBusIncidentsByDay(
 }
 
 // Headline stats for the at-a-glance summary line. Always computed against
-// the full dataset (not the filtered view) so the answer to "how's the CTA
+// the full dataset (not the filtered view) so the answer to "how's the MARTA
 // doing right now" doesn't change based on whatever the user has narrowed to.
-// Uses merged incidents so a CTA alert and a matching bot observation count
+// Uses merged incidents so a MARTA alert and a matching bot observation count
 // once, not twice. Most-affected uses a 30-day window for stability — a
 // 7-day window flips around too much when one bad day dominates.
 /**
@@ -257,10 +261,10 @@ export function buildBusIncidentsByDay(
  *   mostAffectedCount: number,
  *   quietestLineId: string | null,
  *   quietestLineDays: number,
- *   metraMostAffectedId: string | null,
- *   metraMostAffectedCount: number,
- *   metraQuietestLineId: string | null,
- *   metraQuietestLineDays: number,
+ *   commuterMostAffectedId: string | null,
+ *   commuterMostAffectedCount: number,
+ *   commuterQuietestLineId: string | null,
+ *   commuterQuietestLineDays: number,
  * }}
  */
 export function computeSummaryStats(alerts, observations, now = Date.now()) {
@@ -294,37 +298,37 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
   const weeklyCount = incidents.filter((i) => i.ts >= weekAgo).length;
 
   // Count last-30-day incidents per (kind, key) — train line key (e.g. "red"),
-  // bus route number ("66"), or Metra line key ("bnsf"). Bus routes are
-  // included so the CTA "most affected" answer reflects reality even when a
-  // chronically-troubled bus route outpaces every train line. CTA and Metra are
+  // bus route number ("66"), or Commuter line key ("bnsf"). Bus routes are
+  // included so the MARTA "most affected" answer reflects reality even when a
+  // chronically-troubled bus route outpaces every train line. MARTA and Commuter are
   // counted into separate maps so each agency surfaces its own leader — the
-  // homepage shows a CTA line and a Metra line side by side.
-  const ctaCounts = new Map(); // key: `${kind}:${id}` -> { kind, id, count }
-  const metraCounts = new Map(); // key: metra line -> { kind:'metra', id, count }
+  // homepage shows a MARTA line and a Commuter line side by side.
+  const officialCounts = new Map(); // key: `${kind}:${id}` -> { kind, id, count }
+  const commuterCounts = new Map(); // key: commuter line -> { kind:'commuter', id, count }
   for (const inc of incidents) {
     if (inc.ts < monthAgo) continue;
     if (inc.kind === 'train') {
       for (const line of inc.lines || []) {
         if (!TRAIN_LINE_ORDER.includes(line)) continue;
         const key = `train:${line}`;
-        const cur = ctaCounts.get(key) || { kind: 'train', id: line, count: 0 };
+        const cur = officialCounts.get(key) || { kind: 'train', id: line, count: 0 };
         cur.count++;
-        ctaCounts.set(key, cur);
+        officialCounts.set(key, cur);
       }
     } else if (inc.kind === 'bus') {
       for (const route of inc.lines || []) {
         const id = String(route);
         const key = `bus:${id}`;
-        const cur = ctaCounts.get(key) || { kind: 'bus', id, count: 0 };
+        const cur = officialCounts.get(key) || { kind: 'bus', id, count: 0 };
         cur.count++;
-        ctaCounts.set(key, cur);
+        officialCounts.set(key, cur);
       }
-    } else if (inc.kind === 'metra') {
+    } else if (inc.kind === 'commuter') {
       for (const line of inc.lines || []) {
-        if (!METRA_LINE_ORDER.includes(line)) continue;
-        const cur = metraCounts.get(line) || { kind: 'metra', id: line, count: 0 };
+        if (!COMMUTER_LINE_ORDER.includes(line)) continue;
+        const cur = commuterCounts.get(line) || { kind: 'commuter', id: line, count: 0 };
         cur.count++;
-        metraCounts.set(line, cur);
+        commuterCounts.set(line, cur);
       }
     }
   }
@@ -335,14 +339,14 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     }
     return best;
   };
-  const mostAffected = pickMost(ctaCounts);
-  const metraMostAffected = pickMost(metraCounts);
+  const mostAffected = pickMost(officialCounts);
+  const commuterMostAffected = pickMost(commuterCounts);
 
   // Quietest line: among a rail agency's lines, find the one whose most recent
   // incident is the oldest (longest streak of clean days). Buses are excluded —
   // there are too many low-traffic routes for "Route 192: 60 days since last
   // incident" to be meaningful, and that's not the kind of brag riders care
-  // about anyway. Computed per agency so CTA and Metra each get a streak.
+  // about anyway. Computed per agency so MARTA and Commuter each get a streak.
   const quietestFor = (kind, lineOrder) => {
     const lastTsByLine = new Map();
     for (const inc of incidents) {
@@ -366,8 +370,8 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     }
     return { lineId, lineDays };
   };
-  const ctaQuietest = quietestFor('train', TRAIN_LINE_ORDER);
-  const metraQuietest = quietestFor('metra', METRA_LINE_ORDER);
+  const officialQuietest = quietestFor('train', TRAIN_LINE_ORDER);
+  const commuterQuietest = quietestFor('commuter', COMMUTER_LINE_ORDER);
 
   return {
     activeCount,
@@ -375,16 +379,16 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
     mostAffectedKind: mostAffected?.kind ?? null,
     mostAffectedId: mostAffected?.id ?? null,
     mostAffectedCount: mostAffected?.count ?? 0,
-    quietestLineId: ctaQuietest.lineId,
-    quietestLineDays: ctaQuietest.lineDays,
-    metraMostAffectedId: metraMostAffected?.id ?? null,
-    metraMostAffectedCount: metraMostAffected?.count ?? 0,
-    metraQuietestLineId: metraQuietest.lineId,
-    metraQuietestLineDays: metraQuietest.lineDays,
+    quietestLineId: officialQuietest.lineId,
+    quietestLineDays: officialQuietest.lineDays,
+    commuterMostAffectedId: commuterMostAffected?.id ?? null,
+    commuterMostAffectedCount: commuterMostAffected?.count ?? 0,
+    commuterQuietestLineId: commuterQuietest.lineId,
+    commuterQuietestLineDays: commuterQuietest.lineDays,
   };
 }
 
-// Build per-day incident counts for the most recent `numDays` Chicago calendar
+// Build per-day incident counts for the most recent `numDays` Atlanta calendar
 // days, plus a rolling 7-day average and a trend indicator comparing the most
 // recent 7 days to the prior 7 days. Used by the homepage trend sparkline.
 //
@@ -406,13 +410,13 @@ export function computeSummaryStats(alerts, observations, now = Date.now()) {
  * }}
  */
 export function buildDailyTrend(alerts, observations, numDays = 30, now = Date.now()) {
-  const todayUTC = chicagoDayUTC(now);
+  const todayUTC = atlantaDayUTC(now);
   // chronological array: index 0 = oldest, index numDays-1 = today.
   const counts = new Array(numDays).fill(0);
 
   function bump(ts) {
     if (ts == null) return;
-    const dayIdx = numDays - 1 - Math.round((todayUTC - chicagoDayUTC(ts)) / DAY_MS);
+    const dayIdx = numDays - 1 - Math.round((todayUTC - atlantaDayUTC(ts)) / DAY_MS);
     if (dayIdx >= 0 && dayIdx < numDays) counts[dayIdx] += 1;
   }
 
@@ -453,7 +457,7 @@ export function buildDailyTrend(alerts, observations, numDays = 30, now = Date.n
 }
 
 // Build a 7×24 grid of incident counts, indexed [weekday][hour] where weekday
-// 0 = Sunday and hour 0 = midnight (Chicago local time). Buckets by start
+// 0 = Sunday and hour 0 = midnight (Atlanta local time). Buckets by start
 // timestamp — a multi-hour incident counts once at its start, matching how
 // the contributions grid handles ongoing spans.
 /**
@@ -468,7 +472,7 @@ export function buildHourOfWeek(alerts, observations) {
 
   function bump(ts) {
     if (!ts) return;
-    const { weekday, hour } = chicagoWeekdayHour(ts);
+    const { weekday, hour } = atlantaWeekdayHour(ts);
     if (weekday == null || hour == null) return;
     grid[weekday][hour] += 1;
     total += 1;
@@ -485,7 +489,7 @@ export function buildHourOfWeek(alerts, observations) {
 }
 
 // Day-part buckets for the plain-language heatmap insight. Hour ranges are
-// inclusive on both ends (Chicago local hours, matching buildHourOfWeek), so
+// inclusive on both ends (Atlanta local hours, matching buildHourOfWeek), so
 // `hi` is the last hour included and the human range runs to hi+1 o'clock.
 // Tuned to transit-meaningful windows rather than even 6-hour blocks.
 export const PART_OF_DAY = [
@@ -637,7 +641,7 @@ export function computeDayOfWeekCounts(
   const { merged, standaloneAlerts, standaloneObs } = getMerge(alerts, observations);
   function bump(ts) {
     if (ts == null || ts < cutoff) return;
-    const { weekday } = chicagoWeekdayHour(ts);
+    const { weekday } = atlantaWeekdayHour(ts);
     if (weekday == null) return;
     counts[weekday] += 1;
   }
@@ -665,11 +669,11 @@ export function computeDayOfWeekCounts(
  * @returns {{ byLine: Object<string, Object<string, number>>, totals: Object<string, number> }}
  */
 // Per-line reliability stats over a rolling window: how many of the last N
-// Chicago-days had zero incident activity, and the typical cadence between
+// Atlanta-days had zero incident activity, and the typical cadence between
 // incidents (median gap, start-to-start). Inputs are expected to be already
 // filtered to a single line/route — the function does not filter further.
 //
-// `incidentFreeDays` counts Chicago-days within [today - windowDays + 1, today]
+// `incidentFreeDays` counts Atlanta-days within [today - windowDays + 1, today]
 // that had no overlap with any incident span. An incident spanning multiple
 // days subtracts from incident-free days for every day it touched, matching
 // the way the timeline grid colors days. `medianGapHours` is null when fewer
@@ -693,7 +697,7 @@ export function computeLineReliability(
   observations,
   { now = Date.now(), windowDays = 90 } = {},
 ) {
-  const todayUTC = chicagoDayUTC(now);
+  const todayUTC = atlantaDayUTC(now);
   const cutoffDayUTC = todayUTC - (windowDays - 1) * DAY_MS;
 
   const { merged, standaloneAlerts, standaloneObs } = getMerge(alerts, observations);
@@ -712,8 +716,8 @@ export function computeLineReliability(
 
   const daysWithIncident = new Set();
   for (const [start, end] of spans) {
-    const startDayIdx = Math.round((todayUTC - chicagoDayUTC(start)) / DAY_MS);
-    const endDayIdx = Math.round((todayUTC - chicagoDayUTC(end)) / DAY_MS);
+    const startDayIdx = Math.round((todayUTC - atlantaDayUTC(start)) / DAY_MS);
+    const endDayIdx = Math.round((todayUTC - atlantaDayUTC(end)) / DAY_MS);
     const lo = Math.max(0, endDayIdx);
     const hi = Math.min(windowDays - 1, startDayIdx);
     for (let d = lo; d <= hi; d++) daysWithIncident.add(d);
@@ -721,7 +725,7 @@ export function computeLineReliability(
 
   const incidentFreeDays = windowDays - daysWithIncident.size;
 
-  // Longest run of consecutive Chicago days within the window with no
+  // Longest run of consecutive Atlanta days within the window with no
   // incident on this line. Same dayIdx model as the contributions grid:
   // 0 = today, windowDays-1 = oldest day shown.
   let longestStreakDays = 0;
@@ -767,7 +771,7 @@ export function computeLineReliability(
   };
 }
 
-// Default CTA service window: roughly 4am–1am, ≈ 21 hours per line per day.
+// Default MARTA service window: roughly 4am–1am, ≈ 21 hours per line per day.
 // Red and Blue run 24h owl service, so they get a 24 here — without that the
 // disruption-percentage on those lines was very slightly inflated (the
 // denominator excluded the overnight hours when service was actually running).
@@ -792,7 +796,7 @@ export const SERVICE_HOURS_PER_DAY = DEFAULT_SERVICE_HOURS_PER_DAY;
 
 // Disruption-hours: total line-hours of incident coverage over a rolling
 // window. Caller hands in a single scope's alerts/observations (one line,
-// one route, or the whole system). For a multi-line CTA alert (e.g. Red+
+// one route, or the whole system). For a multi-line MARTA alert (e.g. Red+
 // Purple shared trackage), each affected line counts separately — a 60-min
 // alert on Red+Purple contributes 120 line-minutes, matching the per-day
 // timeline cells which also draw on both rows.
@@ -833,7 +837,7 @@ export function computeDisruptionMinutes(
 
   // When `lines` is provided as scope, only intervals on those routes count
   // toward the numerator. Without this filter, a multi-route reroute alert
-  // (a typical CTA bus reroute can list 10+ affected routes) would have its
+  // (a typical MARTA bus reroute can list 10+ affected routes) would have its
   // full duration added once per route in the alert's `routes` array, even
   // when the caller is asking about a single route — inflating the total
   // disruption time by a factor equal to the alert's route-count.
@@ -910,8 +914,8 @@ export function computeDisruptionMinutes(
 }
 
 // Histogram bins for resolution-time distributions on LinePage. Tuned to
-// the timescales CTA disruptions actually live in: most pulse-detected
-// observations clear in well under an hour, while CTA alerts can stretch
+// the timescales MARTA disruptions actually live in: most pulse-detected
+// observations clear in well under an hour, while MARTA alerts can stretch
 // to multi-hour reroutes. Six bins keeps the chart compact and the bin
 // boundaries memorable.
 export const DURATION_BINS = [
@@ -970,7 +974,7 @@ export function computeDurationHistogram(
 
 // Worst single day within the window for the given scope. Caller hands in
 // alerts/observations already filtered to a line, route, station, or the
-// whole system; this just counts distinct merged incidents by Chicago
+// whole system; this just counts distinct merged incidents by Atlanta
 // calendar day and picks the busiest. Returns null when there are no
 // incidents to rank.
 //
@@ -985,7 +989,7 @@ export function computeDurationHistogram(
  * @returns {{ dayUtc: number, count: number } | null}
  */
 export function computeWorstDay(alerts, observations, { now = Date.now(), windowDays = 90 } = {}) {
-  const todayUtc = chicagoDayUTC(now);
+  const todayUtc = atlantaDayUTC(now);
   const cutoffDayUtc = todayUtc - (windowDays - 1) * DAY_MS;
 
   const { merged, standaloneAlerts, standaloneObs } = getMerge(alerts, observations);
@@ -993,7 +997,7 @@ export function computeWorstDay(alerts, observations, { now = Date.now(), window
   const dayCounts = new Map();
   function bump(ts) {
     if (ts == null) return;
-    const day = chicagoDayUTC(ts);
+    const day = atlantaDayUTC(ts);
     if (day < cutoffDayUtc || day > todayUtc) return;
     dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
   }
@@ -1084,7 +1088,7 @@ export function computeCohortDurationStats(
 
 // Bucket key for typical-duration cohorts: same kind, same line/route, same
 // signal "type" (single signal name, or 'roundup' for multi-signal records).
-// Returns null when the incident lacks a signal — pure CTA alerts have no
+// Returns null when the incident lacks a signal — pure MARTA alerts have no
 // type to bucket on, so they get no median hint.
 export function typicalDurationKey(incident) {
   if (!incident) return null;
@@ -1103,7 +1107,7 @@ export function typicalDurationKey(incident) {
 // Median resolved-incident duration per (kind, line, signal) cohort over a
 // rolling window. Powers the "typically clears in ~Xm" hint on active alert
 // cards. Only resolved incidents count (active ones have no real duration);
-// pure CTA alerts are excluded (no signal type — see typicalDurationKey).
+// pure MARTA alerts are excluded (no signal type — see typicalDurationKey).
 //
 // Returns a Map of bucket-key → { medianMs, count }. Callers gate display on
 // count >= some threshold (5 by convention) so a sparse cohort can't show a
@@ -1177,7 +1181,7 @@ export function computeTypicalDurations(
  * @returns {{ text: string, lastWeek: { count: number, label: string, iso: string } | null } | null}
  */
 export function buildTodaySummary(alerts, observations, now = Date.now()) {
-  const todayUtc = chicagoDayUTC(now);
+  const todayUtc = atlantaDayUTC(now);
   const lastWeekUtc = todayUtc - 7 * DAY_MS;
 
   const { merged, standaloneAlerts, standaloneObs } = getMerge(alerts, observations);
@@ -1188,7 +1192,7 @@ export function buildTodaySummary(alerts, observations, now = Date.now()) {
   function consider(ts, lines, active) {
     if (ts == null) return;
     allTs.push(ts);
-    const day = chicagoDayUTC(ts);
+    const day = atlantaDayUTC(ts);
     if (day === todayUtc) {
       todays.push({ lines: lines || [], active });
     } else if (day === lastWeekUtc) {
@@ -1247,18 +1251,18 @@ export function buildTodaySummary(alerts, observations, now = Date.now()) {
   const hoursIntoToday = (now - todayUtc) / (60 * 60 * 1000);
   let lastWeek = null;
   if (lastWeekSameDayCount > 0 && hoursIntoToday >= 6) {
-    // Anchor the formatter at noon Chicago a week ago so the date components
-    // can't be flipped by a UTC-vs-Chicago day boundary (lastWeekUtc is the
-    // midnight-Chicago instant for that day; formatting it directly is safe
+    // Anchor the formatter at noon Atlanta a week ago so the date components
+    // can't be flipped by a UTC-vs-Atlanta day boundary (lastWeekUtc is the
+    // midnight-Atlanta instant for that day; formatting it directly is safe
     // in any TZ, but noon is unambiguous regardless of DST transitions).
     const weekAgo = new Date(lastWeekUtc + 12 * 60 * 60 * 1000);
     const labeled = new Intl.DateTimeFormat('en-US', {
-      timeZone: CHICAGO_TZ,
+      timeZone: ATLANTA_TZ,
       weekday: 'long',
       month: 'long',
       day: 'numeric',
     }).format(weekAgo);
-    // lastWeekUtc is the UTC-midnight instant for that Chicago day, so its
+    // lastWeekUtc is the UTC-midnight instant for that Atlanta day, so its
     // ISO date slice is the /day/:date path component verbatim.
     const iso = new Date(lastWeekUtc).toISOString().slice(0, 10);
     // Intl returns "Wednesday, May 6" with a comma already.
@@ -1269,30 +1273,30 @@ export function buildTodaySummary(alerts, observations, now = Date.now()) {
 
 const WEEK_MS = 7 * DAY_MS;
 
-// Sunday (as a chicagoDayUTC value) of the week containing `dayUtc`. Input is
-// itself a chicagoDayUTC value; since those are UTC-midnight stamps spaced
-// exactly a day apart, getUTCDay() reads the Chicago weekday and the
+// Sunday (as a atlantaDayUTC value) of the week containing `dayUtc`. Input is
+// itself a atlantaDayUTC value; since those are UTC-midnight stamps spaced
+// exactly a day apart, getUTCDay() reads the Atlanta weekday and the
 // subtraction is DST-safe.
 export function weekStartUTC(dayUtc) {
   return dayUtc - new Date(dayUtc).getUTCDay() * DAY_MS;
 }
 
-// Sun-start weeks (each the Sunday's chicagoDayUTC value) from the week
+// Sun-start weeks (each the Sunday's atlantaDayUTC value) from the week
 // containing `dataStartTs` through the week containing `now`, most-recent
 // first. Returns [] when dataStartTs is missing. Drives the /week archive
 // navigation, prerender list, and sitemap.
 export function listWeeks({ dataStartTs, now = Date.now() } = {}) {
   if (dataStartTs == null) return [];
-  const first = weekStartUTC(chicagoDayUTC(dataStartTs));
-  const current = weekStartUTC(chicagoDayUTC(now));
+  const first = weekStartUTC(atlantaDayUTC(dataStartTs));
+  const current = weekStartUTC(atlantaDayUTC(now));
   const weeks = [];
   for (let w = current; w >= first; w -= WEEK_MS) weeks.push(w);
   return weeks;
 }
 
 // Factual recap of one Sun–Sat week for the /week archive. `weekStartUtc` is
-// the Sunday (a chicagoDayUTC value). Buckets incidents by their START day —
-// all comparisons in chicagoDayUTC space, never raw epochs — so the total
+// the Sunday (a atlantaDayUTC value). Buckets incidents by their START day —
+// all comparisons in atlantaDayUTC space, never raw epochs — so the total
 // matches the per-day bars and the "started this week" framing. Uses merged
 // incidents so an alert + matching observation count once. Purely descriptive:
 // counts, busiest day, most-affected lines, the single longest incident, and a
@@ -1300,7 +1304,7 @@ export function listWeeks({ dataStartTs, now = Date.now() } = {}) {
 /**
  * @param {import('./incidents.js').Alert[]} alerts
  * @param {import('./incidents.js').Observation[]} observations
- * @param {number} weekStartUtc  Sunday of the week (a chicagoDayUTC value)
+ * @param {number} weekStartUtc  Sunday of the week (a atlantaDayUTC value)
  * @param {number} [now]
  */
 export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.now()) {
@@ -1351,13 +1355,13 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
   let activeCount = 0;
   let trainCount = 0;
   let busCount = 0;
-  let metraCount = 0;
+  let commuterCount = 0;
   let priorTotal = 0;
   let longest = null;
 
   for (const inc of incidents) {
     if (inc.ts == null) continue;
-    const incDay = chicagoDayUTC(inc.ts);
+    const incDay = atlantaDayUTC(inc.ts);
     if (incDay >= priorStart && incDay < weekStartUtc) {
       priorTotal += 1;
       continue;
@@ -1368,7 +1372,7 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
     if (inc.active) activeCount += 1;
     if (inc.kind === 'train') trainCount += 1;
     else if (inc.kind === 'bus') busCount += 1;
-    else if (inc.kind === 'metra') metraCount += 1;
+    else if (inc.kind === 'commuter') commuterCount += 1;
 
     const dayIdx = Math.round((incDay - weekStartUtc) / DAY_MS);
     if (dayIdx >= 0 && dayIdx < 7) perDay[dayIdx].count += 1;
@@ -1412,12 +1416,12 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
   return {
     weekStartUtc,
     weekEndUtc: weekStartUtc + 6 * DAY_MS,
-    isCurrent: weekStartUtc === weekStartUTC(chicagoDayUTC(now)),
+    isCurrent: weekStartUtc === weekStartUTC(atlantaDayUTC(now)),
     total,
     activeCount,
     trainCount,
     busCount,
-    metraCount,
+    commuterCount,
     lineCount: lineSet.size,
     perDay,
     busiestDay,
@@ -1432,7 +1436,7 @@ export function buildWeekSummary(alerts, observations, weekStartUtc, now = Date.
 // recorded history end-to-end. Returns null fields when there's nothing
 // in the cohort yet rather than fake-zero rows.
 //
-//   worstDay        — Chicago calendar day with the most distinct incidents.
+//   worstDay        — Atlanta calendar day with the most distinct incidents.
 //   worstHour       — (weekday, hour) cell of the hour-of-week heatmap with
 //                     the highest start count.
 //   worstStation    — station with the most incident touches in the rolling
@@ -1471,11 +1475,11 @@ export function computeStatsLeaderboards(
 
   const { merged, standaloneAlerts, standaloneObs } = getMerge(alerts, observations);
 
-  // worstDay — bucket each incident by its Chicago start day.
+  // worstDay — bucket each incident by its Atlanta start day.
   const dayCounts = new Map();
   function bumpDay(ts) {
     if (ts == null) return;
-    const day = chicagoDayUTC(ts);
+    const day = atlantaDayUTC(ts);
     dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
   }
   for (const m of merged) bumpDay(m.first_seen_ts);
@@ -1555,13 +1559,13 @@ export function computeStatsLeaderboards(
   return { worstDay, worstHour, worstStation, longestIncident };
 }
 
-// Metra leaderboards for /stats. Metra's signature data isn't stations or
-// track segments (the CTA leaderboards above) — it's cancellations and delays,
+// Commuter leaderboards for /stats. Commuter's signature data isn't stations or
+// track segments (the MARTA leaderboards above) — it's cancellations and delays,
 // which the timetabled commuter-rail detectors emit as point-event
 // observations (detection_source 'cancellation' / 'cancellation-inferred' /
 // 'delay'). This rolls them up per line so the page can show which line is
-// cancelling or running late most over the window. Republished Metra GTFS-rt
-// alerts (kind='metra' alerts, no detection_source) are counted separately as
+// cancelling or running late most over the window. Republished Commuter GTFS-rt
+// alerts (kind='commuter' alerts, no detection_source) are counted separately as
 // `alertsCount` for context but don't feed the per-line cancel/delay tallies.
 /**
  * @param {import('./incidents.js').Alert[]} alerts
@@ -1579,7 +1583,7 @@ export function computeStatsLeaderboards(
  *   hasData: boolean,
  * }}
  */
-export function computeMetraLeaderboards(
+export function computeCommuterLeaderboards(
   alerts,
   observations,
   { now = Date.now(), windowDays = 90 } = {},
@@ -1595,7 +1599,7 @@ export function computeMetraLeaderboards(
   let cancellationTotal = 0;
   let delayTotal = 0;
   for (const o of observations) {
-    if (o.kind !== 'metra') continue;
+    if (o.kind !== 'commuter') continue;
     if (o.ts == null || o.ts < cutoff) continue;
     const src = o.detection_source;
     if (src === 'cancellation' || src === 'cancellation-inferred') {
@@ -1608,7 +1612,7 @@ export function computeMetraLeaderboards(
   }
   let alertsCount = 0;
   for (const a of alerts) {
-    if (a.kind !== 'metra') continue;
+    if (a.kind !== 'commuter') continue;
     if (a.first_seen_ts == null || a.first_seen_ts < cutoff) continue;
     alertsCount += 1;
   }
@@ -1635,9 +1639,9 @@ export function computeMetraLeaderboards(
 }
 
 /**
- * Count Metra train-level delay/cancellation status instances from nested
- * incidents. Bot observations count individually; official-only Metra alerts
- * count once through `metra_status` / text fallback.
+ * Count Commuter train-level delay/cancellation status instances from nested
+ * incidents. Bot observations count individually; official-only Commuter alerts
+ * count once through `commuter_status` / text fallback.
  *
  * @param {import('./incidents.js').Incident[]} incidents
  * @param {object} [options]
@@ -1646,7 +1650,7 @@ export function computeMetraLeaderboards(
  * @param {string | null} [options.lineFilter]
  * @returns {{ cancellations: number, delays: number, total: number }}
  */
-export function computeMetraStatusCounts(
+export function computeCommuterStatusCounts(
   incidents,
   { now = Date.now(), windowDays = 90, lineFilter = null } = {},
 ) {
@@ -1659,7 +1663,7 @@ export function computeMetraStatusCounts(
     (line == null && Array.isArray(routes) && routes.includes(lineFilter));
 
   for (const inc of incidents || []) {
-    if (legacyKind(inc) !== 'metra') continue;
+    if (isWebsiteIncident(inc)) continue;
     const routes = inc.routes || [];
     if (lineFilter && !routes.includes(lineFilter)) continue;
 
@@ -1682,7 +1686,7 @@ export function computeMetraStatusCounts(
     if (!officialAlert(inc)) continue;
     const ts = incidentLifecycle(inc).first_seen_ts;
     if (ts == null || ts < cutoff) continue;
-    const source = metraIncidentStatus(inc)?.source;
+    const source = commuterIncidentStatus(inc)?.source;
     if (source === 'delay') delays += 1;
     else if (source === 'cancellation' || source === 'cancellation-inferred') cancellations += 1;
   }
@@ -1694,13 +1698,13 @@ export function computeMetraStatusCounts(
 // from_station → to_station) and rank by raw count. The point is to surface
 // chokepoints — a stretch of track that disrupts often — which the per-
 // station leaderboard (`worstStation`) doesn't capture because every cold
-// stretch through Clark/Division also touches Chicago, North/Clybourn, etc.
+// stretch through Clark/Division also touches Atlanta, North/Clybourn, etc.
 // Counting unique segments instead of stations puts the spotlight on the
 // actual recurring infrastructure problem rather than the busiest junction.
 //
 // Direction matters: the inbound and outbound sides of a segment often
 // behave differently (express tracks, peak-hour switching), so (A→B) and
-// (B→A) are kept distinct. CTA alerts are excluded — their segment endpoints
+// (B→A) are kept distinct. MARTA alerts are excluded — their segment endpoints
 // describe a planned-reroute scope, not a recurring detection. Roundups
 // also excluded (no segment endpoints).
 //
@@ -1781,14 +1785,14 @@ export function buildSignalsByLine(observations) {
   return { byLine, totals };
 }
 
-// Service-restoration delta leaderboard. For every merged incident (CTA
+// Service-restoration delta leaderboard. For every merged incident (MARTA
 // alert + matching bot observation) that has both resolution timestamps,
-// compare `alert.resolved_ts` (when CTA marked the alert cleared) to
+// compare `alert.resolved_ts` (when MARTA marked the alert cleared) to
 // `obs_resolved_ts` (when the bot saw sustained service recovery). The
 // signed delta is `alert.resolved_ts - obs_resolved_ts`:
 //
-//   - positive → CTA cleared AFTER service recovered (slow to mark clear)
-//   - negative → CTA cleared BEFORE service recovered (alert closed but
+//   - positive → MARTA cleared AFTER service recovered (slow to mark clear)
+//   - negative → MARTA cleared BEFORE service recovered (alert closed but
 //                trains were still stuck — the bot's CLEAR_TICKS_TO_RESET
 //                gate requires sustained recovery before firing, so this
 //                isn't bot lag)
@@ -1816,8 +1820,8 @@ export function buildSignalsByLine(observations) {
  * @param {number} [options.minOverlapRatio]  Drop pairs whose obs covers less
  *   than this fraction of the alert's span (default 0.5).
  * @returns {{
- *   ctaClearedEarly: Array<RestorationDeltaRow>,
- *   ctaClearedLate:  Array<RestorationDeltaRow>,
+ *   officialClearedEarly: Array<RestorationDeltaRow>,
+ *   officialClearedLate:  Array<RestorationDeltaRow>,
  *   matchedCount: number,
  * }}
  */
@@ -1831,10 +1835,10 @@ export function computeRestorationDeltas(
   const { merged } = getMerge(alerts, observations);
   const rows = [];
   for (const m of merged) {
-    // CTA-only concept: the gap between CTA closing an alert and the bot seeing
-    // service recover. Metra has no equivalent "agency cleared the alert" event,
-    // so excluding it keeps the "CTA cleared early/late" framing accurate.
-    if (m.kind === 'metra') continue;
+    // MARTA-only concept: the gap between MARTA closing an alert and the bot seeing
+    // service recover. Commuter has no equivalent "agency cleared the alert" event,
+    // so excluding it keeps the "MARTA cleared early/late" framing accurate.
+    if (m.kind === 'commuter') continue;
     if (m.resolved_ts == null || m.obs_resolved_ts == null) continue;
     if (m.first_seen_ts < cutoff) continue;
     // Overlap gate: the observation must describe roughly the same span as
@@ -1862,18 +1866,18 @@ export function computeRestorationDeltas(
       deltaMs,
     });
   }
-  // CTA cleared early: deltaMs < 0 (alert resolved before service recovered).
+  // MARTA cleared early: deltaMs < 0 (alert resolved before service recovered).
   // Sort by most negative first.
-  const ctaClearedEarly = rows
+  const officialClearedEarly = rows
     .filter((r) => r.deltaMs < 0)
     .sort((a, b) => a.deltaMs - b.deltaMs)
     .slice(0, limit);
-  // CTA cleared late: deltaMs > 0. Sort by most positive first.
-  const ctaClearedLate = rows
+  // MARTA cleared late: deltaMs > 0. Sort by most positive first.
+  const officialClearedLate = rows
     .filter((r) => r.deltaMs > 0)
     .sort((a, b) => b.deltaMs - a.deltaMs)
     .slice(0, limit);
-  return { ctaClearedEarly, ctaClearedLate, matchedCount: rows.length };
+  return { officialClearedEarly, officialClearedLate, matchedCount: rows.length };
 }
 
 /**
@@ -1885,7 +1889,7 @@ export function computeRestorationDeltas(
  * @property {number} alertResolvedTs
  * @property {number} obsResolvedTs
  * @property {number} firstSeenTs
- * @property {number} deltaMs   Signed: positive = CTA cleared late, negative = CTA cleared early.
+ * @property {number} deltaMs   Signed: positive = MARTA cleared late, negative = MARTA cleared early.
  */
 
 // Year-over-year comparison: count merged incidents in the trailing
@@ -1994,7 +1998,7 @@ function incidentTouchesRoutes(inc, kind, routeSet) {
 // line stretch (from→to) as this one. Counts whole incidents (not raw
 // observations) so a merged record with two pulse-cold obs on the stretch
 // still counts once. Train-only and stretch-only — the caller passes the
-// subject's line/from/to (from its primary bot observation); CTA-only and bus
+// subject's line/from/to (from its primary bot observation); MARTA-only and bus
 // incidents have no comparable stretch and yield null upstream.
 //
 // Returns null unless the stretch recurred at least once *besides* this
@@ -2022,7 +2026,7 @@ export function computeStretchRecurrence(
     );
     if (!matches) continue;
     count += 1;
-    days.add(chicagoDayUTC(ts));
+    days.add(atlantaDayUTC(ts));
     if (inc.id !== selfId) {
       priorCount += 1;
       if (lastOtherTs == null || ts > lastOtherTs) lastOtherTs = ts;
@@ -2043,7 +2047,7 @@ export function computeStretchRecurrence(
 
 // Line-wide severity rank: where this incident's duration sits among all
 // resolved incidents touching the same line/route in the window, regardless
-// of signal type (so a pure CTA alert still ranks). Returns a tier only when
+// of signal type (so a pure MARTA alert still ranks). Returns a tier only when
 // notable — the longest, or within the top decile — and only with a cohort
 // big enough (`minCohort`) that "longest of 3" can't masquerade as severe.
 export function computeLineDurationRank(
@@ -2082,7 +2086,7 @@ export function computeLineDurationRank(
 
 // Hour-of-day context: is the clock-hour this incident started in a
 // relatively busy (or unusually quiet) one for disruptions on its line?
-// Builds a 24-bucket Chicago-local hour histogram from the line's incidents
+// Builds a 24-bucket Atlanta-local hour histogram from the line's incidents
 // in the window and compares this incident's bucket to the flat mean. Coarse
 // on purpose — a full 7×24 hour-of-week grid is too sparse per line to read a
 // single cell off. Conservative thresholds + a min sample keep it from
@@ -2104,14 +2108,14 @@ export function computeHourOfDayContext(
     if (!incidentTouchesRoutes(inc, legacyKind(incident), routeSet)) continue;
     const ts = incidentLifecycle(inc).first_seen_ts;
     if (ts == null || ts < cutoff) continue;
-    const { hour } = chicagoWeekdayHour(ts);
+    const { hour } = atlantaWeekdayHour(ts);
     if (hour == null) continue;
     hours[hour] += 1;
     total += 1;
   }
   if (total < minTotal) return null;
 
-  const { hour: thisHour } = chicagoWeekdayHour(incidentStart);
+  const { hour: thisHour } = atlantaWeekdayHour(incidentStart);
   if (thisHour == null) return null;
   const inThisHour = hours[thisHour];
   const mean = total / 24;
@@ -2120,7 +2124,7 @@ export function computeHourOfDayContext(
 
   // A ratio gate alone isn't enough: the flat 24-hour mean is dragged down by
   // dead overnight hours, so an ordinary daytime hour clears 1.75× on a thin
-  // cohort (e.g. 4 of 54 ≈ 1.78× but only ~1.2σ above expectation — noise). So
+  // cohort (e.g. 4 of 54 ≈ 1.78× but only ~1.2σ above expeofficialtion — noise). So
   // also require the bucket to be a statistically meaningful excess/deficit:
   // ≥2σ under a Poisson(mean) model, where σ = √mean. This self-scales — a
   // small mean demands a proportionally larger count before it reads "busy."

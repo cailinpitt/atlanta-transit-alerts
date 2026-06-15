@@ -72,7 +72,7 @@ import — so if that function changes, update the small `inAppTitle` mirror her
 ## Notes & gotchas
 
 - **The frontend is a dumb client.** If an event's data looks wrong (missing
-  stations, wrong title input), the fix belongs upstream in `cta-insights`'s
+  stations, wrong title input), the fix belongs upstream in `atlanta-transit-insights`'s
   export, not here. These tools are for *seeing* the data, not patching it.
 - **OG cards are rebuilt for every event on each deploy** — the per-card cache
   signature includes a hash of `og-event-template.html`, so any template change
@@ -80,5 +80,5 @@ import — so if that function changes, update the small `inAppTitle` mirror her
   build while iterating.
 - **Live vs. local data.** Default is the public production feed (always
   current). Use `--data <path>` for a frozen local snapshot or an unshipped
-  export change. Forks can point at a different deploy with the `CTA_DATA_URL`
-  env var (e.g. `CTA_DATA_URL=https://example.test/data/alerts.json`).
+  export change. Forks can point at a different deploy with the `MARTA_DATA_URL`
+  env var (e.g. `MARTA_DATA_URL=https://example.test/data/alerts.json`).

@@ -5,14 +5,14 @@
 // sees. Each builder returns an ordered array of `{ label, href? }` from root
 // to current page; the last item is the current page and carries no href.
 
-import { chicagoDayIsoUTC, chicagoDayUTC, formatChicagoDay, formatWeekRange } from './format.js';
+import { atlantaDayIsoUTC, atlantaDayUTC, formatAtlantaDay, formatWeekRange } from './format.js';
 
 const HOME = { label: 'Home', href: '/' };
 
-// Day crumb for the Chicago calendar day containing `ts` — links to /day/:date.
+// Day crumb for the Atlanta calendar day containing `ts` — links to /day/:date.
 function dayCrumb(ts) {
-  const dayUtc = chicagoDayUTC(ts);
-  return { label: formatChicagoDay(dayUtc), href: `/day/${chicagoDayIsoUTC(dayUtc)}` };
+  const dayUtc = atlantaDayUTC(ts);
+  return { label: formatAtlantaDay(dayUtc), href: `/day/${atlantaDayIsoUTC(dayUtc)}` };
 }
 
 // Event detail: Home › <day> › <incident label>.
@@ -23,9 +23,9 @@ export function eventTrail(ts, currentLabel) {
   return trail;
 }
 
-// Single day: Home › Calendar › <day>. `dayUtc` is a chicagoDayUTC value.
+// Single day: Home › Calendar › <day>. `dayUtc` is a atlantaDayUTC value.
 export function dayTrail(dayUtc) {
-  return [HOME, { label: 'Calendar', href: '/calendar' }, { label: formatChicagoDay(dayUtc) }];
+  return [HOME, { label: 'Calendar', href: '/calendar' }, { label: formatAtlantaDay(dayUtc) }];
 }
 
 // Top-level detail pages (line, route, station, stats, …): Home › <page>.
@@ -34,7 +34,7 @@ export function topLevelTrail(currentLabel) {
 }
 
 // Single week recap: Home › Week of May 17–23. `weekStartUtc` is the Sunday
-// (a chicagoDayUTC value).
+// (a atlantaDayUTC value).
 export function weekTrail(weekStartUtc) {
   return [HOME, { label: `Week of ${formatWeekRange(weekStartUtc)}` }];
 }

@@ -7,9 +7,9 @@ import { incident as v2Incident } from './v2TestHelpers.js';
 // window has at least one populated (linkable) cell.
 function fixture(kind, routes) {
   const ts = Date.now() - 60 * 60 * 1000; // an hour ago, safely inside the window
-  const incident = v2Incident({ id: 'evt', kind, routes, first_seen_ts: ts, cta: null });
+  const incident = v2Incident({ id: 'evt', kind, routes, first_seen_ts: ts, official: null });
   // A second incident on the same line/day guarantees a count>0 cell to link.
-  const sibling = v2Incident({ id: 'sib', kind, routes, first_seen_ts: ts, cta: null });
+  const sibling = v2Incident({ id: 'sib', kind, routes, first_seen_ts: ts, official: null });
   return { incident, incidents: [incident, sibling] };
 }
 
@@ -42,7 +42,7 @@ describe('MiniTimeline day links', () => {
       kind: 'train',
       routes: ['pink'],
       first_seen_ts: Date.now(),
-      cta: null,
+      official: null,
     });
     render(<MiniTimeline incident={incident} incidents={[incident]} dark={false} />);
     // The single self-incident day is linkable; every other cell is inert.

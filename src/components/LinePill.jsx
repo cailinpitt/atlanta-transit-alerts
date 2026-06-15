@@ -1,6 +1,5 @@
 import { formatBusRoute } from '../lib/busRoutes.js';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
-import { metraLineInfo, normalizeMetraLine } from '../lib/metraLines.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 
 // Each pill is a link to the relevant /line/:id or /route/:id page. Brand
 // colors stay loud, so we lean on subtle hover affordance (cursor + slight
@@ -25,34 +24,10 @@ export default function LinePill({ kind, line, routes, linked = true }) {
   return (
     <>
       {keys.map((key) => {
-        if (kind === 'metra') {
-          // Metra lines aren't called "X Line" (it's "BNSF", "Metra Electric"),
-          // so the brand-colored pill shows the label as-is.
-          const info = metraLineInfo(key);
-          if (info) {
-            return renderChip(
-              key,
-              `/metra/line/${normalizeMetraLine(key)}`,
-              chipClass,
-              info.label,
-              { style: { backgroundColor: info.color, color: info.textColor } },
-            );
-          }
-          // Agency-wide Metra alert with no resolvable line (routes: []) — render
-          // a neutral "Metra" pill rather than an empty chip.
-          return (
-            <span
-              key={key ?? 'metra'}
-              className={PILL_BASE.replace('cursor-pointer hover:opacity-80', '')}
-              style={{ backgroundColor: '#64748b', color: '#fff' }}
-            >
-              Metra
-            </span>
-          );
-        }
         const info = kind === 'train' ? TRAIN_LINES[key] : null;
         if (info) {
-          return renderChip(key, `/line/${key}`, chipClass, `${info.label} Line`, {
+          const label = key === 'streetcar' ? info.label : `${info.label} Line`;
+          return renderChip(key, `/line/${key}`, chipClass, label, {
             style: { backgroundColor: info.color, color: info.textColor },
           });
         }

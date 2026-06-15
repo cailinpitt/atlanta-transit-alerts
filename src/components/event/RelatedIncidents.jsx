@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { cancellationInfo, cancellationStatusLabel } from '../../lib/cancellation.js';
 import { formatDate, formatTime } from '../../lib/format.js';
 import {
   agencyLabel,
@@ -10,11 +9,9 @@ import {
   incidentLifecycle,
   isPlannedIncident,
   legacyKind,
-  metraIncidentStatus,
   officialAlert,
 } from '../../lib/incidents.js';
 import LinePill from '../LinePill.jsx';
-import MetraPointBadge from '../MetraPointBadge.jsx';
 import { describe, incidentRoutes } from './incidentText.jsx';
 
 // Contemporaneous activity on OTHER lines/routes within ±1h of this event.
@@ -35,16 +32,8 @@ function ContextRow({ other, stationIndex, showLinePill }) {
   const otherIsMerged = !!officialAlert(other) && otherHasObs;
   const otherIsAlert = !!officialAlert(other) && !otherHasObs;
   const detailsId = other.id;
-  // Metra delay/cancellation status badge, whether it came from an official
-  // alert classification or an auto-detected point event.
-  // Schedule-anchored single-train Metra cancellation (from a Metra alert) →
-  // the same 'cancelled' / 'upcoming cancellation' badge the incident list and
-  // event page show.
-  const cancel = cancellationInfo(other);
-  const metraStatus = !cancel ? metraIncidentStatus(other) : null;
   // Planned/advance-notice work isn't "ongoing" — the disruption may not have
-  // started. Suppress the red "ongoing" marker for it (the Metra status badge
-  // already reads "planned work"; non-Metra planned rows show no marker).
+  // started. Suppress the red "ongoing" marker for it.
   const planned = isPlannedIncident(other);
   return (
     <div className="relative flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-gh-subtle/40 transition-colors">
@@ -74,18 +63,6 @@ function ContextRow({ other, stationIndex, showLinePill }) {
             {!otherIsMerged && !otherIsAlert && (
               <span className="text-xs text-slate-500 dark:text-slate-400 italic">
                 via auto-detection
-              </span>
-            )}
-            {metraStatus && <MetraPointBadge source={metraStatus.source} />}
-            {cancel && (
-              <span
-                className={`text-xs font-semibold ${
-                  cancel.isUpcoming
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                {cancellationStatusLabel(cancel)}
               </span>
             )}
             {lifecycle.active && !planned && (
@@ -157,10 +134,8 @@ export function RelatedIncidents({ incident, incidents, stationIndex }) {
   const kind = legacyKind(incident);
   const routes = incidentRoutes(incident);
   // A single-line parent names its line in the header, so per-row pills would be
-  // noise. A multi-line parent (e.g. a system-wide Metra construction notice on
-  // 7 lines) can't name one line — "Surrounding 24 hours on 7 Metra lines" is
-  // both clumsy and drops which line each row is actually on. So for those we
-  // generalize the header to the agency and turn the per-row pills on.
+  // noise. A multi-line parent cannot name one line, so for those we generalize
+  // the header to the agency and turn the per-row pills on.
   const multiLine = routes.length > 1;
   const heading = multiLine
     ? `Surrounding 24 hours on affected ${agencyLabel(kind)} lines`

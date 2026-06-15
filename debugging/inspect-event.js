@@ -27,8 +27,8 @@ import { displayStationName } from '../src/lib/stations.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-// Public production feed by default; override with CTA_DATA_URL for a fork.
-const LIVE = process.env.CTA_DATA_URL || 'https://chicagotransitalerts.app/data/alerts.json';
+// Public production feed by default; override with MARTA_DATA_URL for a fork.
+const LIVE = process.env.MARTA_DATA_URL || 'https://atlantatransitalerts.app/data/alerts.json';
 
 function parseArgs(argv) {
   const out = {};
@@ -61,7 +61,7 @@ async function loadRaw(dataArg) {
 // Plain-text in-app title — mirrors describeText() in incidentText.jsx, which
 // can't be imported here (it's a .jsx file pulling in React components).
 function inAppTitle(incident) {
-  if (incident.cta) return incident.cta.headline;
+  if (incident.official) return incident.official.headline;
   const { primary } = splitObservations(incident);
   if (primary?.from_station && primary?.to_station) {
     const seg = `${displayStationName(primary.from_station)} → ${displayStationName(primary.to_station)}`;
@@ -94,7 +94,7 @@ async function main() {
     console.log(`in-app title: ${inAppTitle(incident)}`);
     console.log(`bot summary:  ${botSummaryText(incident)}`);
     console.log(
-      `source:       ${incident.cta ? (incident.observations?.length ? 'merged (CTA+bot)' : 'CTA') : 'bot'}`,
+      `source:       ${incident.official ? (incident.observations?.length ? 'merged (MARTA+bot)' : 'MARTA') : 'bot'}`,
     );
     console.log(`active:       ${!!incident.active}`);
     return;

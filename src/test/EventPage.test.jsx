@@ -6,9 +6,9 @@ import { incident } from './v2TestHelpers.js';
 const NOW = 1_000_000_000_000;
 
 // Build the published incident wire shape: a top-level incident with a nullable
-// `cta` block and an `observations[]` list. Train line keys are already full
+// `official` block and an `observations[]` list. Train line keys are already full
 // names ('purple') — normalization now happens server-side.
-function ctaBlock(over) {
+function officialBlock(over) {
   return {
     alert_id: 'a',
     headline: '',
@@ -18,10 +18,10 @@ function ctaBlock(over) {
     affected_to_station: null,
     affected_direction: null,
     resolved_reply_url: null,
-    cta_event_start_ts: null,
-    cta_event_end_ts: null,
-    cta_event_start_is_date_only: false,
-    cta_event_end_is_date_only: false,
+    agency_event_start_ts: null,
+    agency_event_end_ts: null,
+    agency_event_start_is_date_only: false,
+    agency_event_end_is_date_only: false,
     ...over,
   };
 }
@@ -37,8 +37,8 @@ const PAYLOAD = {
       first_seen_ts: NOW - 60 * 60_000,
       resolved_ts: NOW - 30 * 60_000,
       active: false,
-      sources: ['cta'],
-      cta: ctaBlock({
+      sources: ['official'],
+      official: officialBlock({
         alert_id: 'a1',
         headline: 'Red Line Delays at Howard',
         first_seen_ts: NOW - 60 * 60_000,
@@ -55,13 +55,13 @@ const PAYLOAD = {
       first_seen_ts: NOW - 45 * 60_000,
       resolved_ts: NOW - 15 * 60_000,
       active: false,
-      sources: ['cta'],
-      cta: ctaBlock({
+      sources: ['official'],
+      official: officialBlock({
         alert_id: 'a3',
         headline: 'Brown Line Delays',
         short_description:
-          'Brown Line service is experiencing delays due to a raised bridge at the Chicago River, downtown. Trains stopped near Chicago.',
-        mentioned_stations: ['Chicago (Brown)'],
+          'Brown Line service is experiencing delays due to a raised bridge at the Atlanta River, downtown. Trains stopped near Atlanta.',
+        mentioned_stations: ['Atlanta (Brown)'],
         first_seen_ts: NOW - 45 * 60_000,
         resolved_ts: NOW - 15 * 60_000,
         active: false,
@@ -76,8 +76,8 @@ const PAYLOAD = {
       first_seen_ts: NOW - 30 * 60_000,
       resolved_ts: NOW - 5 * 60_000,
       active: false,
-      sources: ['cta'],
-      cta: ctaBlock({
+      sources: ['official'],
+      official: officialBlock({
         alert_id: 'a2',
         headline: 'Temporary Reroute',
         short_description: 'SB State will be closed between Wacker and Randolph.',
@@ -91,7 +91,7 @@ const PAYLOAD = {
       observations: [],
     },
     {
-      // Multi-line Loop incident: the CTA alert grouped with one pulse-cold
+      // Multi-line Loop incident: the MARTA alert grouped with one pulse-cold
       // detection per line (Purple primary, Pink extra).
       id: 'loopevt',
       kind: 'train',
@@ -99,8 +99,8 @@ const PAYLOAD = {
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
-      sources: ['cta', 'bot'],
-      cta: ctaBlock({
+      sources: ['official', 'bot'],
+      official: officialBlock({
         alert_id: 'loop1',
         headline: 'Loop Elevated Service Delayed',
         first_seen_ts: NOW - 40 * 60_000,
@@ -114,7 +114,7 @@ const PAYLOAD = {
           kind: 'train',
           line: 'purple',
           from_station: 'Belmont (Red/Brown/Purple)',
-          to_station: 'Chicago (Brown/Purple)',
+          to_station: 'Atlanta (Brown/Purple)',
           detection_source: 'pulse-cold',
           ts: NOW - 38 * 60_000,
           resolved_ts: NOW - 12 * 60_000,
@@ -136,7 +136,7 @@ const PAYLOAD = {
       ],
     },
     {
-      // Shared-trackage incident: CTA scopes it to Pink AND Green, but the bot
+      // Shared-trackage incident: MARTA scopes it to Pink AND Green, but the bot
       // only fired one pulse-cold on Pink between Ashland and Adams/Wabash —
       // both Lake St stations that serve Green too. The page must fan the
       // stretch onto Green so it isn't presented as Pink-only.
@@ -146,8 +146,8 @@ const PAYLOAD = {
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
-      sources: ['cta', 'bot'],
-      cta: ctaBlock({
+      sources: ['official', 'bot'],
+      official: officialBlock({
         alert_id: 'shared1',
         headline: 'Delays near Ashland/Lake Affecting Green and Pink Line Service',
         first_seen_ts: NOW - 40 * 60_000,
@@ -172,7 +172,7 @@ const PAYLOAD = {
     },
     {
       // Guard against shared-trackage false positives: a Brown-only alert on
-      // the Belmont↔Fullerton stretch that Purple ALSO runs. Because the CTA
+      // the Belmont↔Fullerton stretch that Purple ALSO runs. Because the MARTA
       // alert scopes the incident to Brown alone (routes: ['brown']), Purple
       // must NOT be pulled in — shared trackage only spreads across lines the
       // incident already names, never invents new ones.
@@ -182,8 +182,8 @@ const PAYLOAD = {
       first_seen_ts: NOW - 40 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
-      sources: ['cta', 'bot'],
-      cta: ctaBlock({
+      sources: ['official', 'bot'],
+      official: officialBlock({
         alert_id: 'brnp1',
         headline: 'Brown Line Delays near Belmont',
         first_seen_ts: NOW - 40 * 60_000,
@@ -214,7 +214,7 @@ const PAYLOAD = {
       resolved_ts: null,
       active: true,
       sources: ['bot'],
-      cta: null,
+      official: null,
       observations: [
         {
           id: 99,
@@ -239,7 +239,7 @@ const PAYLOAD = {
       resolved_ts: NOW - 4 * 60_000,
       active: false,
       sources: ['bot'],
-      cta: null,
+      official: null,
       observations: [
         {
           id: 502,
@@ -264,18 +264,18 @@ const PAYLOAD = {
       ],
     },
     {
-      id: 'metra-972',
-      kind: 'metra',
+      id: 'commuter-972',
+      kind: 'commuter',
       routes: ['ri'],
       first_seen_ts: NOW - 60 * 60_000,
       resolved_ts: NOW - 60 * 60_000,
       active: false,
       sources: ['bot'],
-      cta: null,
+      official: null,
       observations: [
         {
-          id: 'metra-972',
-          kind: 'metra',
+          id: 'commuter-972',
+          kind: 'commuter',
           line: 'ri',
           from_station: 'LaSalle Street',
           to_station: 'Joliet',
@@ -289,18 +289,18 @@ const PAYLOAD = {
       ],
     },
     {
-      id: 'metra-991',
-      kind: 'metra',
+      id: 'commuter-991',
+      kind: 'commuter',
       routes: ['me'],
       first_seen_ts: NOW - 60 * 60_000,
       resolved_ts: NOW - 60 * 60_000,
       active: false,
       sources: ['bot'],
-      cta: null,
+      official: null,
       observations: [
         {
-          id: 'metra-991',
-          kind: 'metra',
+          id: 'commuter-991',
+          kind: 'commuter',
           line: 'me',
           train_number: '121',
           from_station: 'Millennium Station',
@@ -315,24 +315,24 @@ const PAYLOAD = {
       ],
     },
     {
-      id: 'metra-official-delay',
-      kind: 'metra',
+      id: 'commuter-official-delay',
+      kind: 'commuter',
       routes: ['ri'],
       first_seen_ts: NOW - 45 * 60_000,
       resolved_ts: NOW - 10 * 60_000,
       active: false,
-      sources: ['cta'],
-      cta: ctaBlock({
-        alert_id: 'metra-delay-1',
+      sources: ['official'],
+      official: officialBlock({
+        alert_id: 'commuter-delay-1',
         headline: 'RID #426 Delayed',
         short_description:
           'RID train #426, scheduled to arrive LaSalle Street Station at 3:36 PM, is operating 30 to 35 minutes behind schedule due to switch problems.',
         first_seen_ts: NOW - 45 * 60_000,
         resolved_ts: NOW - 10 * 60_000,
         active: false,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/metra-official-delay',
+        post_url: 'https://bsky.app/profile/did:plc:abc/post/commuter-official-delay',
       }),
-      metra_status: {
+      commuter_status: {
         source: 'delay',
         deadline_ts: NOW - 10 * 60_000,
         delay_min: 35,
@@ -345,24 +345,24 @@ const PAYLOAD = {
       // work happens this weekend — so "Ongoing for" counting from first_seen
       // is meaningless. Should relabel "First seen" → "Announced", drop the
       // timer, and show a neutral "planned" pill instead of red "ongoing".
-      id: 'metra-planned',
-      kind: 'metra',
+      id: 'commuter-planned',
+      kind: 'commuter',
       routes: ['bnsf', 'md-n', 'md-w', 'me', 'ri', 'up-nw', 'up-w'],
       first_seen_ts: NOW - 60 * 60_000,
       resolved_ts: null,
       active: true,
-      sources: ['cta'],
-      cta: ctaBlock({
-        alert_id: 'metra-planned-1',
+      sources: ['official'],
+      official: officialBlock({
+        alert_id: 'commuter-planned-1',
         headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
         short_description:
           'Track construction will be taking place on Saturday, June 13 through Sunday, June 14. Trains may incur delays enroute up to 15 minutes behind scheduled passing through the work zone.',
         first_seen_ts: NOW - 60 * 60_000,
         resolved_ts: null,
         active: true,
-        post_url: 'https://bsky.app/profile/did:plc:abc/post/metra-planned',
+        post_url: 'https://bsky.app/profile/did:plc:abc/post/commuter-planned',
       }),
-      metra_status: { source: 'planned-delay', train_number: null },
+      commuter_status: { source: 'planned-delay', train_number: null },
       observations: [],
     },
   ].map((inc) => incident(inc)),
@@ -375,10 +375,10 @@ const V2_PAYLOAD = {
   incidents: [
     {
       id: 'v2evt',
-      agency: 'cta',
+      agency: 'official',
       mode: 'train',
       routes: ['red'],
-      sources: ['cta', 'bot'],
+      sources: ['official', 'bot'],
       lifecycle: {
         first_seen_ts: NOW - 60 * 60_000,
         resolved_ts: NOW - 20 * 60_000,
@@ -505,23 +505,23 @@ describe('EventPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Red Line Service Delayed')).toBeInTheDocument();
     });
-    expect(screen.getAllByText(/Per CTA/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Per MARTA/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Per bot/).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: 'Loyola' }).length).toBeGreaterThan(0);
   });
 
   it('renders a standalone observation by id', async () => {
     render(<EventPage eventId="bus99" />);
-    // "#66 Chicago" appears both in the breadcrumb's current crumb and the
+    // "#66 Atlanta" appears both in the breadcrumb's current crumb and the
     // page body, so assert presence rather than uniqueness.
     await waitFor(() => {
-      expect(screen.getAllByText('#66 Chicago').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('#66 Atlanta').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('ongoing')).toBeInTheDocument();
   });
 
-  it('renders an inferred Metra cancellation with a cancellation-style layout', async () => {
-    render(<EventPage eventId="metra-972" />);
+  it('renders an inferred Commuter cancellation with a cancellation-style layout', async () => {
+    render(<EventPage eventId="commuter-972" />);
     await waitFor(() => {
       expect(
         screen.getByText('Scheduled train not seen running — the 9:55 AM Joliet train'),
@@ -539,18 +539,18 @@ describe('EventPage', () => {
     expect(screen.getByText('Joliet')).toBeInTheDocument();
   });
 
-  it('renders a bot-only Metra delay title with the train number when available', async () => {
-    render(<EventPage eventId="metra-991" />);
+  it('renders a bot-only Commuter delay title with the train number when available', async () => {
+    render(<EventPage eventId="commuter-991" />);
     await waitFor(() => {
       expect(
-        screen.getByRole('heading', { name: /Metra Electric train #121 delayed/i }),
+        screen.getByRole('heading', { name: /Commuter Electric train #121 delayed/i }),
       ).toBeInTheDocument();
     });
     expect(screen.queryByRole('heading', { name: /12:20 PM University Park train/i })).toBeNull();
   });
 
-  it('shows a delay badge for an official-only Metra delay alert', async () => {
-    render(<EventPage eventId="metra-official-delay" />);
+  it('shows a delay badge for an official-only Commuter delay alert', async () => {
+    render(<EventPage eventId="commuter-official-delay" />);
     await waitFor(() => {
       expect(
         screen.getByRole('heading', { name: /Rock Island train #426 delayed/i }),
@@ -560,7 +560,7 @@ describe('EventPage', () => {
   });
 
   it('relabels and de-times a future planned-work alert', async () => {
-    render(<EventPage eventId="metra-planned" />);
+    render(<EventPage eventId="commuter-planned" />);
     await waitFor(() => {
       expect(
         screen.getByRole('heading', { name: /Track Construction Saturday/i }),
@@ -571,7 +571,7 @@ describe('EventPage', () => {
     expect(within(article).getByText('Announced')).toBeInTheDocument();
     expect(within(article).queryByText('First seen')).not.toBeInTheDocument();
     expect(within(article).queryByText('Ongoing for')).not.toBeInTheDocument();
-    // The Metra "planned work" badge carries the status; no redundant "planned"
+    // The Commuter "planned work" badge carries the status; no redundant "planned"
     // pill, and no red "ongoing" marker before the work starts.
     expect(within(article).getByText('planned work')).toBeInTheDocument();
     expect(within(article).queryByText('ongoing')).not.toBeInTheDocument();
@@ -579,8 +579,8 @@ describe('EventPage', () => {
     // A multi-line parent can't name one line in the "Surrounding 24 hours"
     // header — it generalizes to the agency and turns on per-row line pills so
     // each related row says which line it's on.
-    expect(screen.getByText('Surrounding 24 hours on affected Metra lines')).toBeInTheDocument();
-    expect(screen.queryByText(/Surrounding 24 hours on 7 Metra lines/)).not.toBeInTheDocument();
+    expect(screen.getByText('Surrounding 24 hours on affected Commuter lines')).toBeInTheDocument();
+    expect(screen.queryByText(/Surrounding 24 hours on 7 Commuter lines/)).not.toBeInTheDocument();
   });
 
   it('shows a not-found message for an unknown id', async () => {
@@ -591,28 +591,28 @@ describe('EventPage', () => {
   });
 
   it('does not link a station name when it is followed by a geographic suffix', async () => {
-    // "Chicago River" / "Chicago Avenue" etc. should not be linked to the
-    // Chicago station even when Chicago is in mentioned_stations. A bare
-    // "Chicago" elsewhere in the same text should still link.
+    // "Atlanta River" / "Atlanta Avenue" etc. should not be linked to the
+    // Atlanta station even when Atlanta is in mentioned_stations. A bare
+    // "Atlanta" elsewhere in the same text should still link.
     render(<EventPage eventId="brnriver" />);
     await waitFor(() => {
       expect(screen.getByText(/raised bridge/)).toBeInTheDocument();
     });
-    expect(screen.queryByRole('link', { name: /^Chicago River$/ })).toBeNull();
-    // The bare "Chicago" later in the sentence still links.
-    expect(screen.getAllByRole('link', { name: 'Chicago' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: /^Atlanta River$/ })).toBeNull();
+    // The bare "Atlanta" later in the sentence still links.
+    expect(screen.getAllByRole('link', { name: 'Atlanta' }).length).toBeGreaterThan(0);
   });
 
   it('aggregates affected stations across all merged observations', async () => {
     // The merged Loop incident pairs the alert with two pulse-cold obs on
     // different lines. The chips must list endpoints from BOTH (primary +
-    // extra), not just the primary's Belmont/Chicago — otherwise a five-line
+    // extra), not just the primary's Belmont/Atlanta — otherwise a five-line
     // incident reads as one arbitrary stretch.
     render(<EventPage eventId="loopevt" />);
     await waitFor(() => {
       expect(screen.getByText('Loop Elevated Service Delayed')).toBeInTheDocument();
     });
-    // Primary obs (Purple) endpoints. Belmont/Chicago can appear in both the
+    // Primary obs (Purple) endpoints. Belmont/Atlanta can appear in both the
     // affected-stations chips and the per-obs stretch line in the timeline
     // rail, so allow >=1 match.
     expect(screen.getAllByRole('link', { name: 'Belmont' }).length).toBeGreaterThan(0);
@@ -630,14 +630,14 @@ describe('EventPage', () => {
       screen.getByRole('img', { name: /Affected stretches across 2 train lines/ }),
     ).toBeInTheDocument();
     // Bot-detected stretches are labeled as observed impact, not "where this
-    // happened" — they spread downstream of the CTA's reported epicenter.
+    // happened" — they spread downstream of the MARTA's reported epicenter.
     expect(screen.getByText('Bot observed impact')).toBeInTheDocument();
     expect(screen.queryByText('Where this happened')).not.toBeInTheDocument();
   });
 
   it('fans a bot stretch onto sibling lines that share the trackage', async () => {
     // The bot's pulse-cold was scoped to Pink, but Ashland↔Adams/Wabash also
-    // carries Green and the CTA alert names both lines. The station list and
+    // carries Green and the MARTA alert names both lines. The station list and
     // map must surface Green alongside Pink — and reframe the copy so the
     // inferred Green rows don't masquerade as separate bot detections.
     render(<EventPage eventId="sharedtrk" />);
@@ -660,7 +660,7 @@ describe('EventPage', () => {
   it('does not pull in a non-incident line that merely shares the trackage', async () => {
     // Brown-only alert on Belmont↔Fullerton, which Purple also runs. Purple is
     // not in the incident's routes, so it must stay out — the shared-track
-    // fan-out only spreads across lines the CTA alert already named.
+    // fan-out only spreads across lines the MARTA alert already named.
     render(<EventPage eventId="brnpurple" />);
     await waitFor(() => {
       expect(screen.getByText('Brown Line Delays near Belmont')).toBeInTheDocument();
@@ -676,16 +676,16 @@ describe('EventPage', () => {
     expect(article.queryByText('Purple Line')).not.toBeInTheDocument();
   });
 
-  it('adds a cleared entry to the Per CTA timeline when the alert resolved', async () => {
-    // The Brown Line alert is resolved with CTA body text. The timeline should
+  it('adds a cleared entry to the Per MARTA timeline when the alert resolved', async () => {
+    // The Brown Line alert is resolved with MARTA body text. The timeline should
     // end on a "cleared" entry (newest) so it doesn't read as still ongoing.
     render(<EventPage eventId="brnriver" />);
     await waitFor(() => {
-      expect(screen.getByText('CTA cleared this alert.')).toBeInTheDocument();
+      expect(screen.getByText('MARTA cleared this alert.')).toBeInTheDocument();
     });
     // Original message (1) + clear (1) = 2 updates.
-    expect(screen.getByText(/Per CTA · 2 updates/)).toBeInTheDocument();
-    // The CTA body text still renders in its version entry.
+    expect(screen.getByText(/Per MARTA · 2 updates/)).toBeInTheDocument();
+    // The MARTA body text still renders in its version entry.
     expect(screen.getByText(/raised bridge/)).toBeInTheDocument();
   });
 

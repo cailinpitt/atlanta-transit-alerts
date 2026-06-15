@@ -4,7 +4,7 @@ import { useNow } from '../hooks/useNow.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { buildCalendarWeeks } from '../lib/calendar.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { formatChicagoDay } from '../lib/format.js';
+import { formatAtlantaDay } from '../lib/format.js';
 import { incidentRecords, SOURCE_TYPES } from '../lib/incidents.js';
 import { buildSearch, parseUrlState } from '../lib/urlState.js';
 import Breadcrumb from './Breadcrumb.jsx';
@@ -50,7 +50,7 @@ function CalendarCell({ cell, maxCount }) {
     );
   }
   if (cell.noData) {
-    const label = `${formatChicagoDay(cell.dayUtc)}: no data`;
+    const label = `${formatAtlantaDay(cell.dayUtc)}: no data`;
     return (
       <div
         role="img"
@@ -61,7 +61,7 @@ function CalendarCell({ cell, maxCount }) {
       />
     );
   }
-  const dayLabel = formatChicagoDay(cell.dayUtc);
+  const dayLabel = formatAtlantaDay(cell.dayUtc);
   const label =
     cell.count === 0
       ? `${dayLabel}: no incidents`
@@ -135,9 +135,9 @@ export default function CalendarPage() {
   }, []);
 
   useEffect(() => {
-    document.title = 'Calendar · Chicago Transit Alerts';
+    document.title = 'Calendar · Atlanta Transit Alerts';
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, []);
 

@@ -4,14 +4,14 @@
 // reference stations for stop relocations. Roundups, train alerts, and the
 // rest don't carry station info, so this index is naturally sparse.
 //
-// Upstream (cta-insights) already disambiguates stations that share a name
+// Upstream (atlanta-transit-insights) already disambiguates stations that share a name
 // across lines via parenthetical qualifiers — `Central (Green)` vs
 // `Central (Purple)`, `Western (Brown)` vs `Western (Blue/Forest Park)`.
 // We trust the literal string as station identity. If two physically
 // different stations ever share the exact same name in the data, that's a
 // data-quality issue upstream, not something to paper over here.
 
-import { normalizeTrainLine, TRAIN_LINE_ORDER } from './ctaLines.js';
+import { normalizeTrainLine, TRAIN_LINE_ORDER } from './trainLines.js';
 // Node 22+ ESM requires the explicit import attribute when loading JSON;
 // without it the postbuild prerender scripts (which import this file
 // transitively via scripts/prerender-pages.js and scripts/generate-sitemap.js)
@@ -58,7 +58,7 @@ const ROSTER_BY_SLUG = (() => {
     map.set(slug, {
       slug,
       name: s.name,
-      lines: [...(SERVED_LINES_BY_SLUG.get(slug) || [])].sort(compareByCtaOrder),
+      lines: [...(SERVED_LINES_BY_SLUG.get(slug) || [])].sort(compareByOfficialOrder),
       alerts: [],
       observations: [],
       count: 0,
@@ -73,7 +73,7 @@ export function rosterStationBySlug(slug) {
 
 // All roster station names that physically serve any of the given lines.
 // Used to broaden the alert-text linkify pool beyond the upstream
-// extractor's `mentioned_stations` — CTA's prose often names stations
+// extractor's `mentioned_stations` — MARTA's prose often names stations
 // (e.g. "Garfield", "Ashland/63") that the extractor missed, and we still
 // want them clickable. Line-scoped so cross-line same-named stops like
 // "Halsted" don't bleed in.
@@ -104,7 +104,7 @@ export function linesServingStation(name) {
   return SERVED_LINES_BY_SLUG.get(slug) ?? [];
 }
 
-function compareByCtaOrder(a, b) {
+function compareByOfficialOrder(a, b) {
   const ia = TRAIN_LINE_ORDER.indexOf(a);
   const ib = TRAIN_LINE_ORDER.indexOf(b);
   return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
@@ -233,7 +233,7 @@ export function buildStationIndex(
     out.set(slug, {
       slug: rec.slug,
       name: rec.name,
-      lines: [...rec.lines].sort(compareByCtaOrder),
+      lines: [...rec.lines].sort(compareByOfficialOrder),
       alerts: rec.alerts,
       observations: rec.observations,
       count: rec.alerts.length + rec.observations.length,

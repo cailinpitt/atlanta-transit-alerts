@@ -6,7 +6,7 @@ import { incident } from './v2TestHelpers.js';
 const NOW = 1_700_000_000_000;
 const MIN = 60_000;
 
-// Nested incident shape with a CTA block — ActiveCard shows `cta.headline`
+// Nested incident shape with a MARTA block — ActiveCard shows `official.headline`
 // directly, so the headline doubles as a stable text handle in assertions.
 const activeInc = (over = {}) =>
   incident({
@@ -16,7 +16,7 @@ const activeInc = (over = {}) =>
     active: true,
     first_seen_ts: NOW - 20 * MIN,
     resolved_ts: null,
-    cta: {
+    official: {
       alert_id: 'x',
       headline: 'Red Line Delays',
       post_url: 'https://bsky.app/profile/x/post/a1',
@@ -46,26 +46,29 @@ describe('ActiveAlerts', () => {
     render(
       <ActiveAlerts
         incidents={[
-          // Live disruption (CTA train).
+          // Live disruption (MARTA train).
           activeInc({
             id: 'd1',
-            cta: { headline: 'Red Line gap', post_url: 'https://bsky.app/profile/x/post/d1' },
+            official: { headline: 'Red Line gap', post_url: 'https://bsky.app/profile/x/post/d1' },
           }),
-          // Routine Metra delay → Delays.
+          // Routine Commuter delay → Delays.
           activeInc({
             id: 'dl1',
-            kind: 'metra',
+            kind: 'commuter',
             routes: ['bnsf'],
-            metra_status: { source: 'delay' },
-            cta: { headline: 'BNSF 1282 delayed', post_url: 'https://bsky.app/profile/x/post/dl1' },
+            commuter_status: { source: 'delay' },
+            official: {
+              headline: 'BNSF 1282 delayed',
+              post_url: 'https://bsky.app/profile/x/post/dl1',
+            },
           }),
           // Planned track construction → Planned & scheduled.
           activeInc({
             id: 'p1',
-            kind: 'metra',
+            kind: 'commuter',
             routes: ['up-n'],
-            metra_status: { source: 'planned-delay' },
-            cta: {
+            commuter_status: { source: 'planned-delay' },
+            official: {
               headline: 'Track Construction Sat Jun 13',
               post_url: 'https://bsky.app/profile/x/post/p1',
             },
@@ -90,15 +93,15 @@ describe('ActiveAlerts', () => {
         incidents={[
           activeInc({
             id: 'a1',
-            cta: { headline: 'First', post_url: 'https://bsky.app/profile/x/post/a1' },
+            official: { headline: 'First', post_url: 'https://bsky.app/profile/x/post/a1' },
           }),
           activeInc({
             id: 'a2',
-            cta: { headline: 'Second', post_url: 'https://bsky.app/profile/x/post/a2' },
+            official: { headline: 'Second', post_url: 'https://bsky.app/profile/x/post/a2' },
           }),
           activeInc({
             id: 'a3',
-            cta: { headline: 'Third', post_url: 'https://bsky.app/profile/x/post/a3' },
+            official: { headline: 'Third', post_url: 'https://bsky.app/profile/x/post/a3' },
           }),
         ]}
         now={NOW}

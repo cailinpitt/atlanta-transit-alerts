@@ -1,6 +1,5 @@
-import { normalizeTrainLine, TRAIN_LINE_ORDER } from './ctaLines.js';
 import { SIGNAL_TYPES, SOURCE_TYPES } from './incidents.js';
-import { METRA_LINE_ORDER, normalizeMetraLine } from './metraLines.js';
+import { normalizeTrainLine, TRAIN_LINE_ORDER } from './trainLines.js';
 
 // Source filter uses "selected = shown" semantics: an empty URL/state means
 // "everything is shown", which we represent internally as all SOURCE_TYPES
@@ -11,12 +10,11 @@ const DEFAULT_SOURCES = [...SOURCE_TYPES];
 
 const VALID_RANGES = new Set([7, 30, 60, 90]);
 const TRAIN_LINE_SET = new Set(TRAIN_LINE_ORDER);
-const METRA_LINE_SET = new Set(METRA_LINE_ORDER);
 const SIGNAL_SET = new Set(SIGNAL_TYPES);
 const SOURCE_SET = new Set(SOURCE_TYPES);
 const DAY_PARAM_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// Format a UTC epoch (Chicago day midnight) as a YYYY-MM-DD string. Cleaner in
+// Format a UTC epoch (Atlanta day midnight) as a YYYY-MM-DD string. Cleaner in
 // URLs than an epoch, and the round-trip is unambiguous because the value is
 // always a UTC midnight.
 function dayUtcToString(dayUtc) {
@@ -61,18 +59,14 @@ export { defaultShowBus };
 // selections — that's worth carrying across visits. dateRange and the
 // pinned day are deliberately excluded: a stale "30d" choice from last
 // month feels more confusing than helpful.
-const STORAGE_KEY = 'chicago-transit-alerts:filters';
-const LEGACY_STORAGE_KEY = 'cta-alert-history:filters';
+const STORAGE_KEY = 'atlanta-transit-alerts:filters';
+const LEGACY_STORAGE_KEY = 'official-alert-history:filters';
 const STICKY_KEYS = [
   'selectedLines',
   'showBus',
   'selectedBusRoutes',
-  'selectedMetraLines',
   'selectedSignals',
   'selectedSources',
-  // Page-level agency scope ('all' | 'cta' | 'metra'). Persisted so a returning
-  // visitor stays scoped to the agency they care about. Not mirrored to the URL.
-  'selectedAgency',
 ];
 
 export function readStoredFilters() {
@@ -115,20 +109,18 @@ export function parseUrlState(search = window.location.search) {
     selectedLines: null,
     showBus: true,
     selectedBusRoutes: [],
-    selectedMetraLines: [],
     dateRange: 7,
     selectedDay: null,
     selectedSignals: [],
     selectedSources: [...DEFAULT_SOURCES],
     search: '',
-    selectedAgency: 'all',
   };
 
   const linesParam = params.get('lines');
   if (linesParam === 'none') {
     out.selectedLines = [];
   } else if (linesParam) {
-    // Normalize CTA short codes to full names so old shareable URLs
+    // Normalize MARTA short codes to full names so old shareable URLs
     // (?lines=org,p) keep working after the rename.
     const valid = linesParam
       .split(',')
@@ -149,23 +141,12 @@ export function parseUrlState(search = window.location.search) {
     out.selectedBusRoutes = routesParam
       .split(',')
       .map((s) => s.trim())
-      // CTA route ids aren't always plain numbers — express/owl/named routes
+      // MARTA route ids aren't always plain numbers — express/owl/named routes
       // carry letters (X9, J14, N5, 53A, 55N). Accept any token with at least
       // one digit and only alphanumerics; that admits every real route while
       // still dropping garbage like "abc" or "none". Non-existent ids simply
       // match no incident downstream, so the filter is harmless either way.
       .filter((s) => /^[A-Za-z]*\d+[A-Za-z]*$/.test(s));
-  }
-
-  // Metra line selection: `?metra=up-n,bnsf`. Empty/invalid → no narrowing.
-  // (A legacy `?metra=1` from the old gate param normalizes to no valid lines,
-  // so it harmlessly leaves Metra unfiltered.)
-  const metraParam = params.get('metra');
-  if (metraParam) {
-    out.selectedMetraLines = metraParam
-      .split(',')
-      .map((s) => normalizeMetraLine(s.trim()))
-      .filter((s) => METRA_LINE_SET.has(s));
   }
 
   const rangeParam = params.get('range');
@@ -217,7 +198,6 @@ export function buildSearch({
   selectedLines,
   showBus,
   selectedBusRoutes,
-  selectedMetraLines,
   dateRange,
   selectedDay,
   selectedSignals,
@@ -236,9 +216,6 @@ export function buildSearch({
   }
   if (selectedBusRoutes && selectedBusRoutes.length > 0) {
     params.set('routes', selectedBusRoutes.join(','));
-  }
-  if (selectedMetraLines && selectedMetraLines.length > 0) {
-    params.set('metra', selectedMetraLines.join(','));
   }
   // Day-pin overrides the range filter visually, but we serialize both so the
   // chip can fall back to the prior range when cleared.

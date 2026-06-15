@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { fetchEventTrack } from '../lib/eventTracks.js';
 import { hexToRgba } from '../lib/format.js';
 import { buildLineMap, sliceTrackBetween, terminalPointsFor } from '../lib/lineMap.js';
 import { displayStationName, slugifyStation } from '../lib/stations.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 
-// Trains drop out of the CTA feed for short stretches constantly (layovers at
+// Trains drop out of realtime feeds for short stretches constantly (layovers at
 // terminals, tunnels, missing predictions). We bridge gaps up to this long —
 // interpolating straight through, since the train really is still running —
 // because pulse-cold needs 15+ min of emptiness by definition, so an 8-min
@@ -29,7 +29,7 @@ function fmtClock(ms) {
   return new Date(ms).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: 'America/Chicago',
+    timeZone: 'America/New_York',
   });
 }
 
@@ -99,7 +99,7 @@ function vehicleSample(v, t, reducedMotion = false) {
   return { lat, lon, opacity, fromLL: [a[1], a[2]], toLL: [b[1], b[2]] };
 }
 
-// CTA Loop center — the aim point for "toward the Loop"/"downtown" labels,
+// System center — the aim point for downtown-oriented labels,
 // which name a destination area rather than a single terminus station.
 const LOOP_CENTER = [41.8807, -87.6298];
 
@@ -279,7 +279,7 @@ function arcLenOnPoly(px, py, poly) {
   return { s: bestS, d2: bestD };
 }
 
-// CTA train positions jitter — a train can report a position slightly *behind*
+// Train positions jitter — a train can report a position slightly *behind*
 // its last one, which the renderer would draw as a stutter backward. Drop those
 // regressions: express each sample as arc-length along the train's dominant
 // polyline and keep only samples that advance (within a small tolerance) in the
@@ -383,7 +383,7 @@ export default function EventReplay({ eventId, lineKey, fromStation, toStation, 
   const terminalPts = useMemo(() => (map ? terminalPointsFor(map, lineKey) : []), [map, lineKey]);
 
   // Trains whose track simply *ends* mid-route, before the clip does and away
-  // from any terminus or the Loop — i.e. the CTA feed lost them, they didn't
+  // from any terminus or downtown — i.e. the feed lost them, they didn't
   // leave service. We mark these with a brief fading "signal lost" ring at their
   // last spot (below), so a data dropout reads differently from a train that
   // cleanly reached the end of its run. Memoized per loaded track.

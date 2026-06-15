@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { pickIncidents } from '../../scripts/prerender-events.js';
 import * as incidentsLib from '../lib/incidents.js';
 import { incidentRecords } from '../lib/incidents.js';
-import { incident, officialAlertFromCta } from './v2TestHelpers.js';
+import { incident, officialAlertFromOfficial } from './v2TestHelpers.js';
 
 // Regression guard for a class of bug that shipped to production once already:
 // the incidents[] migration deleted `normalizeAlertsPayload` from
@@ -79,7 +79,7 @@ describe('incidentRecords wire → row contract', () => {
       id: '3ml5idb536d2c',
       kind: 'train',
       routes: ['red'],
-      cta: {
+      official: {
         alert_id: 'a1',
         headline: 'Red Line Delays',
         first_seen_ts: NOW - 60 * 60_000,
@@ -101,14 +101,14 @@ describe('incidentRecords wire → row contract', () => {
       id: '3mkomsa7xhv2i',
       kind: 'bus',
       routes: ['22'],
-      cta: null,
+      official: null,
       observations: [{ id: 2, kind: 'bus', line: '22', ts: NOW - 10 * 60_000, post_url: 'x' }],
     }),
   ];
 
-  it('expands cta blocks into official records the export scripts read', () => {
+  it('expands official blocks into official records the export scripts read', () => {
     const { officialRecords } = incidentRecords(incidents);
-    expect(officialRecords).toHaveLength(1); // only the incident with a cta block
+    expect(officialRecords).toHaveLength(1); // only the incident with a official block
     const [alert] = officialRecords;
     // Fields the scripts actually consume (csv rows, OG cards, sitemap rkeys).
     expect(alert).toMatchObject({
@@ -132,20 +132,20 @@ describe('incidentRecords wire → row contract', () => {
     const childUrl = 'https://bsky.app/profile/did:plc:abc/post/childrkey';
     const grouped = incident({
       id: 'primaryrkey',
-      kind: 'metra',
+      kind: 'commuter',
       routes: ['bnsf', 'md-w'],
-      cta: {
+      official: {
         alert_id: 'primary',
         headline: 'Track Construction Saturday, June 13 through Sunday, June 14',
         post_url: primaryUrl,
       },
       official_alerts: [
-        officialAlertFromCta({
+        officialAlertFromOfficial({
           alert_id: 'primary',
           headline: 'Track Construction',
           post_url: primaryUrl,
         }),
-        officialAlertFromCta({
+        officialAlertFromOfficial({
           alert_id: 'child',
           headline: 'Track Construction',
           post_url: childUrl,
@@ -162,7 +162,7 @@ describe('incidentRecords wire → row contract', () => {
     const { officialRecords, detectionRecords } = incidentRecords([
       {
         id: 'v2',
-        agency: 'cta',
+        agency: 'official',
         mode: 'train',
         routes: ['red'],
         lifecycle: {

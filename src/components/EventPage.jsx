@@ -79,12 +79,12 @@ export default function EventPage({ eventId }) {
   // Set the tab title from the incident so bookmarks and shared links land in
   // browser history with something readable, not the generic site title.
   useEffect(() => {
-    const base = 'Chicago Transit Alerts';
+    const base = 'Atlanta Transit Alerts';
     if (!incident) {
       document.title = base;
       return;
     }
-    // Prefix the tab title with the route label so a generic CTA headline
+    // Prefix the tab title with the route label so a generic agency headline
     // (e.g. "Temporary Reroute") doesn't lose the route context the rest of
     // the page makes obvious.
     const label = formatRoutesLabel(legacyKind(incident), incidentRoutes(incident));

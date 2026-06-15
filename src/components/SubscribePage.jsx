@@ -10,9 +10,9 @@ export default function SubscribePage() {
   const [dark, toggleDark] = useDarkMode();
 
   useEffect(() => {
-    document.title = 'Subscribe · Chicago Transit Alerts';
+    document.title = 'Subscribe · Atlanta Transit Alerts';
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, []);
 

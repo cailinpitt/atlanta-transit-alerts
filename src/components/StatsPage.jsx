@@ -2,18 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { useNow } from '../hooks/useNow.js';
 import {
-  computeMetraLeaderboards,
   computeRestorationDeltas,
   computeSegmentRecurrence,
   computeStatsLeaderboards,
   computeYearOverYear,
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
-import { TRAIN_LINES } from '../lib/ctaLines.js';
 import { dataUrl } from '../lib/dataSource.js';
-import { formatChicagoDay, formatDate, formatDuration, formatTime } from '../lib/format.js';
+import { formatAtlantaDay, formatDate, formatDuration, formatTime } from '../lib/format.js';
 import { formatRoutesLabel, incidentRecords } from '../lib/incidents.js';
-import { METRA_LINES } from '../lib/metraLines.js';
+import { TRAIN_LINES } from '../lib/trainLines.js';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
 import Header from './Header.jsx';
@@ -99,7 +97,7 @@ function RestorationDeltaList({ title, subtitle, rows }) {
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {formatChicagoDay(row.firstSeenTs)} · {row.headline ?? 'Bot-corroborated incident'}
+                {formatAtlantaDay(row.firstSeenTs)} · {row.headline ?? 'Bot-corroborated incident'}
               </p>
             </a>
           );
@@ -122,14 +120,19 @@ export default function StatsPage() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((fresh) => setData({ ...fresh, incidents: fresh.incidents || [] }))
+      .then((fresh) =>
+        setData({
+          ...fresh,
+          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
+        }),
+      )
       .catch(setError);
   }, []);
 
   useEffect(() => {
-    document.title = 'Stats · Chicago Transit Alerts';
+    document.title = 'Stats · Atlanta Transit Alerts';
     return () => {
-      document.title = 'Chicago Transit Alerts';
+      document.title = 'Atlanta Transit Alerts';
     };
   }, []);
 
@@ -168,14 +171,6 @@ export default function StatsPage() {
       now,
       windowDays: 90,
       limit: 3,
-    });
-  }, [flat, now]);
-
-  const metra = useMemo(() => {
-    if (!flat) return null;
-    return computeMetraLeaderboards(flat.officialRecords, flat.detectionRecords, {
-      now,
-      windowDays: 90,
     });
   }, [flat, now]);
 
@@ -242,8 +237,8 @@ export default function StatsPage() {
             {leaders.worstDay ? (
               <StatCard
                 eyebrow="Worst day"
-                headline={`${formatChicagoDay(leaders.worstDay.dayUtc)} — ${leaders.worstDay.count} incident${leaders.worstDay.count === 1 ? '' : 's'}`}
-                sub="Most distinct incidents starting on a single Chicago calendar day."
+                headline={`${formatAtlantaDay(leaders.worstDay.dayUtc)} — ${leaders.worstDay.count} incident${leaders.worstDay.count === 1 ? '' : 's'}`}
+                sub="Most distinct incidents starting on a single Atlanta calendar day."
                 href={`/day/${new Date(leaders.worstDay.dayUtc).toISOString().slice(0, 10)}`}
               />
             ) : (
@@ -324,28 +319,28 @@ export default function StatsPage() {
             )}
 
             {restorationDeltas &&
-              (restorationDeltas.ctaClearedEarly.length > 0 ||
-                restorationDeltas.ctaClearedLate.length > 0) && (
+              (restorationDeltas.officialClearedEarly.length > 0 ||
+                restorationDeltas.officialClearedLate.length > 0) && (
                 <section>
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 mt-1 px-1">
                     Service-restoration delta (90d)
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 px-1">
                     On {restorationDeltas.matchedCount} incident
-                    {restorationDeltas.matchedCount === 1 ? '' : 's'} where both CTA and the bot
-                    have resolution timestamps, the gap between when CTA marked the alert cleared
+                    {restorationDeltas.matchedCount === 1 ? '' : 's'} where both MARTA and the bot
+                    have resolution timestamps, the gap between when MARTA marked the alert cleared
                     and when the bot saw sustained service recovery.
                   </p>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <RestorationDeltaList
-                      title="CTA cleared early"
+                      title="MARTA cleared early"
                       subtitle="Alert closed before trains recovered"
-                      rows={restorationDeltas.ctaClearedEarly}
+                      rows={restorationDeltas.officialClearedEarly}
                     />
                     <RestorationDeltaList
-                      title="CTA cleared late"
+                      title="MARTA cleared late"
                       subtitle="Service recovered before alert closed"
-                      rows={restorationDeltas.ctaClearedLate}
+                      rows={restorationDeltas.officialClearedLate}
                     />
                   </div>
                 </section>
@@ -375,78 +370,6 @@ export default function StatsPage() {
               />
             )}
           </div>
-        )}
-
-        {metra?.hasData && (
-          <section className="space-y-3 pt-2">
-            <div className="px-1">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Metra (last 90 days)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Cancellations and 15+ minute delays the bot detected, by line.
-                {metra.alertsCount > 0 &&
-                  ` Plus ${metra.alertsCount} republished Metra alert${
-                    metra.alertsCount === 1 ? '' : 's'
-                  }.`}
-              </p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {metra.topCancelled ? (
-                <StatCard
-                  eyebrow="Most-cancelled line"
-                  headline={`${METRA_LINES[metra.topCancelled.line]?.label ?? metra.topCancelled.line} — ${metra.topCancelled.cancellations} cancellation${metra.topCancelled.cancellations === 1 ? '' : 's'}`}
-                  sub="Metra-confirmed and bot-inferred cancellations."
-                  href={`/metra/line/${metra.topCancelled.line}`}
-                />
-              ) : (
-                <StatCard
-                  eyebrow="Most-cancelled line"
-                  headline="No cancellations in the window."
-                />
-              )}
-              {metra.topDelayed ? (
-                <StatCard
-                  eyebrow="Most-delayed line"
-                  headline={`${METRA_LINES[metra.topDelayed.line]?.label ?? metra.topDelayed.line} — ${metra.topDelayed.delays} late-train detection${metra.topDelayed.delays === 1 ? '' : 's'}`}
-                  sub="Trains running 15+ minutes behind schedule."
-                  href={`/metra/line/${metra.topDelayed.line}`}
-                />
-              ) : (
-                <StatCard eyebrow="Most-delayed line" headline="No major delays in the window." />
-              )}
-            </div>
-            {metra.byLine.length > 0 && (
-              <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border divide-y divide-slate-100 dark:divide-gh-border">
-                {metra.byLine.map((r) => {
-                  const info = METRA_LINES[r.line];
-                  return (
-                    <a
-                      key={r.line}
-                      href={`/metra/line/${r.line}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-gh-canvas transition-colors"
-                    >
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0"
-                        style={{
-                          backgroundColor: info?.color ?? '#64748b',
-                          color: info?.textColor ?? '#fff',
-                        }}
-                      >
-                        {info?.label ?? r.line}
-                      </span>
-                      <span className="flex-1 min-w-0 text-sm text-slate-600 dark:text-slate-300 truncate">
-                        {r.cancellations} cancelled · {r.delays} late
-                      </span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums flex-shrink-0">
-                        {r.total}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-          </section>
         )}
       </main>
       <Footer />
