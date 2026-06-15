@@ -10,7 +10,7 @@ import {
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { dataUrl } from '../lib/dataSource.js';
 import { formatAtlantaDay, formatDate, formatDuration, formatTime } from '../lib/format.js';
-import { formatRoutesLabel, incidentRecords } from '../lib/incidents.js';
+import { formatRoutesLabel, incidentRecords, isWebsiteIncident } from '../lib/incidents.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
