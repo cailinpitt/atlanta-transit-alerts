@@ -19,7 +19,7 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { launchChromium } from '../scripts/playwright-browser.js';
 import {
   accentFor,
   fillTemplate,
@@ -103,7 +103,7 @@ async function main() {
   const html = fillTemplate(template, { id, title, subtitle, badge, date, accent });
 
   mkdirSync(dirname(out), { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await launchChromium();
   try {
     const page = await browser.newPage({
       viewport: { width: 1200, height: 630 },

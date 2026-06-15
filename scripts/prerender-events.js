@@ -19,7 +19,6 @@ import {
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 import { breadcrumbJsonLd, eventTrail } from '../src/lib/breadcrumbs.js';
 import { formatDate, formatTime } from '../src/lib/format.js';
 import {
@@ -31,6 +30,7 @@ import {
   summarizeSignals,
 } from '../src/lib/incidents.js';
 import { normalizeTrainLine, TRAIN_LINES } from '../src/lib/trainLines.js';
+import { launchChromium } from './playwright-browser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -566,7 +566,7 @@ async function main() {
   let rendered = 0;
 
   if (renders.length > 0) {
-    const browser = await chromium.launch();
+    const browser = await launchChromium();
     const ctx = await browser.newContext({
       viewport: { width: 1200, height: 630 },
       deviceScaleFactor: 1,

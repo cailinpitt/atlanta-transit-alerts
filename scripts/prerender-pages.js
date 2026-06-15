@@ -31,7 +31,6 @@ import {
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 import { buildWeekSummary, computeStatsLeaderboards, listWeeks } from '../src/lib/aggregate.js';
 import { breadcrumbJsonLd, dayTrail, topLevelTrail, weekTrail } from '../src/lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES } from '../src/lib/busRoutes.js';
@@ -52,6 +51,7 @@ import {
 import { buildStationIndex } from '../src/lib/stations.js';
 import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../src/lib/trainLines.js';
 import trainStations from '../src/lib/trainStations.json' with { type: 'json' };
+import { launchChromium } from './playwright-browser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -996,7 +996,7 @@ async function main() {
   const cached = pages.length - renders.length;
 
   if (renders.length > 0) {
-    const browser = await chromium.launch();
+    const browser = await launchChromium();
     const ctx = await browser.newContext({
       viewport: { width: 1200, height: 630 },
       deviceScaleFactor: 1,
