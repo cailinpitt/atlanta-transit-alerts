@@ -50,7 +50,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium
 
       # Gate only real code changes. Data-driven rebuilds (repository_dispatch /
       # schedule / manual) re-run already-green code with fresh data, so the
