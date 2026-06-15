@@ -450,6 +450,11 @@ async function workerPool(items, size, worker) {
 }
 
 async function main() {
+  if (process.env.SKIP_OG_RENDER === '1') {
+    console.log('prerender-events: SKIP_OG_RENDER=1 — skipping event OG render');
+    return;
+  }
+
   if (!existsSync(DATA)) {
     console.warn(`prerender-events: ${DATA} missing — skipping (build copies public/data first)`);
     return;

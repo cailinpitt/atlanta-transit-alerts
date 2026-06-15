@@ -53,18 +53,6 @@ jobs:
 
       - run: npm ci
 
-      - run: sudo apt-get install -y fonts-inter
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
-
       # Read-only restore of deploy.yml's OG render cache so PR builds reuse
       # already-rendered event/page PNGs instead of re-rendering all of them
       # cold. A miss just means a slower build, never a failure.
@@ -79,3 +67,5 @@ jobs:
             og-cache-
 
       - run: npm run build
+        env:
+          SKIP_OG_RENDER: '1'
