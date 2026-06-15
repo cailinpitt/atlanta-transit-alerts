@@ -50,8 +50,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npx playwright install chromium
-
       # Gate only real code changes. Data-driven rebuilds (repository_dispatch /
       # schedule / manual) re-run already-green code with fresh data, so the
       # tests/lint would just be wasted minutes — same reasoning as the old
@@ -61,6 +59,21 @@ jobs:
 
       - if: github.event_name == 'push'
         run: npm run lint
+
+      - run: sudo apt-get install -y fonts-inter
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Restore OG image cache
         uses: actions/cache@v5
