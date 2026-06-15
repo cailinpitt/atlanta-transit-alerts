@@ -76,8 +76,6 @@ jobs:
       # runtime (default origin baked into src/lib/dataSource.js), so the live
       # app is always fresh, independent of when the site was built.
       - run: npm run build
-        env:
-          SKIP_OG_RENDER: '1'
 
       - uses: actions/upload-pages-artifact@v5
         with:
