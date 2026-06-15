@@ -28,6 +28,11 @@ const EMPTY_ALERTS = {
   generated_at: Date.now(),
   incidents: [],
 };
+const EMPTY_DAILY_COUNTS = {
+  generated_at: Date.now(),
+  data_start_ts: null,
+  days: [],
+};
 
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -53,4 +58,10 @@ if (!existsSync(resolve(OUT_DIR, 'alerts.json'))) {
   const dest = resolve(OUT_DIR, 'alerts.json');
   writeFileSync(dest, `${JSON.stringify(EMPTY_ALERTS, null, 2)}\n`);
   console.warn(`fetch-data: seeded empty alerts payload at ${dest}`);
+}
+
+if (!existsSync(resolve(OUT_DIR, 'daily-counts.json'))) {
+  const dest = resolve(OUT_DIR, 'daily-counts.json');
+  writeFileSync(dest, `${JSON.stringify(EMPTY_DAILY_COUNTS, null, 2)}\n`);
+  console.warn(`fetch-data: seeded empty daily counts payload at ${dest}`);
 }
