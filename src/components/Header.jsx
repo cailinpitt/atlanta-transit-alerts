@@ -90,15 +90,18 @@ export default function Header({
             controls no longer stack into a separate block below the meta on
             mobile (which pushed page content past the fold). */}
         <div className="flex items-start justify-between gap-3">
-          <h1 className="min-w-0 text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+          <h1 className="min-w-0 flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             <button
               type="button"
               onClick={onResetFilters}
-              className="text-left hover:opacity-70 transition-opacity"
+              className="min-w-0 text-left hover:opacity-70 transition-opacity"
               aria-label="Reset filters and return to default view"
             >
               Atlanta Transit Alerts
             </button>
+            <span className="flex-shrink-0 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-500/15 px-2.5 py-1 text-[10px] leading-none font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/25">
+              Beta
+            </span>
           </h1>
           <div className="relative flex items-center gap-2 flex-shrink-0">
             <BrowseMenu alerts={alerts} observations={observations} align="responsive" />
