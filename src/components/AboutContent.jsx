@@ -77,8 +77,8 @@ export default function AboutContent() {
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">How far back</h3>
       <p>
-        The MARTA archive starts on June 15, 2026. Stats, calendar, and leaderboard views draw from the
-        coverage window published in the data feed.
+        The MARTA archive starts on June 15, 2026. Stats, calendar, and leaderboard views draw from
+        the coverage window published in the data feed.
       </p>
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">Privacy</h3>
