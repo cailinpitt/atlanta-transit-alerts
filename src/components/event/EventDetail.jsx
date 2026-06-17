@@ -6,6 +6,7 @@ import {
   computeLineDurationRank,
   computeStretchRecurrence,
 } from '../../lib/aggregate.js';
+import { cancellationInfo, cancellationStatusLabel } from '../../lib/cancellation.js';
 import {
   formatDate,
   formatDuration,
@@ -370,7 +371,11 @@ export function EventDetail({ incident, incidents, alerts, observations, station
   // The main post link: MARTA's announcement when present, else the bot post.
   const primaryUrl = official ? official.post_url : (primary?.post_url ?? null);
 
-  const isPointInTime = false;
+  // A single-departure cancellation is a point-in-time fact, not a running
+  // disruption: no "last seen", duration, "ongoing for…" timer, or
+  // duration-ranked severity — the cancellation is already in the title + pill.
+  const cancel = cancellationInfo(incident);
+  const isPointInTime = !!cancel;
   const startIsScheduledDep = false;
 
   return (
@@ -398,16 +403,32 @@ export function EventDetail({ incident, incidents, alerts, observations, station
             via auto-detection
           </span>
         )}
-        {lifecycle.active &&
-          (isPlanned ? (
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              planned
-            </span>
-          ) : (
-            <span className="text-xs font-semibold text-red-500">ongoing</span>
-          ))}
-        {!lifecycle.active && lifecycle.resolved_ts != null && (
-          <span className="text-xs font-semibold text-green-600 dark:text-green-400">resolved</span>
+        {cancel ? (
+          <span
+            className={`text-xs font-semibold ${
+              cancel.isUpcoming
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            {cancellationStatusLabel(cancel)}
+          </span>
+        ) : (
+          <>
+            {lifecycle.active &&
+              (isPlanned ? (
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  planned
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-red-500">ongoing</span>
+              ))}
+            {!lifecycle.active && lifecycle.resolved_ts != null && (
+              <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                resolved
+              </span>
+            )}
+          </>
         )}
       </div>
 
@@ -844,7 +865,11 @@ export function EventDetail({ incident, incidents, alerts, observations, station
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm mt-4">
         <div>
           <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            {startIsScheduledDep ? 'Scheduled departure' : isPlanned ? 'Announced' : 'First seen'}
+            {startIsScheduledDep
+              ? 'Scheduled departure'
+              : isPlanned || cancel
+                ? 'Announced'
+                : 'First seen'}
           </dt>
           <dd className="text-slate-700 dark:text-slate-200">
             {formatDate(startTs)} · {formatTime(startTs)}

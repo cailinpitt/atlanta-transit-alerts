@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { typicalDurationKey } from '../lib/aggregate.js';
+import { cancellationInfo, cancellationStatusLabel } from '../lib/cancellation.js';
 import { formatDuration, formatEstimatedEnd } from '../lib/format.js';
 import {
   botSummaryText,
@@ -166,6 +167,9 @@ function ActiveCard({ incident, now, isNew, typicalDurations, stationIndex, show
   const lifecycle = incidentLifecycle(incident);
   const startTs = lifecycle.first_seen_ts;
   const elapsedText = elapsed(now, startTs);
+  // Single-departure cancellation: show its status label, not an elapsed timer —
+  // it's a point-in-time fact, not a running disruption.
+  const cancel = cancellationInfo(incident);
   // The cohort key buckets on kind + line + signal; for a nested incident that
   // comes off the primary observation (official-only incidents have no signal key).
   const typicalKey = typicalDurationKey({
@@ -241,21 +245,29 @@ function ActiveCard({ incident, now, isNew, typicalDurations, stationIndex, show
             </span>
           )}
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            {elapsedText} ongoing
-            {typicalText && (
+            {cancel ? (
+              cancellationStatusLabel(cancel)
+            ) : (
               <>
-                {' · '}
-                <span title={`Median over ${typical.count} past similar incidents (last 90 days)`}>
-                  typically {typicalText}
-                </span>
-              </>
-            )}
-            {estimatedEndText && (
-              <>
-                {' · '}
-                <span title="MARTA tagged this alert with an estimated end time when it was posted.">
-                  MARTA estimated end {estimatedEndText}
-                </span>
+                {elapsedText} ongoing
+                {typicalText && (
+                  <>
+                    {' · '}
+                    <span
+                      title={`Median over ${typical.count} past similar incidents (last 90 days)`}
+                    >
+                      typically {typicalText}
+                    </span>
+                  </>
+                )}
+                {estimatedEndText && (
+                  <>
+                    {' · '}
+                    <span title="MARTA tagged this alert with an estimated end time when it was posted.">
+                      MARTA estimated end {estimatedEndText}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </span>
@@ -312,7 +324,8 @@ const ROW_TONE = {
 function ActiveRow({ incident, now, isNew, tone = 'disruption', showAgency = false }) {
   const kind = legacyKind(incident);
   const startTs = incidentLifecycle(incident).first_seen_ts;
-  const elapsedText = elapsed(now, startTs);
+  const cancel = cancellationInfo(incident);
+  const elapsedText = cancel ? cancellationStatusLabel(cancel) : elapsed(now, startTs);
   const { descriptionText } = describeIncident(incident, null);
   const eventId = incident.id;
 

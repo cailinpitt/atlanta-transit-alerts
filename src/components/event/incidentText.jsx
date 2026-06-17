@@ -1,3 +1,4 @@
+import { cancellationInfo } from '../../lib/cancellation.js';
 import {
   botSummaryText,
   incidentHeadlineText,
@@ -24,6 +25,11 @@ export function incidentRoutes(incident) {
 // Plain-string variant of `describe` for places that can't render JSX —
 // document.title, plain text logging, etc.
 export function describeText(incident) {
+  // A single-departure cancellation carries a prebuilt structured title (e.g.
+  // "3:59 PM Blue Line departure from Indian Creek cancelled") — use it instead
+  // of MARTA's vague "Rail Service Alert for Blue Line" headline.
+  const cancel = cancellationInfo(incident);
+  if (cancel?.title) return cancel.title;
   if (officialAlert(incident)) return incidentHeadlineText(incident);
   const { primary } = splitObservations(incident);
   if (primary?.from_station && primary?.to_station) {
@@ -34,6 +40,8 @@ export function describeText(incident) {
 }
 
 export function describe(incident, stationIndex) {
+  const cancel = cancellationInfo(incident);
+  if (cancel?.title) return cancel.title;
   if (officialAlert(incident)) return incidentHeadlineText(incident);
   const { primary } = splitObservations(incident);
   if (primary?.from_station && primary?.to_station) {
