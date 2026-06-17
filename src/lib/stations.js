@@ -118,9 +118,20 @@ function compareByOfficialOrder(a, b) {
  */
 export function displayStationName(name) {
   if (!name) return '';
-  return String(name)
+  const stripped = String(name)
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim();
+  return titleCaseStation(stripped);
+}
+
+// MARTA's GTFS-derived station names arrive SHOUTED ("BANKHEAD Station"). Title-
+// case them for display — capitalize the first letter of every word, including
+// after hyphens, slashes, and `@` ("AUBURN AVE @ PIEDMONT AVE" → "Auburn Ave @
+// Piedmont Ave"). Identity/slug derive from the raw string (slugifyStation
+// lowercases), so this is purely cosmetic and never shifts which station a name
+// resolves to.
+function titleCaseStation(name) {
+  return name.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
 // Slugify a station name for use in URLs. Lowercase, collapse runs of

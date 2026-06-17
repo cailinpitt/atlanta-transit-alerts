@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
-import { buildStationIndex } from '../lib/stations.js';
+import { buildStationIndex, displayStationName } from '../lib/stations.js';
 import { isStreetcarRoute, TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -81,7 +81,7 @@ function StationList({ stations, hrefBase, moreHref, moreLabel }) {
               title={`${s.count} incident${s.count === 1 ? '' : 's'} in the last 90 days`}
               className="flex items-center justify-between gap-2 px-2 py-1 rounded text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-gh-border transition-colors"
             >
-              <span className="truncate">{s.name}</span>
+              <span className="truncate">{displayStationName(s.name)}</span>
               <span className="shrink-0 tabular-nums text-xs text-slate-400 dark:text-slate-500">
                 {s.count}
               </span>

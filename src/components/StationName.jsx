@@ -6,14 +6,23 @@ import HighlightedText from './HighlightedText.jsx';
 // incidents in the window. Falls back to plain text when the slug does not match
 // the roster.
 // When `searchQuery` is non-empty, matched substrings get wrapped in <mark>.
-export default function StationName({ name, stationIndex: _stationIndex, searchQuery = '' }) {
+// `label` overrides the rendered text while the slug still derives from `name`:
+// inline linkify passes the station name exactly as MARTA's prose wrote it
+// ("Bankhead") so the sentence reads unchanged, even though `name` is the
+// canonical "BANKHEAD Station" the slug resolves from.
+export default function StationName({
+  name,
+  label,
+  stationIndex: _stationIndex,
+  searchQuery = '',
+}) {
   if (!name) return null;
   const slug = slugifyStation(name);
   // Display drops parenthetical line qualifiers — line context is already
   // visible elsewhere on every render site that uses this component.
   // Slug still derives from the full name so qualified stations stay
   // distinct from /station/central-green.
-  const display = displayStationName(name);
+  const display = label ?? displayStationName(name);
   const inner = <HighlightedText text={display} query={searchQuery} />;
   const known = slug && isKnownStationSlug(slug);
   const href = `/station/${slug}`;

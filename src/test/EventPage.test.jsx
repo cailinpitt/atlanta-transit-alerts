@@ -424,7 +424,7 @@ describe('EventPage', () => {
     });
     expect(screen.getAllByText(/Per MARTA/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Per bot/).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Five Points Station' }).length).toBeGreaterThan(0);
   });
 
   it('renders a standalone observation by id', async () => {
@@ -464,7 +464,7 @@ describe('EventPage', () => {
       expect(screen.getByText(/police activity/)).toBeInTheDocument();
     });
     expect(screen.queryByRole('link', { name: /^Five Points Plaza$/ })).toBeNull();
-    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Five Points Station' }).length).toBeGreaterThan(0);
   });
 
   it('aggregates affected stations across all merged observations', async () => {
@@ -472,9 +472,9 @@ describe('EventPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Downtown rail service delayed')).toBeInTheDocument();
     });
-    expect(screen.getAllByRole('link', { name: 'CIVIC CENTER Station' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'ARTS CENTER Station' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'FIVE POINTS Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Civic Center Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Arts Center Station' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Five Points Station' }).length).toBeGreaterThan(0);
   });
 
   it('renders the combined multi-line map for a multi-line incident', async () => {

@@ -37,6 +37,15 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
     if (display && display !== canonical) {
       aliases.push({ alias: display, canonical });
     }
+    // MARTA's prose names a station bare ("from Bankhead to Ashby"), but the
+    // canonical roster name carries the " Station" suffix ("BANKHEAD Station").
+    // Add the suffix-stripped form so the bare mention still links. The
+    // combined regex is case-insensitive below, so SHOUTED roster casing vs
+    // title-case prose doesn't matter.
+    const bare = display.replace(/\s+Stn\.?$|\s+Station$/i, '').trim();
+    if (bare && bare !== display) {
+      aliases.push({ alias: bare, canonical });
+    }
   }
   // Longest-first so substring aliases ("Halsted") don't shadow longer ones
   // ("UIC-Halsted") that share a prefix.
@@ -62,10 +71,10 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
   // immediately followed by one of these tokens it's a place name in the
   // alert text, not a station reference, so we skip the link.
   const NON_STATION_SUFFIX =
-    '(?:River|Bridge|Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Drive|Dr|Expressway|Expy|area|neighborhood|Heights)';
+    '(?:River|Bridge|Avenue|Ave|Street|St|Boulevard|Blvd|Road|Rd|Drive|Dr|Expressway|Expy|Plaza|area|neighborhood|Heights)';
   const combined = new RegExp(
     `(?<![A-Za-z0-9])(?:${aliases.map((a) => aliasPattern(a.alias)).join('|')})(?![A-Za-z0-9])(?!\\s+${NON_STATION_SUFFIX}\\b)`,
-    'g',
+    'gi',
   );
   const parts = [];
   let cursor = 0;
@@ -77,7 +86,7 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
     const matched = m[0];
     let canonical = null;
     for (const a of aliases) {
-      if (new RegExp(`^${aliasPattern(a.alias)}$`).test(matched)) {
+      if (new RegExp(`^${aliasPattern(a.alias)}$`, 'i').test(matched)) {
         canonical = a.canonical;
         break;
       }
@@ -86,6 +95,9 @@ export function linkifyMentionedStations(text, mentions, stationIndex) {
       <StationName
         key={`${m.index}-${matched}`}
         name={canonical ?? matched}
+        // Keep MARTA's exact prose wording ("Bankhead") as the link text; the
+        // slug resolves from the canonical name, so the sentence reads unchanged.
+        label={matched}
         stationIndex={stationIndex}
       />,
     );

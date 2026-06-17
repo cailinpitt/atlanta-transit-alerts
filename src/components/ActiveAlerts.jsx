@@ -120,6 +120,13 @@ const ACTIVE_CARD_PILL_LIMIT = 4;
 // the compact row can fall back to when stations are missing (compact rows
 // are single-line, no nested links).
 function describeIncident(incident, stationIndex) {
+  // A single-departure cancellation ships a structured title — prefer it over
+  // MARTA's vague "Rail Service Alert for …" headline, same as the event page
+  // and incident list.
+  const cancel = cancellationInfo(incident);
+  if (cancel?.title) {
+    return { description: cancel.title, descriptionText: cancel.title };
+  }
   if (officialAlert(incident)) {
     const headline = incidentHeadlineText(incident);
     return { description: headline, descriptionText: headline };

@@ -94,8 +94,8 @@ const busPeer = incident({
 describe('RelatedIncidents', () => {
   it('shows related incidents on the same rail line', () => {
     render(<RelatedIncidents incident={parent} incidents={[parent, related, busRelated]} />);
-    expect(screen.getByText('ARTS CENTER Station')).toBeInTheDocument();
-    expect(screen.getByText('CIVIC CENTER Station')).toBeInTheDocument();
+    expect(screen.getByText('Arts Center Station')).toBeInTheDocument();
+    expect(screen.getByText('Civic Center Station')).toBeInTheDocument();
     expect(screen.queryByText('Route 66 detour')).not.toBeInTheDocument();
   });
 

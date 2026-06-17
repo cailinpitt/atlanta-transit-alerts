@@ -100,13 +100,41 @@ describe('IncidentList', () => {
 
   it('shows the station segment for a merged incident', () => {
     render(<IncidentList incidents={[mergedInc()]} />);
-    expect(screen.getByText('CIVIC CENTER Station')).toBeInTheDocument();
-    expect(screen.getByText('FIVE POINTS Station')).toBeInTheDocument();
+    expect(screen.getByText('Civic Center Station')).toBeInTheDocument();
+    expect(screen.getByText('Five Points Station')).toBeInTheDocument();
   });
 
   it('shows "ongoing" badge for active incidents', () => {
     render(<IncidentList incidents={[alertInc({ resolved_ts: null, active: true })]} />);
     expect(screen.getByText('ongoing')).toBeInTheDocument();
+  });
+
+  it('uses the cancellation title and badge for a single-departure cancellation', () => {
+    const cancelInc = alertInc({
+      id: 'cancel1',
+      routes: ['gold'],
+      official: {
+        alert_id: 'a-cancel',
+        headline: 'Rail Service Alert for Gold Line',
+        post_url: 'https://bsky.app/alert',
+        first_seen_ts: NOW - 60 * 60_000,
+      },
+      cancellation: {
+        state: 'cancelled',
+        line: 'Gold',
+        origin: 'Doraville',
+        scheduled_departure_ts: NOW - 65 * 60_000,
+        title: '11:41 AM Gold Line departure from Doraville cancelled',
+      },
+    });
+    render(<IncidentList incidents={[cancelInc]} />);
+    // Title prefers the structured cancellation phrase over MARTA's vague headline.
+    expect(
+      screen.getByText('11:41 AM Gold Line departure from Doraville cancelled'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Rail Service Alert for Gold Line')).not.toBeInTheDocument();
+    // And the right-hand badge reads "cancelled", not "ongoing".
+    expect(screen.getByText('cancelled')).toBeInTheDocument();
   });
 
   it('keeps plain durations in the metadata line, not the right-side badge column', () => {

@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { cancellationInfo, cancellationStatusLabel } from '../lib/cancellation.js';
 import { buildCsv } from '../lib/csv.js';
 import {
   atlantaDayUTC,
@@ -125,7 +126,14 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
   // pulse-cold posts on opposite directions of the same line read as distinct
   // at a glance instead of looking identical.
   const directionLabel = primary?.direction_label ?? null;
-  if (official) {
+  // A single-departure cancellation ships a prebuilt structured title (e.g.
+  // "11:41 AM Gold Line departure from Doraville cancelled"). Prefer it over
+  // MARTA's vague "Rail Service Alert for Gold Line" headline — same as the
+  // event page's `describe()`, so the list and the event page agree.
+  const cancel = cancellationInfo(incident);
+  if (cancel?.title) {
+    description = <HighlightedText text={cancel.title} query={searchQuery} />;
+  } else if (official) {
     description = <HighlightedText text={incidentHeadlineText(incident)} query={searchQuery} />;
   } else if (obsFrom && obsTo) {
     description = (
@@ -162,7 +170,20 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
         : null
     : null;
 
-  const statusBadge = lifecycle.active ? (
+  // Cancellation badge takes precedence over the live "ongoing" pill — a
+  // cancelled departure is a point-in-time fact, not a running disruption.
+  // Mirrors EventDetail's badge so the list and event page read the same.
+  const statusBadge = cancel ? (
+    <span
+      className={`text-xs font-semibold ${
+        cancel.isUpcoming
+          ? 'text-amber-600 dark:text-amber-400'
+          : 'text-slate-500 dark:text-slate-400'
+      }`}
+    >
+      {cancellationStatusLabel(cancel)}
+    </span>
+  ) : lifecycle.active ? (
     <span className="text-xs font-semibold text-red-500">ongoing</span>
   ) : null;
 
