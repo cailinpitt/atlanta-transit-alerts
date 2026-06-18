@@ -162,6 +162,17 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
     description = <HighlightedText text={botSummaryText(incident)} query={searchQuery} />;
   }
 
+  // Pure official train alert: surface the affected station segment as a
+  // "Bankhead → Ashby" subtitle — the same treatment merged/bot train events
+  // get. The descriptive title now carries the line + nature, so this adds the
+  // WHERE without the rider opening the event. Skipped for cancellations (their
+  // title already names the origin) and bus alerts (from/to are cross-streets,
+  // not stations).
+  const alertSegment =
+    isAlert && kind === 'train' && !cancel
+      ? (affectedLineSegments(incident).find((s) => s.from && s.to) ?? null)
+      : null;
+
   const durationDetail = !lifecycle.active
     ? duration
       ? `${duration} duration`
@@ -335,6 +346,25 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
                 searchQuery={searchQuery}
               />
               {directionLabel && <span className="ml-1.5">({directionLabel})</span>}
+            </p>
+          )}
+
+          {/* Pure official train alert: the affected station segment as a subtitle. */}
+          {alertSegment && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <StationName
+                name={alertSegment.from}
+                kind={kind}
+                stationIndex={stationIndex}
+                searchQuery={searchQuery}
+              />{' '}
+              →{' '}
+              <StationName
+                name={alertSegment.to}
+                kind={kind}
+                stationIndex={stationIndex}
+                searchQuery={searchQuery}
+              />
             </p>
           )}
 

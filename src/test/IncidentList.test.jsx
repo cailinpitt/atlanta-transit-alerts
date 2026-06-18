@@ -104,6 +104,22 @@ describe('IncidentList', () => {
     expect(screen.getByText('Five Points Station')).toBeInTheDocument();
   });
 
+  it('shows the affected station segment as a subtitle for a pure official train alert', () => {
+    const seg = alertInc({
+      official: {
+        alert_id: 'a1',
+        headline: 'Green Line partial service',
+        post_url: 'https://bsky.app/alert',
+        first_seen_ts: NOW - 60 * 60_000,
+        from_station: 'BANKHEAD Station',
+        to_station: 'ASHBY Station',
+      },
+    });
+    render(<IncidentList incidents={[seg]} />);
+    expect(screen.getByText('Bankhead Station')).toBeInTheDocument();
+    expect(screen.getByText('Ashby Station')).toBeInTheDocument();
+  });
+
   it('shows "ongoing" badge for active incidents', () => {
     render(<IncidentList incidents={[alertInc({ resolved_ts: null, active: true })]} />);
     expect(screen.getByText('ongoing')).toBeInTheDocument();
