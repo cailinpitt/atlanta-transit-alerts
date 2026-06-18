@@ -428,10 +428,25 @@ export function isPlannedIncident(incident, now = Date.now()) {
 }
 
 /**
+ * True when an incident is a producer-classified "delays" event — drives the
+ * amber "Delays" badge, the MARTA analog of CTA's Metra delay status. The
+ * classification lives upstream in atlanta-transit-insights (export-web.js): an
+ * incident carries `status.type === 'delay'` when an official MARTA alert reports
+ * delays or a bot headway gap is present. The frontend stays a dumb renderer.
+ * @param {Incident} incident
+ * @returns {boolean}
+ */
+export function isDelayIncident(incident) {
+  return incident?.status?.type === 'delay';
+}
+
+/**
  * Three-way bucket for the homepage's active list:
  *   'planned'    — scheduled / advance-notice work (see {@link isPlannedIncident})
- *   'delay'      — reserved for future point-delay events
- *   'disruption' — everything else live (gaps, ghosts, and
+ *   'delay'      — a producer-classified delay (see {@link isDelayIncident}):
+ *                  an official MARTA delays alert or a bot headway gap. Routed to
+ *                  the calmer amber "Delays" band, below the red disruptions.
+ *   'disruption' — everything else live (suspensions, ghosts, bunching, and
  *                  reroutes without a fixed window)
  * @param {Incident} incident
  * @param {number} now
@@ -439,6 +454,7 @@ export function isPlannedIncident(incident, now = Date.now()) {
  */
 export function incidentCategory(incident, now = Date.now()) {
   if (isPlannedIncident(incident, now)) return 'planned';
+  if (isDelayIncident(incident)) return 'delay';
   return 'disruption';
 }
 

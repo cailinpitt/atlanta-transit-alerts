@@ -7,10 +7,12 @@ import {
   formatRoutesLabel,
   incidentDetections,
   incidentLifecycle,
+  isDelayIncident,
   isPlannedIncident,
   legacyKind,
   officialAlert,
 } from '../../lib/incidents.js';
+import DelaysBadge from '../DelaysBadge.jsx';
 import LinePill from '../LinePill.jsx';
 import { describe, incidentRoutes } from './incidentText.jsx';
 
@@ -68,6 +70,7 @@ function ContextRow({ other, stationIndex, showLinePill }) {
             {lifecycle.active && !planned && (
               <span className="text-xs font-semibold text-red-500">ongoing</span>
             )}
+            {isDelayIncident(other) && <DelaysBadge />}
           </div>
           <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">
             {describe(other, stationIndex)}

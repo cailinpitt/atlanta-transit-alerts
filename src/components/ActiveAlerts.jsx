@@ -8,6 +8,7 @@ import {
   incidentCategory,
   incidentHeadlineText,
   incidentLifecycle,
+  isDelayIncident,
   legacyKind,
   modeLabel,
   officialAlert,
@@ -15,6 +16,7 @@ import {
 } from '../lib/incidents.js';
 import { displayStationName } from '../lib/stations.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
+import DelaysBadge from './DelaysBadge.jsx';
 import LinePill from './LinePill.jsx';
 import ShareLink from './ShareLink.jsx';
 import StationName from './StationName.jsx';
@@ -251,6 +253,7 @@ function ActiveCard({ incident, now, isNew, typicalDurations, stationIndex, show
               +{desktopOverflow}
             </span>
           )}
+          {isDelayIncident(incident) && !cancel && <DelaysBadge />}
           <span className="text-xs text-slate-500 dark:text-slate-400">
             {cancel ? (
               cancellationStatusLabel(cancel)

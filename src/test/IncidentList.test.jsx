@@ -125,6 +125,21 @@ describe('IncidentList', () => {
     expect(screen.getByText('ongoing')).toBeInTheDocument();
   });
 
+  it('shows the Delays badge for a delay-status incident, alongside ongoing', () => {
+    render(
+      <IncidentList
+        incidents={[alertInc({ resolved_ts: null, active: true, status: { type: 'delay' } })]}
+      />,
+    );
+    expect(screen.getByText('Delays')).toBeInTheDocument();
+    expect(screen.getByText('ongoing')).toBeInTheDocument();
+  });
+
+  it('does not show the Delays badge when there is no delay status', () => {
+    render(<IncidentList incidents={[alertInc()]} />);
+    expect(screen.queryByText('Delays')).not.toBeInTheDocument();
+  });
+
   it('uses the cancellation title and badge for a single-departure cancellation', () => {
     const cancelInc = alertInc({
       id: 'cancel1',

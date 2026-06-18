@@ -2,6 +2,15 @@
 
 This changelog tracks public data-shape changes for the Atlanta Transit Alerts website and API.
 
+## 2026-06-18 - Incident delay status
+
+- `incidents[].status` may now be `{ "type": "delay" }`, joining the existing
+  `{ "type": "cancellation", ... }`. It is set when an official MARTA alert
+  reports delays (effect `SIGNIFICANT_DELAYS` or "delay" wording) OR a paired bot
+  detection is a headway gap. A cancellation status takes precedence.
+- `status` is omitted (absent) when an incident is neither a delay nor a
+  cancellation. Consumers should treat a missing `status` as "no special status".
+
 ## 2026-06-18 - Descriptive official-alert headlines
 
 - `incidents[].official_alert.headline` is now a synthesized, scannable name

@@ -16,10 +16,12 @@ import {
   formatEvidenceChip,
   incidentHeadlineText,
   incidentLifecycle,
+  isDelayIncident,
   legacyKind,
   officialAlert,
   splitObservations,
 } from '../lib/incidents.js';
+import DelaysBadge from './DelaysBadge.jsx';
 import HighlightedText from './HighlightedText.jsx';
 import LinePill from './LinePill.jsx';
 import OfficialBadge from './OfficialBadge.jsx';
@@ -197,6 +199,11 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
   ) : lifecycle.active ? (
     <span className="text-xs font-semibold text-red-500">ongoing</span>
   ) : null;
+
+  // Producer-classified "delays" badge — shown additively, alongside the
+  // "ongoing" pill (active) or duration (resolved). Suppressed for
+  // cancellations, which carry their own terminal badge.
+  const showDelay = isDelayIncident(incident) && !cancel;
 
   return (
     <div
@@ -447,8 +454,11 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
             vertical line, regardless of how long the left-side attribution
             text runs. Non-interactive, so clicks fall through to the row's
             overlay link. */}
-        {statusBadge && (
-          <div className="flex-shrink-0 text-right whitespace-nowrap">{statusBadge}</div>
+        {(showDelay || statusBadge) && (
+          <div className="flex-shrink-0 text-right whitespace-nowrap flex items-center justify-end gap-2">
+            {showDelay && <DelaysBadge />}
+            {statusBadge}
+          </div>
         )}
       </div>
     </div>

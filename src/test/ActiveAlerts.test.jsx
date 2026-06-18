@@ -83,6 +83,38 @@ describe('ActiveAlerts', () => {
     expect(screen.getByText('Gold Line planned service change')).toBeInTheDocument();
   });
 
+  it('routes a delay-status incident into the amber Delays band', () => {
+    render(
+      <ActiveAlerts
+        incidents={[
+          activeInc({
+            id: 'dl1',
+            status: { type: 'delay' },
+            official: {
+              headline: 'Red/Gold Line delays',
+              post_url: 'https://bsky.app/profile/x/post/dl1',
+            },
+          }),
+          activeInc({
+            id: 'd1',
+            official: {
+              headline: 'Blue Line suspended',
+              post_url: 'https://bsky.app/profile/x/post/d1',
+            },
+          }),
+        ]}
+        now={NOW}
+        typicalDurations={null}
+        stationIndex={null}
+      />,
+    );
+    // The amber Delays band exists, distinct from the red Disruptions band.
+    expect(screen.getByText(/^Delays$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Disruptions$/)).toBeInTheDocument();
+    expect(screen.getByText('Red/Gold Line delays')).toBeInTheDocument();
+    expect(screen.getByText('Blue Line suspended')).toBeInTheDocument();
+  });
+
   it('keeps the first two incidents as full cards and collapses the rest to compact rows', () => {
     render(
       <ActiveAlerts
