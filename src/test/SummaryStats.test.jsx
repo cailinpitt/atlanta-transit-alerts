@@ -50,6 +50,18 @@ describe('SummaryStats', () => {
     expect(screen.getAllByText(/most affected \(last 30 days\)/i).length).toBeGreaterThan(0);
   });
 
+  it('links the most-affected and quietest line names to their pages', () => {
+    render(<SummaryStats {...baseProps} />);
+    expect(screen.getAllByRole('link', { name: /Red Line/ })[0]).toHaveAttribute(
+      'href',
+      '/line/red',
+    );
+    expect(screen.getAllByRole('link', { name: /Streetcar Line/ })[0]).toHaveAttribute(
+      'href',
+      '/line/streetcar',
+    );
+  });
+
   it('renders an "all clear" active label when nothing is active', () => {
     render(<SummaryStats {...baseProps} activeCount={0} showActive />);
     expect(screen.getAllByText(/all clear/i).length).toBeGreaterThan(0);

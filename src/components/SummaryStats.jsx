@@ -74,16 +74,20 @@ export default function SummaryStats({
     const info = TRAIN_LINES[mostAffectedId];
     affectedPhrase = (
       <>
-        <strong style={{ color: info.color }}>{info.label} Line</strong> most affected (last 30
-        days)
+        <a href={`/line/${mostAffectedId}`} className="hover:underline">
+          <strong style={{ color: info.color }}>{info.label} Line</strong>
+        </a>{' '}
+        most affected (last 30 days)
       </>
     );
   } else if (mostAffectedKind === 'bus') {
     affectedPhrase = (
       <>
-        <strong className="text-slate-800 dark:text-slate-100">
-          {formatBusRoute(mostAffectedId)}
-        </strong>{' '}
+        <a href={`/route/${mostAffectedId}`} className="hover:underline">
+          <strong className="text-slate-800 dark:text-slate-100">
+            {formatBusRoute(mostAffectedId)}
+          </strong>
+        </a>{' '}
         most affected (last 30 days)
       </>
     );
@@ -115,8 +119,10 @@ export default function SummaryStats({
     const info = TRAIN_LINES[quietestLineId];
     quietestPhrase = (
       <>
-        <strong style={{ color: info.color }}>{info.label} Line</strong> quietest:{' '}
-        {quietestLineDays} days since last incident
+        <a href={`/line/${quietestLineId}`} className="hover:underline">
+          <strong style={{ color: info.color }}>{info.label} Line</strong>
+        </a>{' '}
+        quietest: {quietestLineDays} days since last incident
       </>
     );
   }
