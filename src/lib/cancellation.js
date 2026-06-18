@@ -49,6 +49,34 @@ export function cancellationStatusLabel(info) {
 }
 
 /**
+ * The upcoming (announced-but-not-yet-departed) single-departure cancellations
+ * in a set of incidents, soonest first. Filtered to departures still ahead of
+ * `now` (an 'upcoming' whose time has passed is finalizing server-side; don't
+ * surface it as still-upcoming). Each entry is flattened for direct rendering.
+ *
+ * MARTA analog of cta-alert-history's `collectUpcomingCancellations`. MARTA gives
+ * us only prose, so there's no train-number concept — the line key comes from the
+ * incident's normalized `routes` (lowercase, e.g. `red`) for pill lookup, and the
+ * status block carries the parsed departure time + origin.
+ * @returns {Array<{id:string,line:string|null,departureTs:number,origin:string|null,title:string|null}>}
+ */
+export function collectUpcomingCancellations(incidents, { now = Date.now() } = {}) {
+  const out = [];
+  for (const inc of incidents || []) {
+    const info = cancellationInfo(inc);
+    if (!info?.isUpcoming || info.departureTs == null || info.departureTs <= now) continue;
+    out.push({
+      id: inc.id,
+      line: Array.isArray(inc.routes) ? (inc.routes[0] ?? null) : null,
+      departureTs: info.departureTs,
+      origin: info.origin,
+      title: info.title,
+    });
+  }
+  return out.sort((a, b) => a.departureTs - b.departureTs);
+}
+
+/**
  * Rider-facing scheduled-departure phrase, e.g. "3:59 PM departure". Null when
  * no scheduled time is known.
  */

@@ -3,10 +3,12 @@ import {
   cancellationInfo,
   cancellationSchedulePhrase,
   cancellationStatusLabel,
+  collectUpcomingCancellations,
 } from '../lib/cancellation.js';
 
 // 3:59 PM ET on 2026-06-17 (DST, UTC-4) ≈ this ms.
 const DEP_TS = Date.UTC(2026, 5, 17, 19, 59, 0);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const cancelledIncident = {
   id: 'rk1',
@@ -71,5 +73,50 @@ describe('labels', () => {
     const phrase = cancellationSchedulePhrase(cancellationInfo(cancelledIncident));
     expect(phrase).toMatch(/departure$/);
     expect(phrase).toMatch(/3:59/);
+  });
+});
+
+describe('collectUpcomingCancellations', () => {
+  const upcoming = (id, departureTs, extra = {}) => ({
+    id,
+    routes: ['red'],
+    status: {
+      type: 'cancellation',
+      state: 'upcoming',
+      scheduled_departure_ts: departureTs,
+      origin: 'Airport',
+      line: 'Red',
+      title: `${id} cancelled`,
+      ...extra,
+    },
+  });
+
+  it('returns upcoming departures still ahead of now, soonest first', () => {
+    const now = DEP_TS;
+    const items = collectUpcomingCancellations(
+      [upcoming('b', now + 30 * 60_000), upcoming('a', now + 10 * 60_000)],
+      { now },
+    );
+    expect(items.map((i) => i.id)).toEqual(['a', 'b']);
+    expect(items[0]).toMatchObject({
+      line: 'red',
+      origin: 'Airport',
+      departureTs: now + 10 * 60_000,
+    });
+  });
+
+  it('drops departures whose scheduled time has already passed', () => {
+    const now = DEP_TS;
+    const items = collectUpcomingCancellations([upcoming('past', now - 60_000)], { now });
+    expect(items).toEqual([]);
+  });
+
+  it('ignores already-cancelled and non-cancellation incidents', () => {
+    const now = DEP_TS;
+    const items = collectUpcomingCancellations(
+      [cancelledIncident, { id: 'plain', routes: ['red'], status: { type: 'delay' } }],
+      { now: now - DAY_MS },
+    );
+    expect(items).toEqual([]);
   });
 });

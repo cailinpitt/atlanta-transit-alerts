@@ -10,6 +10,7 @@ import {
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
+import { cancellationInfo } from '../lib/cancellation.js';
 import { dataUrl } from '../lib/dataSource.js';
 import { atlantaDayUTC, formatAtlantaDay, formatMinutesAsHours } from '../lib/format.js';
 import {
@@ -29,6 +30,7 @@ import Header from './Header.jsx';
 import HourOfWeekHeatmap from './HourOfWeekHeatmap.jsx';
 import IncidentList from './IncidentList.jsx';
 import { LONG_RUNNING_THRESHOLD_MS } from './LongRunningBanner.jsx';
+import MartaUpcomingCancellations from './MartaUpcomingCancellations.jsx';
 import TrendSparkline from './TrendSparkline.jsx';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -441,6 +443,9 @@ export default function SystemHealthPage({ kind }) {
     const recent = [];
     const longRunning = [];
     for (const i of activeIncidents) {
+      // Upcoming single-departure cancellations get their own forward-looking
+      // strip, not the "active disruptions" cards or the long-running framing.
+      if (cancellationInfo(i)) continue;
       const startTs = incidentLifecycle(i).first_seen_ts;
       if (startTs != null && now - startTs >= LONG_RUNNING_THRESHOLD_MS) longRunning.push(i);
       else recent.push(i);
@@ -566,6 +571,10 @@ export default function SystemHealthPage({ kind }) {
 
         {data && (
           <>
+            {kind === 'train' && (
+              <MartaUpcomingCancellations incidents={modeIncidents} now={now} showLine />
+            )}
+
             {(recentActive.length > 0 || longRunningActive.length > 0) && (
               <ActiveAlerts
                 incidents={recentActive}
