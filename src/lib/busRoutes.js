@@ -1,5 +1,9 @@
 // MARTA bus route display names, keyed by the public route_short_name used in alerts and realtime data.
-// Generated from data/marta/gtfs/routes.txt.
+// Generated from data/marta/gtfs/routes.txt — EXCEPT the Atlanta Streetcar
+// (route_short_name "ATLSC", route_type 0/tram), which is intentionally omitted:
+// it's modeled as a rail line (`streetcar` in trainLines.js → /line/streetcar),
+// not a bus route, so it must not appear here or it'd resurface a /route/ATLSC
+// page + feed. Do not re-add it on a GTFS regeneration.
 export const BUS_ROUTE_NAMES = {
   1: 'Joseph E. Lowery Blvd / 17th St',
   2: 'Donald Lee Hollowell/Ponce de Leon',
@@ -81,7 +85,9 @@ export const BUS_ROUTE_NAMES = {
   197: 'Battle Creek Road',
   198: 'Southlake Parkway',
   800: 'Lovejoy',
-  ATLSC: 'Atlanta Streetcar',
+  // Rapid A Line — MARTA's BRT (GTFS route_short_name "A", route_type 3). It's a
+  // bus, not the streetcar, so it lives here. Non-numeric key sorts last.
+  A: 'Rapid A Line',
 };
 
 /**
@@ -100,16 +106,15 @@ export function busRouteName(routeId) {
  */
 export function formatBusRoute(routeId) {
   const name = busRouteName(routeId);
-  const upper = String(routeId).toUpperCase();
-  const prefix = upper === 'ATLSC' || upper === 'A' ? 'Streetcar' : `#${routeId}`;
+  const prefix = `#${routeId}`;
   return name ? `${prefix} ${name}` : prefix;
 }
 
 export function compareBusRoutes(a, b) {
   const sa = String(a);
   const sb = String(b);
-  if (sa.toUpperCase() === 'ATLSC' || sa.toUpperCase() === 'A') return 1;
-  if (sb.toUpperCase() === 'ATLSC' || sb.toUpperCase() === 'A') return -1;
+  // Numeric routes sort numerically; non-numeric keys (e.g. "A") fall through
+  // the NaN handling below and sort to the end.
   const ma = sa.match(/\d+/);
   const mb = sb.match(/\d+/);
   const na = ma ? parseInt(ma[0], 10) : Number.NaN;

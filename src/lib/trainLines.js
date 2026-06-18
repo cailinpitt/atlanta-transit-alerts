@@ -12,9 +12,12 @@ export const TRAIN_LINES = {
 // Order determines row order in the timeline grid.
 export const TRAIN_LINE_ORDER = ['blue', 'gold', 'green', 'red', 'streetcar'];
 
+// Streetcar is keyed only by its real identifiers (ATLSC/SC → `streetcar`).
+// Route "A" is deliberately NOT mapped here: it's the Rapid A Line BRT
+// (GTFS route_type 3, a bus — see busRoutes.js), not the streetcar. Mapping it
+// to `streetcar` previously misrendered Rapid A as a rail line and hid it from
+// the bus roster.
 const LINE_ALIAS = {
-  A: 'streetcar',
-  a: 'streetcar',
   BLUE: 'blue',
   GOLD: 'gold',
   GREEN: 'green',

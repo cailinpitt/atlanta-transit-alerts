@@ -75,8 +75,12 @@ describe('legacyKind', () => {
     expect(legacyKind(v2Incident({ mode: 'streetcar', routes: ['streetcar'] }))).toBe('train');
   });
 
-  it('treats MARTA route A as streetcar even when the feed mode is bus', () => {
-    expect(legacyKind(v2Incident({ kind: 'bus', mode: 'bus', routes: ['A'] }))).toBe('train');
+  it('treats MARTA route A (Rapid A Line BRT) as a bus, not the streetcar', () => {
+    expect(legacyKind(v2Incident({ kind: 'bus', mode: 'bus', routes: ['A'] }))).toBe('bus');
+  });
+
+  it('reclassifies a genuinely-streetcar route mislabeled as bus mode to train', () => {
+    expect(legacyKind(v2Incident({ kind: 'bus', mode: 'bus', routes: ['ATLSC'] }))).toBe('train');
   });
 });
 

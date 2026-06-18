@@ -16,7 +16,7 @@ describe('BrowseMenu', () => {
       'href',
       '/routes',
     );
+    // The streetcar is a rail line, not a bus route — it must never appear here.
     expect(within(menu).queryByRole('menuitem', { name: '#ATLSC' })).toBeNull();
-    expect(within(menu).queryByRole('menuitem', { name: '#A' })).toBeNull();
   });
 });

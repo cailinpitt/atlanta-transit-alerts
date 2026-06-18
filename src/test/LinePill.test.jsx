@@ -12,11 +12,11 @@ describe('LinePill', () => {
     expect(screen.queryByText('RED')).toBeNull();
   });
 
-  it('renders MARTA route A as the Atlanta Streetcar line', () => {
-    render(<LinePill kind="train" routes={['A']} />);
+  it('renders MARTA route A as a bus route, not the streetcar', () => {
+    render(<LinePill kind="bus" routes={['A']} />);
 
-    const link = screen.getByRole('link', { name: 'Streetcar' });
-    expect(link).toHaveAttribute('href', '/line/streetcar');
-    expect(screen.queryByText('#A')).toBeNull();
+    const link = screen.getByRole('link', { name: '#A Rapid A Line' });
+    expect(link).toHaveAttribute('href', '/route/A');
+    expect(screen.queryByText('Streetcar')).toBeNull();
   });
 });
