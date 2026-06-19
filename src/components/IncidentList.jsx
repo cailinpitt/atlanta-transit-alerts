@@ -175,7 +175,8 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
       ? (affectedLineSegments(incident).find((s) => s.from && s.to) ?? null)
       : null;
 
-  const durationDetail = !lifecycle.active
+  const cancel = cancellationInfo(incident);
+  const durationDetail = !lifecycle.active && !cancel
     ? duration
       ? `${duration} duration`
       : !endTs
