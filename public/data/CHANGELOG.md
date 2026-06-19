@@ -2,6 +2,23 @@
 
 This changelog tracks public data-shape changes for the Atlanta Transit Alerts website and API.
 
+## 2026-06-19 - Rail dead-segment ("pulse") detections
+
+- Rail bot detections gain a new `detections[].source` value: `pulse-cold`. It
+  marks a stretch of track between two stations that no train passed through for
+  longer than the schedule allows (a dead/suspended segment), as inferred from
+  live train positions. These appear as standalone incidents (`sources: ["bot"]`,
+  `mode: "rail"`), paired with their `observed-clear` resolution the same way the
+  existing bus `pulse-cold` and `thin-gap` route-silence incidents are.
+- For these rail detections, `detections[].scope.near_stop` carries the affected
+  segment as `"<from> ↔ <to>"` (e.g. `"Lenox ↔ Chamblee"`); it remains `null`
+  for detections that aren't segment-scoped. `detections[].evidence.details`
+  carries the canonical (slug-matching) `from`/`to` station names plus
+  `coldStations`, `headwayMin`, `minutesSinceLastTrain`, and `expectedTrains`.
+- `description` reads e.g. `Gold Line trains not moving between Lenox and
+  Chamblee` (or `… trains stuck between …` when trains are held in place, or
+  `… no trains running` for a whole-line blackout).
+
 ## 2026-06-18 - Incident delay status
 
 - `incidents[].status` may now be `{ "type": "delay" }`, joining the existing
