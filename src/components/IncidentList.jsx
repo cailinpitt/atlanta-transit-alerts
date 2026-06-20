@@ -177,13 +177,14 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
       ? (affectedLineSegments(incident).find((s) => s.from && s.to) ?? null)
       : null;
 
-  const durationDetail = !lifecycle.active && !cancel
-    ? duration
-      ? `${duration} duration`
-      : !endTs
-        ? 'duration unknown'
-        : null
-    : null;
+  const durationDetail =
+    !lifecycle.active && !cancel
+      ? duration
+        ? `${duration} duration`
+        : !endTs
+          ? 'duration unknown'
+          : null
+      : null;
 
   // Cancellation badge takes precedence over the live "ongoing" pill — a
   // cancelled departure is a point-in-time fact, not a running disruption.
