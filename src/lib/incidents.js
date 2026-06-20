@@ -242,7 +242,15 @@ export function officialRecordFromIncident(inc) {
 // Order is the display order. Aligns with the alert-bot pipeline's pulse
 // subtypes: an observation's detection_source is one of these (or 'roundup',
 // in which case the precise signal kinds live in `signals`).
-export const SIGNAL_TYPES = ['gap', 'bunching', 'ghost', 'pulse-cold', 'pulse-held', 'thin-gap'];
+export const SIGNAL_TYPES = [
+  'gap',
+  'bunching',
+  'ghost',
+  'cancellation',
+  'pulse-cold',
+  'pulse-held',
+  'thin-gap',
+];
 
 // Source categories for the filter chip. Each incident falls into exactly
 // one bucket after `groupIncidentRecords` runs:
@@ -263,6 +271,9 @@ export const SIGNAL_LABELS = {
   gap: 'headway gaps',
   bunching: 'bunching',
   ghost: 'missing vehicles',
+  // cancellation fires when a single bus route sheds a large share of its
+  // scheduled service to MARTA-announced trip cancellations in one window.
+  cancellation: 'trips canceled',
   'pulse-cold': 'stretch without trains',
   'pulse-held': 'trains held in place',
   // thin-gap fires when a low-frequency bus route has zero observations for a
@@ -280,6 +291,7 @@ const SIGNAL_IMPACT = {
   gap: () => 'long gaps',
   bunching: (v) => `bunched ${v}`,
   ghost: (v) => `fewer ${v}`,
+  cancellation: () => 'canceled trips',
   'pulse-cold': (v) => `stretch without ${v}`,
   'pulse-held': (v) => `${v} held in place`,
   'thin-gap': () => 'route not running',

@@ -10,6 +10,7 @@ const SIGNAL_COLORS = {
   gap: '#0ea5e9', // sky-500
   bunching: '#f97316', // orange-500
   ghost: '#6366f1', // indigo-500
+  cancellation: '#ef4444', // red-500 — service removed outright, the most severe cut
   'pulse-cold': '#94a3b8', // slate-400
   'pulse-held': '#64748b', // slate-500
   'thin-gap': '#8b5cf6', // violet-500 — most extreme absence (whole route silent)
