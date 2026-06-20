@@ -12,7 +12,7 @@ import {
   formatDuration,
   formatWeekRange,
 } from '../lib/format.js';
-import { incidentLifecycle, incidentRecords } from '../lib/incidents.js';
+import { incidentLifecycle, incidentRecords, isWebsiteIncident } from '../lib/incidents.js';
 import { buildStationIndex } from '../lib/stations.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import { dayStringToUtc } from '../lib/urlState.js';
