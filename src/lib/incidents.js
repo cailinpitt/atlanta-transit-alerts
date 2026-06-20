@@ -428,6 +428,21 @@ export function isPlannedIncident(incident, now = Date.now()) {
 }
 
 /**
+ * True when an incident is a producer-classified route detour — drives the blue
+ * "Detour" badge and lifts the incident into the homepage's collapsed "Detours"
+ * band. MARTA posts these in bulk, so on a normal day they would swamp the live
+ * disruptions. Like the delays status, the classification lives upstream in
+ * atlanta-transit-insights (export-web.js): an incident carries
+ * `status.type === 'detour'` when an official MARTA alert's nature is a detour.
+ * The frontend stays a dumb renderer.
+ * @param {Incident} incident
+ * @returns {boolean}
+ */
+export function isDetourIncident(incident) {
+  return incident?.status?.type === 'detour';
+}
+
+/**
  * True when an incident is a producer-classified "delays" event — drives the
  * amber "Delays" badge, the MARTA analog of CTA's Metra delay status. The
  * classification lives upstream in atlanta-transit-insights (export-web.js): an
@@ -441,19 +456,24 @@ export function isDelayIncident(incident) {
 }
 
 /**
- * Three-way bucket for the homepage's active list:
+ * Four-way bucket for the homepage's active list:
  *   'planned'    — scheduled / advance-notice work (see {@link isPlannedIncident})
+ *   'detour'     — an official MARTA route detour (see {@link isDetourIncident}):
+ *                  numerous and low-urgency, routed to a collapsed "Detours" band.
  *   'delay'      — a producer-classified delay (see {@link isDelayIncident}):
  *                  an official MARTA delays alert or a bot headway gap. Routed to
  *                  the calmer amber "Delays" band, below the red disruptions.
  *   'disruption' — everything else live (suspensions, ghosts, bunching, and
  *                  reroutes without a fixed window)
+ * Planned is checked first so a detour posted as advance notice still lands in
+ * "Planned & scheduled" rather than the live Detours band.
  * @param {Incident} incident
  * @param {number} now
- * @returns {'planned'|'delay'|'disruption'}
+ * @returns {'planned'|'detour'|'delay'|'disruption'}
  */
 export function incidentCategory(incident, now = Date.now()) {
   if (isPlannedIncident(incident, now)) return 'planned';
+  if (isDetourIncident(incident)) return 'detour';
   if (isDelayIncident(incident)) return 'delay';
   return 'disruption';
 }

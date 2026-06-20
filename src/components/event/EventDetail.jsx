@@ -23,6 +23,7 @@ import {
   incidentLifecycle,
   incidentRecords,
   isDelayIncident,
+  isDetourIncident,
   isPlannedIncident,
   legacyKind,
   officialAlert,
@@ -31,6 +32,7 @@ import {
 } from '../../lib/incidents.js';
 import { stationsServingLines } from '../../lib/stations.js';
 import DelaysBadge from '../DelaysBadge.jsx';
+import DetourBadge from '../DetourBadge.jsx';
 import EventMap from '../EventMap.jsx';
 import EventReplay from '../EventReplay.jsx';
 import LinePill from '../LinePill.jsx';
@@ -435,6 +437,7 @@ export function EventDetail({ incident, incidents, alerts, observations, station
         {/* Producer-classified "delays" badge — additive, alongside the
             ongoing/resolved status (suppressed for cancellations). */}
         {isDelayIncident(incident) && !cancel && <DelaysBadge />}
+        {isDetourIncident(incident) && !cancel && <DetourBadge />}
       </div>
 
       {/* Severity badges — "was this a bad one?" at a glance. The line-wide

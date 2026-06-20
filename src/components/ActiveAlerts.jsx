@@ -329,6 +329,8 @@ const ROW_TONE = {
   disruption: 'border-red-200 dark:border-red-900 hover:border-red-300 dark:hover:border-red-800',
   delay:
     'border-amber-200 dark:border-amber-900/60 hover:border-amber-300 dark:hover:border-amber-800',
+  detour:
+    'border-blue-200 dark:border-blue-900/60 hover:border-blue-300 dark:hover:border-blue-800',
 };
 
 function ActiveRow({ incident, now, isNew, tone = 'disruption', showAgency = false }) {
@@ -636,6 +638,45 @@ function DelaySection({ incidents, now, highlightedIds }) {
   );
 }
 
+// Official MARTA route detours — temporary routing changes, grouped by mode.
+// MARTA posts these in bulk (a dozen bus routes at once is routine), so the
+// band defaults collapsed: it keeps the live disruptions and delays above the
+// fold instead of letting a wall of "Route NN detour" rows bury them. Blue
+// rows, matching the DetourBadge tone elsewhere.
+function DetourSection({ incidents, now, highlightedIds }) {
+  const groups = groupByMode(incidents);
+  const labelGroups = groups.length > 1;
+  return (
+    <CollapsibleBand
+      label="Detours"
+      count={incidents.length}
+      dotClass="bg-blue-500"
+      textClass="text-blue-600 dark:text-blue-400"
+      defaultOpen={false}
+    >
+      <div className="space-y-2">
+        {groups.map(({ kind, items }) => (
+          <div key={kind}>
+            {labelGroups && <AgencyHeader kind={kind} />}
+            <div className="space-y-1.5">
+              {[...items].sort(byRecency).map((incident) => (
+                <ActiveRow
+                  key={incident.id}
+                  incident={incident}
+                  now={now}
+                  tone="detour"
+                  showAgency={!labelGroups}
+                  isNew={incident.id != null && highlightedIds?.has(incident.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </CollapsibleBand>
+  );
+}
+
 // One planned/scheduled row. The headline carries the human date range ("Sat
 // Jun 13 through Sun Jun 14"); when the alert also has a machine-readable end
 // we append a "through <date>" chip. No elapsed timer — for advance-notice
@@ -721,26 +762,28 @@ export default function ActiveAlerts({
   // — live disruption, routine delay, or planned/scheduled work — not by
   // elapsed time. Merge the time-split inputs the callers still pass and
   // re-bucket by category.
-  const { disruptions, delays, planned } = useMemo(() => {
+  const { disruptions, delays, detours, planned } = useMemo(() => {
     const all = [...incidents, ...longRunningIncidents];
     const d = [];
     const dl = [];
+    const dt = [];
     const p = [];
     for (const inc of all) {
       const c = incidentCategory(inc, now);
       if (c === 'planned') p.push(inc);
+      else if (c === 'detour') dt.push(inc);
       else if (c === 'delay') dl.push(inc);
       else d.push(inc);
     }
     d.sort(byRecency);
-    return { disruptions: d, delays: dl, planned: p };
+    return { disruptions: d, delays: dl, detours: dt, planned: p };
   }, [incidents, longRunningIncidents, now]);
 
   // The "Started" ribbon compares how long live events have been running, so
-  // it spans disruptions + delays only — planned work runs on a multi-day
-  // scale that would crush the live bars into right-edge slivers.
+  // it spans disruptions + delays only — detours and planned work run on a
+  // multi-day scale that would crush the live bars into right-edge slivers.
   const live = useMemo(() => [...disruptions, ...delays], [disruptions, delays]);
-  const totalActive = disruptions.length + delays.length + planned.length;
+  const totalActive = disruptions.length + delays.length + detours.length + planned.length;
 
   // First 1-2 disruptions stay as full cards — the freshest, most-likely-to-
   // investigate events get visual weight. Beyond that we collapse to compact
@@ -812,6 +855,9 @@ export default function ActiveAlerts({
         )}
         {delays.length > 0 && (
           <DelaySection incidents={delays} now={now} highlightedIds={highlightedIds} />
+        )}
+        {detours.length > 0 && (
+          <DetourSection incidents={detours} now={now} highlightedIds={highlightedIds} />
         )}
         {planned.length > 0 && <PlannedSection incidents={planned} now={now} />}
       </div>

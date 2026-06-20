@@ -17,11 +17,13 @@ import {
   incidentHeadlineText,
   incidentLifecycle,
   isDelayIncident,
+  isDetourIncident,
   legacyKind,
   officialAlert,
   splitObservations,
 } from '../lib/incidents.js';
 import DelaysBadge from './DelaysBadge.jsx';
+import DetourBadge from './DetourBadge.jsx';
 import HighlightedText from './HighlightedText.jsx';
 import LinePill from './LinePill.jsx';
 import OfficialBadge from './OfficialBadge.jsx';
@@ -175,7 +177,6 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
       ? (affectedLineSegments(incident).find((s) => s.from && s.to) ?? null)
       : null;
 
-  const cancel = cancellationInfo(incident);
   const durationDetail = !lifecycle.active && !cancel
     ? duration
       ? `${duration} duration`
@@ -205,6 +206,7 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
   // "ongoing" pill (active) or duration (resolved). Suppressed for
   // cancellations, which carry their own terminal badge.
   const showDelay = isDelayIncident(incident) && !cancel;
+  const showDetour = isDetourIncident(incident) && !cancel;
 
   return (
     <div
@@ -455,9 +457,10 @@ function IncidentRow({ incident, isNew, stationIndex, searchQuery = '' }) {
             vertical line, regardless of how long the left-side attribution
             text runs. Non-interactive, so clicks fall through to the row's
             overlay link. */}
-        {(showDelay || statusBadge) && (
+        {(showDelay || showDetour || statusBadge) && (
           <div className="flex-shrink-0 text-right whitespace-nowrap flex items-center justify-end gap-2">
             {showDelay && <DelaysBadge />}
+            {showDetour && <DetourBadge />}
             {statusBadge}
           </div>
         )}

@@ -25,6 +25,7 @@ import {
   groupIncidentRecords,
   incidentCategory,
   incidentHeadlineText,
+  isDetourIncident,
   isPlannedIncident,
   legacyKind,
   modeLabel,
@@ -772,6 +773,41 @@ describe('incidentCategory / isPlannedIncident', () => {
     const inc = oInc({ kind: 'bus', routes: ['66'], active: true, obs: { source: 'roundup' } });
     expect(isPlannedIncident(inc, NOW_TS)).toBe(false);
     expect(incidentCategory(inc, NOW_TS)).toBe('disruption');
+  });
+
+  it('buckets a producer-classified detour into the detour band', () => {
+    const inc = aInc({
+      kind: 'bus',
+      routes: ['71'],
+      active: true,
+      official: { headline: 'Route 71 detour' },
+      status: { type: 'detour' },
+    });
+    expect(isDetourIncident(inc)).toBe(true);
+    expect(incidentCategory(inc, NOW_TS)).toBe('detour');
+  });
+
+  it('keeps a scheduled detour (date-only window) in planned, not the detour band', () => {
+    const inc = aInc({
+      kind: 'bus',
+      routes: ['71'],
+      active: true,
+      official: {
+        headline: 'Route 71 detour',
+        agency_event_start_ts: NOW_TS - DAY,
+        agency_event_end_ts: NOW_TS + 5 * DAY,
+        agency_event_end_is_date_only: true,
+      },
+      status: { type: 'detour' },
+    });
+    expect(incidentCategory(inc, NOW_TS)).toBe('planned');
+  });
+
+  it('does not treat a delay or bare alert as a detour', () => {
+    const delay = aInc({ kind: 'bus', routes: ['15'], active: true, status: { type: 'delay' } });
+    expect(isDetourIncident(delay)).toBe(false);
+    const bare = oInc({ kind: 'bus', routes: ['66'], active: true, obs: { source: 'roundup' } });
+    expect(isDetourIncident(bare)).toBe(false);
   });
 });
 

@@ -115,6 +115,42 @@ describe('ActiveAlerts', () => {
     expect(screen.getByText('Blue Line suspended')).toBeInTheDocument();
   });
 
+  it('routes a detour-status incident into a collapsed Detours band', () => {
+    render(
+      <ActiveAlerts
+        incidents={[
+          activeInc({
+            id: 'dt1',
+            kind: 'bus',
+            routes: ['71'],
+            status: { type: 'detour' },
+            official: {
+              headline: 'Route 71 detour',
+              post_url: 'https://bsky.app/profile/x/post/dt1',
+            },
+          }),
+          activeInc({
+            id: 'd1',
+            official: {
+              headline: 'Blue Line suspended',
+              post_url: 'https://bsky.app/profile/x/post/d1',
+            },
+          }),
+        ]}
+        now={NOW}
+        typicalDurations={null}
+        stationIndex={null}
+      />,
+    );
+    // The Detours band exists, distinct from the red Disruptions band, and is
+    // collapsed by default — so the live disruption shows but the detour row
+    // stays folded away.
+    expect(screen.getByText(/^Detours$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Disruptions$/)).toBeInTheDocument();
+    expect(screen.getByText('Blue Line suspended')).toBeInTheDocument();
+    expect(screen.queryByText('Route 71 detour')).not.toBeInTheDocument();
+  });
+
   it('keeps the first two incidents as full cards and collapses the rest to compact rows', () => {
     render(
       <ActiveAlerts
