@@ -1,47 +1,47 @@
 {
   "linkset": [
     {
-      "anchor": "https://chicagotransitalerts.app/.well-known/api-catalog",
+      "anchor": "https://atlantatransitalerts.app/.well-known/api-catalog",
       "service-doc": [
         {
-          "href": "https://github.com/cailinpitt/chicago-transit-alerts#data-as-an-api",
+          "href": "https://github.com/cailinpitt/atlanta-transit-alerts#data-as-an-api",
           "type": "text/html",
           "title": "Data API documentation"
         }
       ],
       "item": [
         {
-          "href": "https://data.chicagotransitalerts.app/alerts.json",
+          "href": "https://data.atlantatransitalerts.app/alerts.json",
           "type": "application/json",
-          "title": "Incidents — full archive of CTA and Metra alerts and bot-detected disruptions"
+          "title": "Incidents — full archive of MARTA alerts and bot-detected disruptions"
         },
         {
-          "href": "https://data.chicagotransitalerts.app/daily-counts.json",
+          "href": "https://data.atlantatransitalerts.app/daily-counts.json",
           "type": "application/json",
           "title": "Daily incident counts"
         },
         {
-          "href": "https://data.chicagotransitalerts.app/alerts.csv",
+          "href": "https://data.atlantatransitalerts.app/alerts.csv",
           "type": "text/csv",
           "title": "Incidents — CSV export"
         },
         {
-          "href": "https://chicagotransitalerts.app/data/CHANGELOG.md",
+          "href": "https://atlantatransitalerts.app/data/CHANGELOG.md",
           "type": "text/markdown",
           "title": "Data API changelog"
         },
         {
-          "href": "https://chicagotransitalerts.app/feed.xml",
+          "href": "https://atlantatransitalerts.app/feed.xml",
           "type": "application/atom+xml",
           "title": "Atom feed — recent incidents (per-line and per-route feeds under /feed/)"
         },
         {
-          "href": "https://chicagotransitalerts.app/feed.json",
+          "href": "https://atlantatransitalerts.app/feed.json",
           "type": "application/feed+json",
           "title": "JSON feed — recent incidents"
         },
         {
-          "href": "https://chicagotransitalerts.app/sitemap.xml",
+          "href": "https://atlantatransitalerts.app/sitemap.xml",
           "type": "application/xml",
           "title": "Sitemap"
         }
