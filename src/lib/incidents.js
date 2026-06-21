@@ -170,8 +170,39 @@ export function officialRecordFromIncident(inc) {
     agency_event_end_is_date_only: agencyWindow.end_is_date_only ?? false,
     _incidentId: inc.id,
   };
-  // versions only present when MARTA edited the alert (>1 version on the wire).
-  if (c.versions && c.versions.length > 1) alert.versions = c.versions;
+  // Build the "Per MARTA" update timeline. An incident can now carry SEVERAL
+  // official alerts (official_alerts[]) — MARTA posts each update as a fresh
+  // entity ("delays" → "Update: resumed normal schedule"), which the producer
+  // consolidates into one incident. Fold every member's text into one
+  // chronological list so the timeline shows the whole chain (not just the
+  // primary). Each member contributes its own `versions` when MARTA edited it
+  // in place, else a single entry synthesized from its headline/body. Normalize
+  // to `short_description` (the field the timeline renders; the export uses
+  // `description`).
+  const versions = [];
+  for (const member of officialAlerts(inc)) {
+    const memberLifecycle = officialLifecycle(member);
+    const memberVersions =
+      Array.isArray(member.versions) && member.versions.length > 0
+        ? member.versions
+        : [
+            {
+              ts: memberLifecycle.first_seen_ts,
+              headline: member.headline ?? null,
+              description: member.description ?? member.short_description ?? null,
+            },
+          ];
+    for (const v of memberVersions) {
+      versions.push({
+        ...v,
+        ts: v.ts ?? memberLifecycle.first_seen_ts,
+        short_description: v.short_description ?? v.description ?? null,
+      });
+    }
+  }
+  // Only attach when there's more than one update; a lone alert keeps the
+  // single-version fallback the timeline already synthesizes from the headline.
+  if (versions.length > 1) alert.versions = versions;
   return alert;
 }
 

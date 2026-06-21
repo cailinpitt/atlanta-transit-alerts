@@ -30,9 +30,14 @@ import {
   legacyKind,
   modeLabel,
   observationSignals,
+  officialRecordFromIncident,
   searchFilterIncidents,
 } from '../lib/incidents.js';
-import { incident as v2Incident } from './v2TestHelpers.js';
+import {
+  incident as v2Incident,
+  officialAlertFromOfficial,
+  lifecycle as v2Lifecycle,
+} from './v2TestHelpers.js';
 
 // ---------------------------------------------------------------------------
 // formatDuration
@@ -1648,5 +1653,47 @@ describe('computeYearOverYear', () => {
     expect(r.pctChange).toBeNull();
     expect(r.currentCount).toBe(1);
     expect(r.priorCount).toBe(0);
+  });
+});
+
+describe('officialRecordFromIncident version union', () => {
+  it('folds every official_alerts[] member into one chronological version timeline', () => {
+    const t0 = 1_782_000_000_000;
+    const delay = officialAlertFromOfficial(
+      { id: 'sc-delay', headline: 'Streetcar delays', description: 'Heavy traffic delays.' },
+      { first_seen_ts: t0, resolved_ts: t0 + 20 * 60_000 },
+    );
+    const clear = officialAlertFromOfficial(
+      {
+        id: 'sc-clear',
+        headline: 'Streetcar service alert',
+        description: 'Update: Streetcars resumed normal schedule.',
+      },
+      { first_seen_ts: t0 + 23 * 60_000, resolved_ts: t0 + 40 * 60_000 },
+    );
+    const inc = v2Incident({
+      mode: 'streetcar',
+      routes: ['streetcar'],
+      official_alert: delay,
+      official_alerts: [delay, clear],
+      lifecycle: v2Lifecycle({ first_seen_ts: t0, resolved_ts: t0 + 40 * 60_000 }),
+    });
+
+    const rec = officialRecordFromIncident(inc);
+    expect(Array.isArray(rec.versions)).toBe(true);
+    expect(rec.versions).toHaveLength(2);
+    // Normalized to short_description (the field the timeline renders).
+    expect(rec.versions[0].short_description).toMatch(/Heavy traffic/);
+    expect(rec.versions[1].short_description).toMatch(/resumed normal schedule/);
+  });
+
+  it('leaves versions unset for a single-alert incident (timeline synthesizes one)', () => {
+    const only = officialAlertFromOfficial(
+      { id: 'gold', headline: 'Gold Line delays', description: 'Delays on the Gold line.' },
+      { first_seen_ts: 1_782_000_000_000 },
+    );
+    const inc = v2Incident({ mode: 'rail', routes: ['gold'], official_alert: only });
+    const rec = officialRecordFromIncident(inc);
+    expect(rec.versions).toBeUndefined();
   });
 });
