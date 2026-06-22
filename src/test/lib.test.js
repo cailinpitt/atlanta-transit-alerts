@@ -34,8 +34,8 @@ import {
   searchFilterIncidents,
 } from '../lib/incidents.js';
 import {
-  incident as v2Incident,
   officialAlertFromOfficial,
+  incident as v2Incident,
   lifecycle as v2Lifecycle,
 } from './v2TestHelpers.js';
 
