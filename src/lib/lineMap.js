@@ -298,11 +298,12 @@ export function buildLineMap(
     };
   });
 
-  // Orientation. Default (desktop): rotate only a "very vertical" line 90° CCW
-  // so a tall N-S line doesn't waste a wide content column — below 0.5 aspect
-  // it's >2x taller than wide, render sideways. preferPortrait (mobile): orient
-  // so the line's LONG axis runs vertically — keep tall lines tall, rotate
-  // naturally-wide lines upright — to use a portrait screen's height.
+  // Orientation. Default (desktop): rotate any taller-than-wide line 90° CCW so
+  // every line renders landscape — a portrait N-S line (Red, Gold) otherwise
+  // wastes the wide content column and is harder to read than the same line laid
+  // out horizontally. preferPortrait (mobile): orient so the line's LONG axis
+  // runs vertically — keep tall lines tall, rotate naturally-wide lines upright —
+  // to use a portrait screen's height.
   let minLat = Number.POSITIVE_INFINITY;
   let maxLat = Number.NEGATIVE_INFINITY;
   let minLon = Number.POSITIVE_INFINITY;
@@ -317,7 +318,7 @@ export function buildLineMap(
   const cosCorrection = Math.cos((meanLat * Math.PI) / 180);
   const naturalAspect =
     (Math.max(maxLon - minLon, 1e-6) * cosCorrection) / Math.max(maxLat - minLat, 1e-6);
-  const rotate = preferPortrait ? naturalAspect > 1 : naturalAspect < 0.5;
+  const rotate = preferPortrait ? naturalAspect > 1 : naturalAspect < 1;
 
   const main = projectInto(enriched, segments, {
     maxWidth,
