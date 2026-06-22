@@ -948,6 +948,119 @@ export function computeWorstDay(alerts, observations, { now = Date.now(), window
   return worst;
 }
 
+// Cancellation + delay analytics for a single line/route, computed from the
+// nested incidents that touch it. The two signals have very different data
+// shapes:
+//   - Cancellations carry a rich status block (scheduled departure time +
+//     origin station), so we can break them down by origin and time of day.
+//   - Delays are only *typed* by the feed — there is no minutes-late
+//     magnitude — so all we can report is how often delay alerts happen and
+//     how long each one stays active (the incident's own resolved duration).
+//     Nothing here describes how late a given train actually ran.
+// Counts are windowed (default 90d). Cancellations are anchored to their
+// scheduled departure (the rider-facing moment) and only counted once terminal
+// (an announced-but-future cancellation is forward-looking — it belongs in the
+// upcoming strip, not the history). Delays anchor to first_seen. `daysSinceLast`
+// looks back past the window so a long-clean line still gets a recency figure.
+// The caller gates the whole section on `total`.
+/**
+ * @param {object[]} incidents  nested incidents already filtered to one line/route
+ * @param {object} [options]
+ * @param {number} [options.now]
+ * @param {number} [options.windowDays]
+ * @returns {{windowDays:number,total:number,cancellations:{count:number,perWeek:number,daysSinceLast:number|null,byOrigin:Array<{origin:string,count:number}>,byPartOfDay:Array<{key:string,label:string,range:string,count:number}>},delays:{count:number,perWeek:number,medianDurationMin:number|null}}}
+ */
+export function computeCancellationDelayStats(
+  incidents,
+  { now = Date.now(), windowDays = 90 } = {},
+) {
+  const since = now - windowDays * DAY_MS;
+  const weeks = windowDays / 7;
+
+  const originCounts = new Map();
+  const partCounts = new Map(PART_OF_DAY.map((p) => [p.key, 0]));
+  let cancelCount = 0;
+  let lastCancelTs = null;
+  let delayCount = 0;
+  const delayDurations = [];
+
+  for (const inc of incidents || []) {
+    const status = inc?.status;
+    if (!status) continue;
+
+    if (status.type === 'cancellation') {
+      const depTs = status.scheduled_departure_ts ?? null;
+      // Terminal cancellations only: an explicit 'cancelled' state, or a
+      // departure time already in the past.
+      const terminal = status.state === 'cancelled' || (depTs != null && depTs <= now);
+      if (!terminal || depTs == null) continue;
+      if (lastCancelTs == null || depTs > lastCancelTs) lastCancelTs = depTs;
+      if (depTs < since) continue;
+      cancelCount += 1;
+      // Origin breakdown is "which stations" — a cancellation whose prose named
+      // no origin still counts toward the total, but it has no station to list,
+      // so it's left out of byOrigin rather than bucketed as "Unknown".
+      if (status.origin) {
+        originCounts.set(status.origin, (originCounts.get(status.origin) || 0) + 1);
+      }
+      const { hour } = atlantaWeekdayHour(depTs);
+      if (hour != null) {
+        const part = PART_OF_DAY.find((p) => hour >= p.lo && hour <= p.hi);
+        if (part) partCounts.set(part.key, partCounts.get(part.key) + 1);
+      }
+    } else if (status.type === 'delay') {
+      const life = incidentLifecycle(inc);
+      const startTs = life.first_seen_ts;
+      if (startTs == null || startTs < since) continue;
+      delayCount += 1;
+      // Only resolved delays have a measured length; active ones are still
+      // running and would bias the typical-length figure downward.
+      if (!life.active && life.duration_ms != null && life.duration_ms > 0) {
+        delayDurations.push(life.duration_ms);
+      }
+    }
+  }
+
+  const byOrigin = [...originCounts.entries()]
+    .map(([origin, count]) => ({ origin, count }))
+    .sort((a, b) => b.count - a.count || a.origin.localeCompare(b.origin));
+
+  const byPartOfDay = PART_OF_DAY.map((p) => ({
+    key: p.key,
+    label: p.label,
+    range: p.range,
+    count: partCounts.get(p.key) || 0,
+  }));
+
+  let medianDurationMin = null;
+  if (delayDurations.length) {
+    const sorted = [...delayDurations].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const medMs = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    medianDurationMin = Math.round(medMs / 60_000);
+  }
+
+  return {
+    windowDays,
+    total: cancelCount + delayCount,
+    cancellations: {
+      count: cancelCount,
+      perWeek: cancelCount / weeks,
+      // Elapsed since the most recent cancelled departure, in hours, so the
+      // caller can render sub-day recency ("5h") via formatGap instead of a
+      // flat "0d". Null when this line has never had a cancellation.
+      hoursSinceLast: lastCancelTs != null ? (now - lastCancelTs) / (60 * 60 * 1000) : null,
+      byOrigin,
+      byPartOfDay,
+    },
+    delays: {
+      count: delayCount,
+      perWeek: delayCount / weeks,
+      medianDurationMin,
+    },
+  };
+}
+
 // Distribution of resolved-incident durations in the same cohort as
 // `incident` (same kind / line / signal). Returns the cohort's median +
 // p90 alongside this incident's duration — caller picks how to render the

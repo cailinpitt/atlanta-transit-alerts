@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildBusIncidentsByDay,
+  computeCancellationDelayStats,
   computeCohortDurationStats,
   computeDayOfWeekCounts,
   computeDisruptionMinutes,
@@ -387,5 +388,118 @@ describe('buildBusIncidentsByDay', () => {
     const out = buildBusIncidentsByDay([], [obs({ kind: 'train', line: 'red' })], 90, NOW);
     expect(out.topRoutes).toHaveLength(0);
     expect(Object.keys(out.byRoute)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeCancellationDelayStats
+// ---------------------------------------------------------------------------
+describe('computeCancellationDelayStats', () => {
+  const cancelInc = ({ depTs = NOW - DAY, origin = 'Bankhead', state = 'cancelled' } = {}) => ({
+    id: `c-${depTs}-${origin}`,
+    routes: ['green'],
+    status: { type: 'cancellation', state, origin, scheduled_departure_ts: depTs },
+  });
+  const delayInc = ({ startTs = NOW - DAY, durationMs = 30 * MIN, active = false } = {}) => ({
+    id: `d-${startTs}`,
+    routes: ['green'],
+    lifecycle: {
+      first_seen_ts: startTs,
+      resolved_ts: active ? null : startTs + durationMs,
+      active,
+      duration_ms: active ? null : durationMs,
+    },
+    status: { type: 'delay' },
+  });
+
+  it('counts cancellations and delay alerts in-window with per-week rates', () => {
+    const out = computeCancellationDelayStats(
+      [
+        cancelInc({ depTs: NOW - DAY }),
+        cancelInc({ depTs: NOW - 2 * DAY }),
+        cancelInc({ depTs: NOW - 3 * DAY }),
+        delayInc({ startTs: NOW - DAY }),
+        delayInc({ startTs: NOW - 2 * DAY }),
+      ],
+      { now: NOW, windowDays: 90 },
+    );
+    expect(out.cancellations.count).toBe(3);
+    expect(out.delays.count).toBe(2);
+    expect(out.total).toBe(5);
+    expect(out.cancellations.perWeek).toBeCloseTo(3 / (90 / 7), 5);
+    expect(out.delays.perWeek).toBeCloseTo(2 / (90 / 7), 5);
+  });
+
+  it('excludes announced-but-future (upcoming) cancellations', () => {
+    const out = computeCancellationDelayStats(
+      [cancelInc({ depTs: NOW + DAY, state: 'upcoming' }), cancelInc({ depTs: NOW - DAY })],
+      { now: NOW, windowDays: 90 },
+    );
+    expect(out.cancellations.count).toBe(1);
+    expect(out.cancellations.hoursSinceLast).toBe(24);
+  });
+
+  it('reports recency past the window but does not count out-of-window cancellations', () => {
+    const out = computeCancellationDelayStats([cancelInc({ depTs: NOW - 100 * DAY })], {
+      now: NOW,
+      windowDays: 90,
+    });
+    expect(out.cancellations.count).toBe(0);
+    expect(out.cancellations.hoursSinceLast).toBe(2400);
+  });
+
+  it('groups cancellations by origin, busiest first with alpha tiebreak', () => {
+    const out = computeCancellationDelayStats(
+      [
+        cancelInc({ origin: 'Bankhead' }),
+        cancelInc({ origin: 'Bankhead', depTs: NOW - 2 * DAY }),
+        cancelInc({ origin: 'Edgewood', depTs: NOW - 3 * DAY }),
+        cancelInc({ origin: 'Ashby', depTs: NOW - 4 * DAY }),
+      ],
+      { now: NOW, windowDays: 90 },
+    );
+    expect(out.cancellations.byOrigin).toEqual([
+      { origin: 'Bankhead', count: 2 },
+      { origin: 'Ashby', count: 1 },
+      { origin: 'Edgewood', count: 1 },
+    ]);
+    const partTotal = out.cancellations.byPartOfDay.reduce((s, p) => s + p.count, 0);
+    expect(partTotal).toBe(out.cancellations.count);
+  });
+
+  it('counts origin-less cancellations in the total but omits them from the breakdown', () => {
+    const out = computeCancellationDelayStats(
+      [
+        cancelInc({ origin: 'Bankhead' }),
+        cancelInc({ origin: null, depTs: NOW - 2 * DAY }),
+        cancelInc({ origin: '', depTs: NOW - 3 * DAY }),
+      ],
+      { now: NOW, windowDays: 90 },
+    );
+    expect(out.cancellations.count).toBe(3);
+    expect(out.cancellations.byOrigin).toEqual([{ origin: 'Bankhead', count: 1 }]);
+  });
+
+  it('takes the median of resolved delay durations and skips active ones', () => {
+    const out = computeCancellationDelayStats(
+      [
+        delayInc({ durationMs: 20 * MIN }),
+        delayInc({ startTs: NOW - 2 * DAY, durationMs: 40 * MIN }),
+        delayInc({ startTs: NOW - 3 * DAY, durationMs: 60 * MIN }),
+        delayInc({ startTs: NOW - 4 * DAY, active: true }),
+      ],
+      { now: NOW, windowDays: 90 },
+    );
+    expect(out.delays.count).toBe(4);
+    expect(out.delays.medianDurationMin).toBe(40);
+  });
+
+  it('returns an empty, renderable shape for a line with no history', () => {
+    const out = computeCancellationDelayStats([], { now: NOW, windowDays: 90 });
+    expect(out.total).toBe(0);
+    expect(out.cancellations.count).toBe(0);
+    expect(out.cancellations.hoursSinceLast).toBeNull();
+    expect(out.delays.medianDurationMin).toBeNull();
+    expect(out.cancellations.byOrigin).toEqual([]);
   });
 });

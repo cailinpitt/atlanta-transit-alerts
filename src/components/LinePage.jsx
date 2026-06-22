@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { useNow } from '../hooks/useNow.js';
 import {
+  computeCancellationDelayStats,
   computeDayOfWeekCounts,
   computeDisruptionMinutes,
   computeDurationHistogram,
@@ -29,6 +30,7 @@ import { buildStationIndex } from '../lib/stations.js';
 import { normalizeTrainLine, TRAIN_LINES } from '../lib/trainLines.js';
 import ActiveAlerts from './ActiveAlerts.jsx';
 import Breadcrumb from './Breadcrumb.jsx';
+import CancellationDelayStats from './CancellationDelayStats.jsx';
 import Footer from './Footer.jsx';
 import Header from './Header.jsx';
 import HourOfWeekHeatmap from './HourOfWeekHeatmap.jsx';
@@ -327,6 +329,15 @@ export default function LinePage({ kind, lineId }) {
     return computeWorstDay(lineAlerts, lineObservations, { now, windowDays: 90 });
   }, [data, lineAlerts, lineObservations, now]);
 
+  // Cancellation + delay analytics for this line/route, from the nested
+  // incidents (the status block + lifecycle live there, not on the flat
+  // records). Rail lines populate the cancellation breakdowns; bus routes fall
+  // back to just delay-alert stats. The section self-hides when empty.
+  const cancelDelay = useMemo(() => {
+    if (!data) return null;
+    return computeCancellationDelayStats(lineIncidents, { now, windowDays: 90 });
+  }, [data, lineIncidents, now]);
+
   // Recurring trouble segments scoped to this line. Trains only — buses have
   // far more stops and route variation than the helper's bucketing handles
   // cleanly. Empty array on bus pages.
@@ -554,6 +565,8 @@ export default function LinePage({ kind, lineId }) {
                   <TrendSparkline alerts={lineAlerts} observations={lineObservations} />
                 </div>
               )}
+
+            <CancellationDelayStats stats={cancelDelay} />
 
             {/* Geographic station heatmap — rail only. Hidden on bus pages. */}
             {isRail && (
