@@ -28,14 +28,23 @@ import { formatTime } from './format.js';
  * @param {object} incident
  * @returns {{state:string,isUpcoming:boolean,isCancelled:boolean,departureTs:number|null,origin:string|null,line:string|null,title:string|null}|null}
  */
-export function cancellationInfo(incident) {
+export function cancellationInfo(incident, now = Date.now()) {
   const c = incident?.status?.type === 'cancellation' ? incident.status : null;
   if (!c?.state) return null;
+  const departureTs = c.scheduled_departure_ts ?? null;
+  // The producer stamps `state` at export time, but between exports the wall
+  // clock can cross the scheduled departure (the export only refreshes when the
+  // data changes, otherwise on a 15-min backstop). When we know the departure
+  // time, re-derive upcoming/cancelled from it — the same now-vs-departure check
+  // collectUpcomingCancellations already uses — so the label flips on schedule
+  // instead of lagging the next export. Vague cancellations that name no
+  // departure time keep the server-supplied state.
+  const isUpcoming = departureTs != null ? departureTs > now : c.state === 'upcoming';
   return {
-    state: c.state,
-    isUpcoming: c.state === 'upcoming',
-    isCancelled: c.state === 'cancelled',
-    departureTs: c.scheduled_departure_ts ?? null,
+    state: isUpcoming ? 'upcoming' : 'cancelled',
+    isUpcoming,
+    isCancelled: !isUpcoming,
+    departureTs,
     origin: c.origin ?? null,
     line: c.line ?? null,
     title: c.title ?? null,
@@ -63,7 +72,7 @@ export function cancellationStatusLabel(info) {
 export function collectUpcomingCancellations(incidents, { now = Date.now() } = {}) {
   const out = [];
   for (const inc of incidents || []) {
-    const info = cancellationInfo(inc);
+    const info = cancellationInfo(inc, now);
     if (!info?.isUpcoming || info.departureTs == null || info.departureTs <= now) continue;
     out.push({
       id: inc.id,

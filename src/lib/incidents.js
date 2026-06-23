@@ -1036,7 +1036,6 @@ export function filterIncidents(
     signals = null,
     sources = null,
     search = '',
-    agencies = null,
     now = Date.now(),
   } = {},
 ) {
@@ -1046,8 +1045,6 @@ export function filterIncidents(
   const signalSet = hasSignalFilter ? new Set(signals) : null;
   const hasSourceFilter = sources && sources.length < SOURCE_TYPES.length;
   const sourceSet = hasSourceFilter ? new Set(sources) : null;
-  const hasAgencyFilter = agencies && agencies.length > 0 && agencies.length < 1;
-  const agencySet = hasAgencyFilter ? new Set(agencies) : null;
   const { hasSearch, matchesIncident } = buildSearchMatchers(search);
 
   // When selectedDay is pinned, an incident matches iff its [start, end] span
@@ -1064,8 +1061,6 @@ export function filterIncidents(
   return (incidents || []).filter((inc) => {
     const kind = legacyKind(inc);
     const lifecycle = incidentLifecycle(inc);
-    const agency = incidentAgency(inc) ?? 'marta';
-    if (agencySet && !agencySet.has(agency)) return false;
     if (kind === 'bus') {
       if (!showBus) return false;
       if (hasBusRouteFilter && !(inc.routes || []).some((r) => busRoutes.includes(r))) {

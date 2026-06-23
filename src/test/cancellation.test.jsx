@@ -25,7 +25,7 @@ const cancelledIncident = {
 
 describe('cancellationInfo', () => {
   it('normalizes a cancelled status block', () => {
-    const info = cancellationInfo(cancelledIncident);
+    const info = cancellationInfo(cancelledIncident, DEP_TS + 60_000);
     expect(info).toMatchObject({
       state: 'cancelled',
       isCancelled: true,
@@ -37,13 +37,40 @@ describe('cancellationInfo', () => {
     });
   });
 
-  it('flags upcoming state', () => {
-    const info = cancellationInfo({
-      ...cancelledIncident,
-      status: { ...cancelledIncident.status, state: 'upcoming' },
-    });
+  it('flags upcoming state when the departure is still ahead of now', () => {
+    const info = cancellationInfo(
+      { ...cancelledIncident, status: { ...cancelledIncident.status, state: 'upcoming' } },
+      DEP_TS - 60_000,
+    );
     expect(info.isUpcoming).toBe(true);
     expect(info.isCancelled).toBe(false);
+  });
+
+  it('re-derives cancelled once the departure passes, ignoring a stale upcoming state', () => {
+    // The producer stamped 'upcoming' at export time; the wall clock has since
+    // crossed the scheduled departure. The label must flip without waiting for
+    // the next export.
+    const info = cancellationInfo(
+      { ...cancelledIncident, status: { ...cancelledIncident.status, state: 'upcoming' } },
+      DEP_TS + 60_000,
+    );
+    expect(info.isCancelled).toBe(true);
+    expect(info.isUpcoming).toBe(false);
+    expect(info.state).toBe('cancelled');
+  });
+
+  it('keeps the server state when no departure time is known', () => {
+    const base = { id: 'x', routes: ['blue'] };
+    const upcoming = cancellationInfo(
+      { ...base, status: { type: 'cancellation', state: 'upcoming' } },
+      DEP_TS,
+    );
+    expect(upcoming.isUpcoming).toBe(true);
+    const cancelled = cancellationInfo(
+      { ...base, status: { type: 'cancellation', state: 'cancelled' } },
+      DEP_TS,
+    );
+    expect(cancelled.isCancelled).toBe(true);
   });
 
   it('returns null when there is no cancellation status', () => {
@@ -57,20 +84,22 @@ describe('cancellationInfo', () => {
 
 describe('labels', () => {
   it('cancellationStatusLabel reads upcoming vs cancelled', () => {
-    expect(cancellationStatusLabel(cancellationInfo(cancelledIncident))).toBe('cancelled');
+    expect(cancellationStatusLabel(cancellationInfo(cancelledIncident, DEP_TS + 60_000))).toBe(
+      'cancelled',
+    );
     expect(
       cancellationStatusLabel(
-        cancellationInfo({
-          ...cancelledIncident,
-          status: { ...cancelledIncident.status, state: 'upcoming' },
-        }),
+        cancellationInfo(
+          { ...cancelledIncident, status: { ...cancelledIncident.status, state: 'upcoming' } },
+          DEP_TS - 60_000,
+        ),
       ),
     ).toBe('upcoming cancellation');
     expect(cancellationStatusLabel(null)).toBe(null);
   });
 
   it('cancellationSchedulePhrase renders the departure time', () => {
-    const phrase = cancellationSchedulePhrase(cancellationInfo(cancelledIncident));
+    const phrase = cancellationSchedulePhrase(cancellationInfo(cancelledIncident, DEP_TS + 60_000));
     expect(phrase).toMatch(/departure$/);
     expect(phrase).toMatch(/3:59/);
   });
@@ -111,11 +140,11 @@ describe('collectUpcomingCancellations', () => {
     expect(items).toEqual([]);
   });
 
-  it('ignores already-cancelled and non-cancellation incidents', () => {
+  it('ignores past departures and non-cancellation incidents', () => {
     const now = DEP_TS;
     const items = collectUpcomingCancellations(
       [cancelledIncident, { id: 'plain', routes: ['red'], status: { type: 'delay' } }],
-      { now: now - DAY_MS },
+      { now: now + DAY_MS },
     );
     expect(items).toEqual([]);
   });
