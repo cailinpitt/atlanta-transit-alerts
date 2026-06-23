@@ -234,6 +234,35 @@ describe('IncidentList', () => {
     expect(screen.getByText('Long gaps')).toBeInTheDocument();
   });
 
+  it('shows the canceled-trips count as an evidence chip for a cancellation surge', () => {
+    const cancelSurge = incident({
+      id: 'cancel-surge-196',
+      kind: 'bus',
+      routes: ['196'],
+      first_seen_ts: NOW,
+      resolved_ts: NOW,
+      active: false,
+      official: null,
+      observations: [
+        {
+          id: 'marta-roundup-79',
+          kind: 'bus',
+          line: '196',
+          detection_source: 'roundup',
+          ts: NOW,
+          resolved_ts: NOW,
+          active: false,
+          bot_description: 'Route 196 service signals',
+          signals: ['cancellation'],
+          evidence: { signals: ['cancellation'] },
+          bot_evidence_bullets: ['8 of 14 scheduled trips canceled this past hour'],
+        },
+      ],
+    });
+    render(<IncidentList incidents={[cancelSurge]} />);
+    expect(screen.getByText('8 of 14 scheduled trips canceled this past hour')).toBeInTheDocument();
+  });
+
   it('shows load more button when incidents exceed page size', () => {
     const incidents = Array.from({ length: 26 }, (_, i) =>
       alertInc({ id: `a${i + 1}`, first_seen_ts: NOW - (i + 1) * 60_000 }),
