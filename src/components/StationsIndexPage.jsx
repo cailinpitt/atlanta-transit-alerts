@@ -104,7 +104,7 @@ function StationGroups({ groups, hrefBase, Dots, activeOutageCounts }) {
               <span className="inline-flex items-center gap-2">
                 {activeOutageCounts.get(s.slug ?? slugifyStation(s.name)) > 0 && (
                   <span
-                    title={`${activeOutageCounts.get(s.slug ?? slugifyStation(s.name))} current accessibility outage${
+                    title={`${activeOutageCounts.get(s.slug ?? slugifyStation(s.name))} active accessibility outage${
                       activeOutageCounts.get(s.slug ?? slugifyStation(s.name)) === 1 ? '' : 's'
                     }`}
                     className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"

@@ -164,7 +164,7 @@ export default function StationPage({ slug }) {
                   href="/accessibility"
                   className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-200 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-300/20"
                 >
-                  ♿ {activeStationOutages.length} current
+                  ♿ {activeStationOutages.length} active
                 </a>
               )}
               <div className="flex flex-wrap gap-1.5">
@@ -215,7 +215,7 @@ export default function StationPage({ slug }) {
                 title="Accessibility"
                 subtitle={
                   activeStationOutages.length > 0
-                    ? `${activeStationOutages.length} current outage${
+                    ? `${activeStationOutages.length} active outage${
                         activeStationOutages.length === 1 ? '' : 's'
                       }`
                     : 'Recent outage history'
@@ -231,7 +231,7 @@ export default function StationPage({ slug }) {
                         </span>
                         {outage.lifecycle?.active ? (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-                            Current
+                            Active
                           </span>
                         ) : (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-gh-subtle dark:text-slate-300">

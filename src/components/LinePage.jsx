@@ -189,7 +189,7 @@ function AccessibilityOutagesSection({ outages }) {
                 )}
                 {outage.lifecycle?.active ? (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-                    Current
+                    Active
                   </span>
                 ) : (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-gh-subtle dark:text-slate-300">
