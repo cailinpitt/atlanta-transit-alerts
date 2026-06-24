@@ -22,7 +22,7 @@ const ORIGIN = (process.env.DATA_ORIGIN_URL || 'https://data.atlantatransitalert
   '',
 );
 const OUT_DIR = resolve(__dirname, '..', 'public', 'data');
-const FILES = ['alerts.json', 'accessibility.json', 'daily-counts.json'];
+const FILES = ['alerts.json', 'accessibility.json', 'daily-counts.json', 'standard-site.json'];
 const EMPTY_ALERTS = {
   schema_version: 2,
   generated_at: Date.now(),
@@ -39,6 +39,13 @@ const EMPTY_ACCESSIBILITY = {
   data_start_ts: null,
   window_days: 180,
   outages: [],
+};
+// standard.site manifest: publication AT-URI + per-event document AT-URIs. Empty
+// until the insights backend mints records; the prerender no-ops on a null
+// publication, so the site still builds.
+const EMPTY_STANDARD_SITE = {
+  publication: null,
+  documents: {},
 };
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -77,4 +84,10 @@ if (!existsSync(resolve(OUT_DIR, 'accessibility.json'))) {
   const dest = resolve(OUT_DIR, 'accessibility.json');
   writeFileSync(dest, `${JSON.stringify(EMPTY_ACCESSIBILITY, null, 2)}\n`);
   console.warn(`fetch-data: seeded empty accessibility payload at ${dest}`);
+}
+
+if (!existsSync(resolve(OUT_DIR, 'standard-site.json'))) {
+  const dest = resolve(OUT_DIR, 'standard-site.json');
+  writeFileSync(dest, `${JSON.stringify(EMPTY_STANDARD_SITE, null, 2)}\n`);
+  console.warn(`fetch-data: seeded empty standard.site manifest at ${dest}`);
 }
