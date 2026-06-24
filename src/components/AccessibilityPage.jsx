@@ -15,6 +15,8 @@ import Footer from './Footer.jsx';
 import Header from './Header.jsx';
 import LinePill from './LinePill.jsx';
 
+const ACCESSIBILITY_ARCHIVE_START_TS = Date.parse('2026-06-23T12:00:00Z');
+
 function StationLink({ outage }) {
   const name = outage.station?.name || 'Unmatched station';
   if (!outage.station?.slug) return <span>{name}</span>;
@@ -36,7 +38,7 @@ function RecentNoticeRow({ outage }) {
           </span>
           <span className="flex flex-wrap gap-1">
             {(outage.station?.lines || []).map((line) => (
-              <LinePill key={line} kind="train" line={line} linked={false} />
+              <LinePill key={line} kind="train" line={line} />
             ))}
           </span>
         </div>
@@ -155,6 +157,10 @@ export default function AccessibilityPage() {
       }),
     [data, now, selectedLine],
   );
+  const displayDataStartTs =
+    data?.data_start_ts == null
+      ? null
+      : Math.max(data.data_start_ts, ACCESSIBILITY_ARCHIVE_START_TS);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gh-canvas flex flex-col">
@@ -174,7 +180,7 @@ export default function AccessibilityPage() {
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Tracking station accessibility outages
-            {data?.data_start_ts ? ` since ${formatDate(data.data_start_ts)}` : ''}.
+            {displayDataStartTs ? ` since ${formatDate(displayDataStartTs)}` : ''}.
           </p>
         </div>
 
@@ -211,7 +217,7 @@ export default function AccessibilityPage() {
                         </span>
                         <span className="flex flex-wrap gap-1">
                           {(outage.station?.lines || []).map((line) => (
-                            <LinePill key={line} kind="train" line={line} linked={false} />
+                            <LinePill key={line} kind="train" line={line} />
                           ))}
                         </span>
                       </div>

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { currentlyOut, outagesForStation, stationReliability } from '../lib/accessibility.js';
+import {
+  currentlyOut,
+  outagesForLine,
+  outagesForStation,
+  stationReliability,
+} from '../lib/accessibility.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = 10 * DAY;
@@ -50,6 +55,26 @@ describe('accessibility derivations', () => {
         outage({ id: 'active', lifecycle: { first_seen_ts: now - 2 * DAY, active: true } }),
       ],
       'midtown-station',
+      { now },
+    );
+    expect(rows.map((r) => r.id)).toEqual(['active', 'restored']);
+  });
+
+  it('returns line outages with active rows first', () => {
+    const rows = outagesForLine(
+      [
+        outage({
+          id: 'restored',
+          lifecycle: { first_seen_ts: now - DAY, restored_ts: now, active: false },
+        }),
+        outage({
+          id: 'blue',
+          station: { slug: 'five-points-station', name: 'Five Points', lines: ['blue'] },
+          lifecycle: { first_seen_ts: now - 3 * DAY, active: true },
+        }),
+        outage({ id: 'active', lifecycle: { first_seen_ts: now - 2 * DAY, active: true } }),
+      ],
+      'red',
       { now },
     );
     expect(rows.map((r) => r.id)).toEqual(['active', 'restored']);

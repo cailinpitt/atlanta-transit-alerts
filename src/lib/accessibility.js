@@ -40,6 +40,18 @@ export function outagesForStation(outages = [], slug, { now = Date.now(), limit 
     .slice(0, limit);
 }
 
+export function outagesForLine(outages = [], line, { now = Date.now(), limit = 8 } = {}) {
+  if (!line) return [];
+  return outages
+    .filter((o) => (o.station?.lines || []).includes(line))
+    .map((o) => ({ ...o, durationMs: outageDuration(o, now) }))
+    .sort((a, b) => {
+      if (a.lifecycle?.active !== b.lifecycle?.active) return a.lifecycle?.active ? -1 : 1;
+      return (b.lifecycle?.first_seen_ts || 0) - (a.lifecycle?.first_seen_ts || 0);
+    })
+    .slice(0, limit);
+}
+
 export function stationReliability(
   outages = [],
   { now = Date.now(), windowDays = 90, line = null } = {},
