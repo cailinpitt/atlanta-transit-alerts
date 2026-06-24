@@ -192,6 +192,12 @@ export default function BrowseMenu({ alerts, observations, align = 'right' }) {
                 </span>
                 Compare
               </a>
+              <a href="/accessibility" role="menuitem" className={ROW_LINK}>
+                <span aria-hidden="true" className="w-5 shrink-0 text-center">
+                  ♿
+                </span>
+                Accessibility
+              </a>
               {/* One "System health" label with compact mode links. */}
               <div className="flex flex-wrap items-center gap-1.5 mt-1 px-2 py-1">
                 <span className="text-xs text-slate-500 dark:text-slate-400">System health</span>

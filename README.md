@@ -16,6 +16,7 @@ Live site: https://atlantatransitalerts.app
 The site reads published data from:
 
 - `https://data.atlantatransitalerts.app/alerts.json`
+- `https://data.atlantatransitalerts.app/accessibility.json`
 - `https://data.atlantatransitalerts.app/daily-counts.json`
 - `https://data.atlantatransitalerts.app/alerts.csv`
 

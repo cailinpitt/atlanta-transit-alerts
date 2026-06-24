@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useBrowseData } from '../hooks/useBrowseData.js';
 import { useDarkMode } from '../hooks/useDarkMode.js';
+import { currentlyOut, fetchAccessibilityData } from '../lib/accessibility.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { slugifyStation } from '../lib/stations.js';
 import { normalizeTrainLine, TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
@@ -86,7 +87,7 @@ function LineDots({ lines }) {
 }
 
 // A-Z station list rendered as grouped letter sections.
-function StationGroups({ groups, hrefBase, Dots }) {
+function StationGroups({ groups, hrefBase, Dots, activeOutageCounts }) {
   return groups.map(([letter, stations]) => (
     <section key={letter}>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
@@ -100,7 +101,19 @@ function StationGroups({ groups, hrefBase, Dots }) {
               className="flex items-center justify-between gap-2 px-2 py-1 rounded text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-gh-border transition-colors"
             >
               <span className="truncate">{s.name}</span>
-              <Dots lines={s.lines} />
+              <span className="inline-flex items-center gap-2">
+                {activeOutageCounts.get(s.slug ?? slugifyStation(s.name)) > 0 && (
+                  <span
+                    title={`${activeOutageCounts.get(s.slug ?? slugifyStation(s.name))} current accessibility outage${
+                      activeOutageCounts.get(s.slug ?? slugifyStation(s.name)) === 1 ? '' : 's'
+                    }`}
+                    className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"
+                  >
+                    ♿
+                  </span>
+                )}
+                <Dots lines={s.lines} />
+              </span>
             </a>
           </li>
         ))}
@@ -120,9 +133,13 @@ export default function StationsIndexPage() {
   const [search, setSearch] = useState(
     () => new URLSearchParams(window.location.search).get('q') ?? '',
   );
+  const [accessibilityData, setAccessibilityData] = useState(null);
 
   useEffect(() => {
     document.title = 'All stations · Atlanta Transit Alerts';
+    fetchAccessibilityData()
+      .then(setAccessibilityData)
+      .catch(() => {});
     return () => {
       document.title = 'Atlanta Transit Alerts';
     };
@@ -162,6 +179,15 @@ export default function StationsIndexPage() {
 
   const isFiltered = selectedLines !== null || search.trim() !== '';
   const nothingMatches = total === 0;
+  const activeOutageCounts = useMemo(() => {
+    const counts = new Map();
+    for (const outage of currentlyOut(accessibilityData?.outages || [])) {
+      const slug = outage.station?.slug;
+      if (!slug) continue;
+      counts.set(slug, (counts.get(slug) || 0) + 1);
+    }
+    return counts;
+  }, [accessibilityData]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gh-canvas flex flex-col">
@@ -269,7 +295,12 @@ export default function StationsIndexPage() {
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     MARTA rail and streetcar stations
                   </h2>
-                  <StationGroups groups={groups} hrefBase="/station" Dots={LineDots} />
+                  <StationGroups
+                    groups={groups}
+                    hrefBase="/station"
+                    Dots={LineDots}
+                    activeOutageCounts={activeOutageCounts}
+                  />
                 </div>
               )}
             </div>

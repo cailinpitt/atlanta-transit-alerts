@@ -16,6 +16,11 @@
           "title": "Incidents — full archive of MARTA alerts and bot-detected disruptions"
         },
         {
+          "href": "https://data.atlantatransitalerts.app/accessibility.json",
+          "type": "application/json",
+          "title": "Accessibility outages — elevator/escalator archive"
+        },
+        {
           "href": "https://data.atlantatransitalerts.app/daily-counts.json",
           "type": "application/json",
           "title": "Daily incident counts"

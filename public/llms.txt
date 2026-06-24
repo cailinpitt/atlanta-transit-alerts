@@ -6,6 +6,7 @@ Each incident pairs an official alert with bot observations (gap, bunching, ghos
 
 ## Data API
 - [Incidents (JSON)](https://data.atlantatransitalerts.app/alerts.json): Full archive. Top-level `incidents[]`, one object per real-world disruption; `official` is the legacy field name for the official alert block, and `observations[]` are bot detections.
+- [Accessibility outages (JSON)](https://data.atlantatransitalerts.app/accessibility.json): Elevator/escalator outage archive. Top-level `outages[]`, one object per unit outage.
 - [Daily counts (JSON)](https://data.atlantatransitalerts.app/daily-counts.json): Per-day train/bus incident counts behind the calendar heatmap.
 - [Incidents (CSV)](https://data.atlantatransitalerts.app/alerts.csv): Flat mirror, one row per alert or observation, with an explicit `type` column.
 - [Data changelog](https://atlantatransitalerts.app/data/CHANGELOG.md): Breaking changes to the data shape.
@@ -17,6 +18,7 @@ Each incident pairs an official alert with bot observations (gap, bunching, ghos
 - [Calendar](https://atlantatransitalerts.app/calendar): 12-month daily incident heatmap.
 - [This week](https://atlantatransitalerts.app/week): Recap of the current Sun-Sat week.
 - [Stats](https://atlantatransitalerts.app/stats): Worst day, worst hour, most-affected station, longest incident, plus year-over-year.
+- [Accessibility](https://atlantatransitalerts.app/accessibility): Elevator/escalator status and recent station outage history.
 - [Compare](https://atlantatransitalerts.app/compare): Side-by-side reliability for up to 3 lines or routes (`?trains=red,gold` / `?buses=15,110`).
 - [Train system health](https://atlantatransitalerts.app/system/trains) and [Bus system health](https://atlantatransitalerts.app/system/buses): Mode-wide dashboards.
 - Line pages: `https://atlantatransitalerts.app/line/<line>` (e.g. `/line/red`).

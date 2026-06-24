@@ -11,6 +11,7 @@ Every incident has a `kind` of `train` or `bus`. Train routes use MARTA line nam
 ## Endpoints
 
 - Incidents JSON: https://data.atlantatransitalerts.app/alerts.json
+- Accessibility outages JSON: https://data.atlantatransitalerts.app/accessibility.json
 - Daily counts JSON: https://data.atlantatransitalerts.app/daily-counts.json
 - Incidents CSV: https://data.atlantatransitalerts.app/alerts.csv
 - Data changelog: https://atlantatransitalerts.app/data/CHANGELOG.md
@@ -20,6 +21,38 @@ Every incident has a `kind` of `train` or `bus`. Train routes use MARTA line nam
 - API catalog: https://atlantatransitalerts.app/.well-known/api-catalog
 
 Regenerated whenever the underlying data changes.
+
+## accessibility.json shape
+
+The top-level array is `outages` - one object per elevator/escalator/entrance
+outage captured from MARTA service alerts.
+
+```jsonc
+{
+  "schema_version": 1,
+  "generated_at": 1715200000000,
+  "data_start_ts": 1710000000000,
+  "window_days": 180,
+  "outages": [
+    {
+      "id": "marta-Alert:MARTA:alert-123",
+      "agency": "marta",
+      "station": { "slug": "midtown-station", "name": "Midtown", "lines": ["gold", "red"] },
+      "unit_type": "elevator",
+      "unit_label": "to the platform",
+      "headline": "...",
+      "description": "...",
+      "lifecycle": {
+        "first_seen_ts": 1715199000000,
+        "restored_ts": null,
+        "active": true,
+        "duration_ms": null
+      },
+      "source_url": "https://..."
+    }
+  ]
+}
+```
 
 ## alerts.json shape
 

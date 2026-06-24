@@ -22,7 +22,7 @@ const ORIGIN = (process.env.DATA_ORIGIN_URL || 'https://data.atlantatransitalert
   '',
 );
 const OUT_DIR = resolve(__dirname, '..', 'public', 'data');
-const FILES = ['alerts.json', 'daily-counts.json'];
+const FILES = ['alerts.json', 'accessibility.json', 'daily-counts.json'];
 const EMPTY_ALERTS = {
   schema_version: 2,
   generated_at: Date.now(),
@@ -32,6 +32,13 @@ const EMPTY_DAILY_COUNTS = {
   generated_at: Date.now(),
   data_start_ts: null,
   days: [],
+};
+const EMPTY_ACCESSIBILITY = {
+  schema_version: 1,
+  generated_at: Date.now(),
+  data_start_ts: null,
+  window_days: 180,
+  outages: [],
 };
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -64,4 +71,10 @@ if (!existsSync(resolve(OUT_DIR, 'daily-counts.json'))) {
   const dest = resolve(OUT_DIR, 'daily-counts.json');
   writeFileSync(dest, `${JSON.stringify(EMPTY_DAILY_COUNTS, null, 2)}\n`);
   console.warn(`fetch-data: seeded empty daily counts payload at ${dest}`);
+}
+
+if (!existsSync(resolve(OUT_DIR, 'accessibility.json'))) {
+  const dest = resolve(OUT_DIR, 'accessibility.json');
+  writeFileSync(dest, `${JSON.stringify(EMPTY_ACCESSIBILITY, null, 2)}\n`);
+  console.warn(`fetch-data: seeded empty accessibility payload at ${dest}`);
 }
