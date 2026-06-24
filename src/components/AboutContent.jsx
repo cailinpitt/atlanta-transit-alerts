@@ -77,8 +77,20 @@ export default function AboutContent() {
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">How far back</h3>
       <p>
-        The MARTA archive starts on June 15, 2026. Stats, calendar, and leaderboard views draw from
-        the coverage window published in the data feed.
+        Anything earlier than these dates predates the bots. Each data source started on its own
+        day:
+      </p>
+      <ul className="list-disc list-outside ml-5 space-y-1">
+        <li>
+          <strong>MARTA service alerts</strong> — June 15, 2026
+        </li>
+        <li>
+          <strong>Accessibility outages</strong> (elevators, escalators, ADA) — June 23, 2026
+        </li>
+      </ul>
+      <p>
+        Stats, calendar, and leaderboard views draw from the coverage window published in the data
+        feed.
       </p>
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">Privacy</h3>

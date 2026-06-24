@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { useNow } from '../hooks/useNow.js';
-import { currentlyOut, fetchAccessibilityData, stationReliability } from '../lib/accessibility.js';
+import {
+  currentlyOut,
+  fetchAccessibilityData,
+  outageDuration,
+  stationReliability,
+} from '../lib/accessibility.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { formatDate, formatDuration } from '../lib/format.js';
-import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
+import { TRAIN_LINE_ORDER } from '../lib/trainLines.js';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
 import Header from './Header.jsx';
@@ -17,6 +22,50 @@ function StationLink({ outage }) {
     <a href={`/station/${outage.station.slug}`} className="hover:underline">
       {name}
     </a>
+  );
+}
+
+function RecentNoticeRow({ outage }) {
+  const active = !!outage.lifecycle?.active;
+  return (
+    <div className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="font-semibold text-slate-800 dark:text-slate-100">
+            <StationLink outage={outage} />
+          </span>
+          <span className="flex flex-wrap gap-1">
+            {(outage.station?.lines || []).map((line) => (
+              <LinePill key={line} kind="train" line={line} linked={false} />
+            ))}
+          </span>
+        </div>
+        <span
+          className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+            active
+              ? 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200'
+              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200'
+          }`}
+        >
+          {active ? 'Out now' : 'Restored'}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        <span className="capitalize">{outage.unit_type}</span>
+        {outage.unit_label ? ` · ${outage.unit_label}` : ''} ·{' '}
+        {active
+          ? `out ${formatDuration(outage.durationMs) || 'just now'}`
+          : `down ${formatDuration(outage.durationMs) || 'briefly'}`}
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+        {active
+          ? `Reported ${formatDate(outage.lifecycle?.first_seen_ts)}`
+          : `Restored ${formatDate(outage.lifecycle?.restored_ts)}`}
+      </p>
+      {outage.headline && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{outage.headline}</p>
+      )}
+    </div>
   );
 }
 
@@ -38,35 +87,30 @@ function Sparkline({ values }) {
 
 function LineFilters({ selectedLine, onSelect }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <button
         type="button"
         onClick={() => onSelect(null)}
+        aria-pressed={selectedLine === null}
         className={`inline-flex min-h-[28px] items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-          selectedLine == null
+          selectedLine === null
             ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900'
             : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-gh-surface dark:text-slate-300 dark:ring-gh-border dark:hover:bg-gh-subtle'
         }`}
       >
         All lines
       </button>
-      {TRAIN_LINE_ORDER.map((line) => {
-        const info = TRAIN_LINES[line];
-        return (
-          <button
-            key={line}
-            type="button"
-            onClick={() => onSelect(line)}
-            className="inline-flex min-h-[28px] items-center rounded-full px-3 py-1 text-xs font-semibold hover:opacity-80 transition-opacity"
-            style={{
-              backgroundColor: selectedLine === line ? info.color : `${info.color}22`,
-              color: selectedLine === line ? info.textColor : info.color,
-            }}
-          >
-            {info.label}
-          </button>
-        );
-      })}
+      {TRAIN_LINE_ORDER.map((line) => (
+        <button
+          key={line}
+          type="button"
+          onClick={() => onSelect(line)}
+          aria-pressed={selectedLine === line}
+          className={`rounded-full transition-opacity ${selectedLine && selectedLine !== line ? 'opacity-45' : ''}`}
+        >
+          <LinePill kind="train" line={line} linked={false} />
+        </button>
+      ))}
     </div>
   );
 }
@@ -91,6 +135,15 @@ export default function AccessibilityPage() {
 
   const activeOutages = useMemo(
     () => currentlyOut(data?.outages || [], { now, line: selectedLine }),
+    [data, now, selectedLine],
+  );
+  const recentOutages = useMemo(
+    () =>
+      (data?.outages || [])
+        .filter((o) => !selectedLine || (o.station?.lines || []).includes(selectedLine))
+        .map((o) => ({ ...o, durationMs: outageDuration(o, now) }))
+        .sort((a, b) => (b.lifecycle?.first_seen_ts || 0) - (a.lifecycle?.first_seen_ts || 0))
+        .slice(0, 20),
     [data, now, selectedLine],
   );
   const reliability = useMemo(
@@ -173,6 +226,25 @@ export default function AccessibilityPage() {
                         </p>
                       )}
                     </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border">
+              <div className="p-4 border-b border-slate-100 dark:border-gh-border">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Recent notices
+                </h2>
+              </div>
+              {recentOutages.length === 0 ? (
+                <p className="p-4 text-sm text-slate-500 dark:text-slate-400">
+                  No accessibility notices in this view yet.
+                </p>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-gh-border">
+                  {recentOutages.map((outage) => (
+                    <RecentNoticeRow key={outage.id} outage={outage} />
                   ))}
                 </div>
               )}
