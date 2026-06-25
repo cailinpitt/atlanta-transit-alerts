@@ -13,12 +13,24 @@ Live site: https://atlantatransitalerts.app
 
 ## Data
 
-The site reads published data from:
+The site reads **bounded** published data from `https://data.atlantatransitalerts.app/`
+so a page load never fetches the entire archive:
 
-- `https://data.atlantatransitalerts.app/alerts.json`
-- `https://data.atlantatransitalerts.app/accessibility.json`
-- `https://data.atlantatransitalerts.app/daily-counts.json`
-- `https://data.atlantatransitalerts.app/alerts.csv`
+- `alerts-recent.json` — rolling recent window (active incidents of any age ∪ the
+  last 93 days). Poll this for current data.
+- `alerts/<YYYY-MM>.json` — monthly archive shards (by America/New_York month of
+  `first_seen`).
+- `incidents/by-line/<lineKey>.json` — one line/route's all-time history.
+- `alerts-index.json` — manifest: `months[]`, `lines[]`, `id_month`, `rkey_month`.
+- `aggregates.json` — precomputed year-over-year (`yoy.overall` + `by_mode.{train,bus}`).
+- `accessibility.json`, `daily-counts.json`, `alerts.csv` — unchanged.
+
+To reconstruct the full history, union the `incidents[]` of every shard in
+`alerts-index.json`'s `months[]` (each incident lands in exactly one shard).
+
+> **Deprecated:** the full-history `https://data.atlantatransitalerts.app/alerts.json`
+> is still published but will be retired — migrate to the files above. See
+> `public/data/CHANGELOG.md`.
 
 Public schema notes live in `public/llms.txt`, `public/llms-full.txt`, and `public/data/CHANGELOG.md`.
 

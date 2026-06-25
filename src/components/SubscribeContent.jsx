@@ -7,11 +7,13 @@ const LINK = 'text-blue-500 hover:text-blue-400 hover:underline';
 const SITE = 'https://atlantatransitalerts.app';
 const FEED_URL = `${SITE}/feed.xml`;
 const CSV_URL = dataUrl('alerts.csv');
-const JSON_URL = dataUrl('alerts.json');
+const RECENT_URL = dataUrl('alerts-recent.json');
+const INDEX_URL = dataUrl('alerts-index.json');
+const LEGACY_JSON_URL = dataUrl('alerts.json');
 const ACCESSIBILITY_URL = dataUrl('accessibility.json');
 const CHANGELOG_URL = 'https://atlantatransitalerts.app/data/CHANGELOG.md';
 
-const CURL_CMD = `curl -s ${JSON_URL} | jq '.incidents | length'`;
+const CURL_CMD = `curl -s ${RECENT_URL} | jq '.incidents | length'`;
 
 // Picker options for the per-line/route feed chooser. Values are the feed path
 // segment after `/feed/` (e.g. `line/red`, `route/66`).
@@ -206,16 +208,23 @@ export default function SubscribeContent() {
 
       <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-3">Bulk data</h3>
       <p>
-        Building a dashboard or doing analysis? The same data is published as JSON (a unified{' '}
-        <code className="text-xs">incidents[]</code> array) and as a flat CSV (one row per alert or
-        observation). No auth, no rate-limit beyond reasonable polling.
+        Building a dashboard or doing analysis? Incidents are published as bounded JSON files (a
+        unified <code className="text-xs">incidents[]</code> array) so you don't fetch the whole
+        archive on every load, plus a flat CSV (one row per alert or observation). No auth, no
+        rate-limit beyond reasonable polling.
       </p>
       <ul className="list-disc list-outside ml-5 space-y-1 text-xs">
         <li>
-          <a className={LINK} href={JSON_URL} target="_blank" rel="noopener noreferrer">
-            {JSON_URL}
+          <a className={LINK} href={RECENT_URL} target="_blank" rel="noopener noreferrer">
+            {RECENT_URL}
           </a>{' '}
-          — unified incidents, the same shape the SPA reads.
+          — recent window (active ∪ last 93 days), the slice the live site polls.
+        </li>
+        <li>
+          <a className={LINK} href={INDEX_URL} target="_blank" rel="noopener noreferrer">
+            {INDEX_URL}
+          </a>{' '}
+          — manifest of monthly + per-line archive files. Union the months for the full history.
         </li>
         <li>
           <a className={LINK} href={CSV_URL} target="_blank" rel="noopener noreferrer">
@@ -232,6 +241,13 @@ export default function SubscribeContent() {
             accessibility
           </a>{' '}
           page.
+        </li>
+        <li className="text-slate-500 dark:text-slate-400">
+          <a className={LINK} href={LEGACY_JSON_URL} target="_blank" rel="noopener noreferrer">
+            {LEGACY_JSON_URL}
+          </a>{' '}
+          — <strong>deprecated</strong> full-history file; still published for now, but will be
+          retired. Migrate to the recent + archive files above.
         </li>
       </ul>
       <p className="text-xs text-slate-500 dark:text-slate-400">

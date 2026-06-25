@@ -10,7 +10,12 @@ Every incident has a `kind` of `train` or `bus`. Train routes use MARTA line nam
 
 ## Endpoints
 
-- Incidents JSON: https://data.atlantatransitalerts.app/alerts.json
+- Recent incidents JSON (bounded: active ∪ last 93 days): https://data.atlantatransitalerts.app/alerts-recent.json
+- Data index JSON (manifest of monthly + per-line archive files): https://data.atlantatransitalerts.app/alerts-index.json
+- Monthly archive shard JSON (by America/New_York month of first_seen): https://data.atlantatransitalerts.app/alerts/<YYYY-MM>.json
+- Per-line all-time JSON: https://data.atlantatransitalerts.app/incidents/by-line/<lineKey>.json
+- Aggregates JSON (year-over-year: yoy.overall + by_mode.{train,bus}): https://data.atlantatransitalerts.app/aggregates.json
+- Incidents JSON (deprecated full-history file; migrate to the recent + index files above): https://data.atlantatransitalerts.app/alerts.json
 - Accessibility outages JSON: https://data.atlantatransitalerts.app/accessibility.json
 - Daily counts JSON: https://data.atlantatransitalerts.app/daily-counts.json
 - Incidents CSV: https://data.atlantatransitalerts.app/alerts.csv
@@ -54,9 +59,13 @@ outage captured from MARTA service alerts.
 }
 ```
 
-## alerts.json shape
+## Incident shape
 
-The top-level array is `incidents` - one object per real-world disruption.
+The top-level array is `incidents` - one object per real-world disruption. The
+same object shape is used by every incidents file: `alerts-recent.json`, the
+monthly `alerts/<YYYY-MM>.json` shards, the per-line `incidents/by-line/<lineKey>.json`
+files, and the deprecated full-history `alerts.json`. Only the scope of the
+array differs.
 
 ```jsonc
 {
