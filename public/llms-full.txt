@@ -115,7 +115,16 @@ array differs.
           "resolved_post_url": null,
           "bot_description": "...",
           "onset_description": "...",
-          "evidence": {}
+          "evidence": {
+            "updates": [
+              {
+                "ts": 1715202600000,
+                "description": "🚌 Route 110 · still no buses observed — ~3h in, ~5 scheduled trips missed.",
+                "post_url": null,
+                "evidence": { "elapsedMin": 180, "headwayMin": 35, "missedTrips": 5 }
+              }
+            ]
+          }
         }
       ]
     }
