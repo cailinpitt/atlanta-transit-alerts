@@ -4,14 +4,9 @@ import { useNow } from '../hooks/useNow.js';
 import { fetchAccessibilityData, outagesForStation } from '../lib/accessibility.js';
 import { computeTypicalDurations } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
-import { dataUrl } from '../lib/dataSource.js';
 import { formatDate, formatDuration } from '../lib/format.js';
-import {
-  incidentLifecycle,
-  incidentRecords,
-  isWebsiteIncident,
-  searchFilterIncidents,
-} from '../lib/incidents.js';
+import { loadIndex, loadLine } from '../lib/incidentStore.js';
+import { incidentLifecycle, incidentRecords, searchFilterIncidents } from '../lib/incidents.js';
 import { buildStationIndex, displayStationName, rosterStationBySlug } from '../lib/stations.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import ActiveAlerts from './ActiveAlerts.jsx';
@@ -39,18 +34,30 @@ export default function StationPage({ slug }) {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
+    let alive = true;
+    // A station is served by a fixed set of rail lines (static roster), so we
+    // only need those lines' all-time files — not the full history. Filter to
+    // the lines the index says actually have a published file so a quiet line
+    // (no incidents yet) is never requested (no 404), then union the files
+    // (de-duped by id: a transfer station serves multiple lines, and a
+    // multi-line incident appears in each line's file).
+    const servingLines = rosterStationBySlug(slug)?.lines ?? [];
+    loadIndex()
+      .then((index) => {
+        const existing = new Set((index.lines ?? []).map((l) => l.key));
+        const keys = servingLines.filter((l) => existing.has(l));
+        return Promise.all([index, Promise.all(keys.map((k) => loadLine(k).catch(() => [])))]);
       })
-      .then((fresh) =>
+      .then(([index, lineArrays]) => {
+        if (!alive) return;
+        const byId = new Map();
+        for (const arr of lineArrays) for (const inc of arr) byId.set(inc.id, inc);
         setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-        }),
-      )
+          incidents: [...byId.values()],
+          generated_at: index.generated_at,
+          data_start_ts: index.data_start_ts ?? null,
+        });
+      })
       .catch(setError);
     fetchAccessibilityData()
       .then(setAccessibilityData)
@@ -58,7 +65,10 @@ export default function StationPage({ slug }) {
         // The station page still works when the companion accessibility payload
         // has not been published yet.
       });
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
 
   // Flat view feeds the station index (and Header); the list reads nested
   // incidents reconstructed from the station's records below.

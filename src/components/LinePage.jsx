@@ -18,7 +18,6 @@ import {
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES, formatBusRoute } from '../lib/busRoutes.js';
 import { cancellationInfo } from '../lib/cancellation.js';
-import { dataUrl } from '../lib/dataSource.js';
 import {
   formatAtlantaDay,
   formatDate,
@@ -26,10 +25,10 @@ import {
   formatGap,
   formatMinutesAsHours,
 } from '../lib/format.js';
+import { loadIndex, loadLine } from '../lib/incidentStore.js';
 import {
   incidentLifecycle,
   incidentRecords,
-  isWebsiteIncident,
   legacyKind,
   searchFilterIncidents,
 } from '../lib/incidents.js';
@@ -246,16 +245,17 @@ export default function LinePage({ kind, lineId }) {
   const isRail = isTrain;
 
   useEffect(() => {
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((fresh) =>
+    if (!isKnown) return;
+    // One bounded all-time file for this line/route — the page shows the full
+    // history for the scope plus 90d stats, both over this single file. The
+    // index supplies generated_at / data_start_ts the per-line file doesn't
+    // carry (data_start_ts gates this line's YoY).
+    Promise.all([loadLine(effectiveLineId), loadIndex()])
+      .then(([incidents, index]) =>
         setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
+          incidents,
+          generated_at: index.generated_at,
+          data_start_ts: index.data_start_ts ?? null,
         }),
       )
       .catch(setError);
@@ -264,7 +264,7 @@ export default function LinePage({ kind, lineId }) {
       .catch(() => {
         // Accessibility data is supplemental; route pages still render without it.
       });
-  }, []);
+  }, [isKnown, effectiveLineId]);
 
   // Flat view of the full dataset; the analytics cards still read the flat
   // shape. The incident list reads nested incidents (see lineIncidents).

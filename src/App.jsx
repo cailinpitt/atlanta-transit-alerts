@@ -22,7 +22,7 @@ import {
 } from './lib/aggregate.js';
 import { compareBusRoutes } from './lib/busRoutes.js';
 import { cancellationInfo, collectUpcomingCancellations } from './lib/cancellation.js';
-import { dataUrl } from './lib/dataSource.js';
+import { loadRecent } from './lib/incidentStore.js';
 import {
   filterIncidents,
   incidentLifecycle,
@@ -150,8 +150,6 @@ export default function App() {
   }, [selectedLines, showBus, selectedBusRoutes, selectedSignals, selectedSources]);
 
   useEffect(() => {
-    const url = dataUrl('alerts.json');
-
     // Don't refetch on every unhide — a quick alt-tab away and back shouldn't
     // fire a request. Only revalidate on focus if it's been at least this long
     // since the last fetch; shorter toggles ride the data we already have.
@@ -160,24 +158,16 @@ export default function App() {
 
     function fetchData() {
       lastFetchedAt = Date.now();
-      // 'no-cache' (not 'no-store'): always revalidate, but send the stored
-      // ETag so an unchanged file comes back 304 with no body — skipping the
-      // ~800KB re-parse on the common quiet poll. R2 only changes the bytes
-      // when incidents change (push-web-data byte-compares before upload), so
-      // the ETag is stable during quiet periods and most polls cost nothing.
-      fetch(url, { cache: 'no-cache' })
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
+      // loadRecent fetches the bounded recent slice (93d ∪ active) with ETag
+      // revalidation — an unchanged file comes back 304 with no body, so most
+      // quiet polls cost nothing — and applies the website (train/bus) gate at
+      // the store boundary, so the home page no longer downloads + parses the
+      // full incident history every 5 minutes.
+      loadRecent()
         .then((fresh) => {
-          const gated = {
-            ...fresh,
-            incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-          };
           setData((prev) => {
             // Only update if generated_at changed (or on first load).
-            if (!prev || gated.generated_at !== prev.generated_at) return gated;
+            if (!prev || fresh.generated_at !== prev.generated_at) return fresh;
             return prev;
           });
         })

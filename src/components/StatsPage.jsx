@@ -5,12 +5,11 @@ import {
   computeRestorationDeltas,
   computeSegmentRecurrence,
   computeStatsLeaderboards,
-  computeYearOverYear,
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
-import { dataUrl } from '../lib/dataSource.js';
 import { formatAtlantaDay, formatDate, formatDuration, formatTime } from '../lib/format.js';
-import { formatRoutesLabel, incidentRecords, isWebsiteIncident } from '../lib/incidents.js';
+import { loadAggregates, loadRecent } from '../lib/incidentStore.js';
+import { formatRoutesLabel, incidentRecords } from '../lib/incidents.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import Breadcrumb from './Breadcrumb.jsx';
 import Footer from './Footer.jsx';
@@ -111,22 +110,17 @@ export default function StatsPage() {
   const [dark, toggleDark] = useDarkMode();
   const now = useNow();
   const [data, setData] = useState(null);
+  const [aggregates, setAggregates] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((fresh) =>
-        setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-        }),
-      )
-      .catch(setError);
+    // Every leaderboard on this page is ≤90-day-windowed, so the recent slice
+    // covers them; YoY is the one >90d computation and reads the precomputed
+    // aggregates instead of the full history.
+    loadRecent().then(setData).catch(setError);
+    loadAggregates()
+      .then(setAggregates)
+      .catch(() => {}); // YoY is a non-critical enhancement; degrade quietly
   }, []);
 
   useEffect(() => {
@@ -156,14 +150,9 @@ export default function StatsPage() {
     });
   }, [flat, now]);
 
-  const yoy = useMemo(() => {
-    if (!flat) return null;
-    return computeYearOverYear(flat.officialRecords, flat.detectionRecords, {
-      now,
-      windowDays: 30,
-      dataStartTs: data.data_start_ts ?? null,
-    });
-  }, [flat, data, now]);
+  // YoY needs a year of history, so it's precomputed server-side (overall,
+  // here) rather than derived from the 93-day recent slice.
+  const yoy = aggregates?.yoy?.overall ?? null;
 
   const restorationDeltas = useMemo(() => {
     if (!flat) return null;

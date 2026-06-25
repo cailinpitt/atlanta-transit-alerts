@@ -6,19 +6,17 @@ import {
   computeDisruptionMinutes,
   computeSummaryStats,
   computeWorstDay,
-  computeYearOverYear,
 } from '../lib/aggregate.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { BUS_ROUTE_NAMES, compareBusRoutes } from '../lib/busRoutes.js';
 import { cancellationInfo } from '../lib/cancellation.js';
-import { dataUrl } from '../lib/dataSource.js';
 import { atlantaDayUTC, formatAtlantaDay, formatMinutesAsHours } from '../lib/format.js';
+import { loadAggregates, loadRecent } from '../lib/incidentStore.js';
 import {
   filterIncidents,
   groupIncidentRecords,
   incidentLifecycle,
   incidentRecords,
-  isWebsiteIncident,
   legacyKind,
 } from '../lib/incidents.js';
 import { buildStationIndex } from '../lib/stations.js';
@@ -374,6 +372,7 @@ export default function SystemHealthPage({ kind }) {
   const [dark, toggleDark] = useDarkMode();
   const now = useNow();
   const [data, setData] = useState(null);
+  const [aggregates, setAggregates] = useState(null);
   const [error, setError] = useState(null);
   const [sortKey, setSortKey] = useState('default');
   const [search, setSearch] = useState('');
@@ -386,19 +385,13 @@ export default function SystemHealthPage({ kind }) {
   const modeLabel = kind === 'train' ? 'Rail' : 'Buses';
 
   useEffect(() => {
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((fresh) =>
-        setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-        }),
-      )
-      .catch(setError);
+    // Every aggregate on this page is ≤90-day-windowed over the mode slice, so
+    // the recent file covers them; the one >90d input (YoY) reads precomputed
+    // aggregates below.
+    loadRecent().then(setData).catch(setError);
+    loadAggregates()
+      .then(setAggregates)
+      .catch(() => {}); // YoY is a non-critical enhancement; degrade quietly
   }, []);
 
   // Flat view feeds every aggregate on the page; the incident list reads the
@@ -458,14 +451,10 @@ export default function SystemHealthPage({ kind }) {
     return computeSummaryStats(modeAlerts, modeObservations, now);
   }, [data, modeAlerts, modeObservations, now]);
 
-  const yoy = useMemo(() => {
-    if (!data) return null;
-    return computeYearOverYear(modeAlerts, modeObservations, {
-      now,
-      windowDays: 30,
-      dataStartTs: data.data_start_ts ?? null,
-    });
-  }, [data, modeAlerts, modeObservations, now]);
+  // YoY needs a year of history, so it's precomputed server-side per mode.
+  // `kind` ('train' | 'bus') matches aggregates.by_mode (rail + streetcar fold
+  // into 'train' in the producer, same as legacyKind here).
+  const yoy = aggregates?.yoy?.by_mode?.[kind] ?? null;
 
   const worstDay = useMemo(() => {
     if (!data) return null;

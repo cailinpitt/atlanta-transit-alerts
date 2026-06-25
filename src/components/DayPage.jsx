@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { useNow } from '../hooks/useNow.js';
 import { dayTrail } from '../lib/breadcrumbs.js';
-import { dataUrl } from '../lib/dataSource.js';
 import { atlantaDayUTC, formatAtlantaDay } from '../lib/format.js';
-import {
-  filterIncidents,
-  incidentRecords,
-  isWebsiteIncident,
-  legacyKind,
-} from '../lib/incidents.js';
+import { loadIndex, loadRange, loadRecent } from '../lib/incidentStore.js';
+import { filterIncidents, incidentRecords, legacyKind } from '../lib/incidents.js';
 import { buildStationIndex } from '../lib/stations.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import { dayStringToUtc, parseUrlState } from '../lib/urlState.js';
@@ -61,19 +56,32 @@ export default function DayPage({ dateStr }) {
 
   useEffect(() => {
     if (dayUtc == null) return;
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
+    let alive = true;
+    loadIndex()
+      .then((index) => {
+        // A day inside the recent window is served by the recent slice, which
+        // carries active incidents of any age — so a long-runner that started
+        // earlier but whose span overlaps this day still shows. Older days come
+        // from the month shard(s) overlapping the day.
+        const loader =
+          index.recent_from_ts != null && dayUtc >= index.recent_from_ts
+            ? loadRecent()
+            : loadRange(dayUtc, dayUtc + DAY_MS);
+        return Promise.all([loader, index]);
       })
-      .then((fresh) =>
+      .then(([loaded, index]) => {
+        if (!alive) return;
+        const incidents = Array.isArray(loaded) ? loaded : loaded.incidents;
         setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-        }),
-      )
+          incidents,
+          generated_at: Array.isArray(loaded) ? index.generated_at : loaded.generated_at,
+          data_start_ts: index.data_start_ts ?? null,
+        });
+      })
       .catch(setError);
+    return () => {
+      alive = false;
+    };
   }, [dayUtc]);
 
   // Flat view for the station index and Header; the list reads nested incidents.

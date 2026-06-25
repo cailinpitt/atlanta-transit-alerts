@@ -4,7 +4,6 @@ import { useNow } from '../hooks/useNow.js';
 import { buildWeekSummary, weekStartUTC } from '../lib/aggregate.js';
 import { weekTrail } from '../lib/breadcrumbs.js';
 import { formatBusRoute } from '../lib/busRoutes.js';
-import { dataUrl } from '../lib/dataSource.js';
 import {
   atlantaDayIsoUTC,
   atlantaDayUTC,
@@ -12,7 +11,8 @@ import {
   formatDuration,
   formatWeekRange,
 } from '../lib/format.js';
-import { incidentLifecycle, incidentRecords, isWebsiteIncident } from '../lib/incidents.js';
+import { loadIndex, loadRange } from '../lib/incidentStore.js';
+import { incidentLifecycle, incidentRecords } from '../lib/incidents.js';
 import { buildStationIndex } from '../lib/stations.js';
 import { TRAIN_LINES } from '../lib/trainLines.js';
 import { dayStringToUtc } from '../lib/urlState.js';
@@ -52,19 +52,23 @@ export default function WeekPage({ weekParam }) {
 
   useEffect(() => {
     if (weekStartUtc == null) return;
-    const url = dataUrl('alerts.json');
-    fetch(url, { cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((fresh) =>
+    let alive = true;
+    // Union the month shards overlapping this week plus the prior week (the
+    // week-over-week delta compares against the week before). The index supplies
+    // generated_at for the Header / data_start_ts.
+    Promise.all([loadRange(weekStartUtc - WEEK_MS, weekStartUtc + 7 * DAY_MS), loadIndex()])
+      .then(([incidents, index]) => {
+        if (!alive) return;
         setData({
-          ...fresh,
-          incidents: (fresh.incidents || []).filter((inc) => isWebsiteIncident(inc)),
-        }),
-      )
+          incidents,
+          generated_at: index.generated_at,
+          data_start_ts: index.data_start_ts ?? null,
+        });
+      })
       .catch(setError);
+    return () => {
+      alive = false;
+    };
   }, [weekStartUtc]);
 
   const flat = useMemo(() => (data ? incidentRecords(data.incidents) : null), [data]);

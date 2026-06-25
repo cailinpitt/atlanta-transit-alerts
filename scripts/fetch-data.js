@@ -4,10 +4,16 @@
 // current data without it being committed to the repo. Runs automatically as
 // the npm `prebuild` hook.
 //
+// alerts.json is reassembled from the published shards (index + monthly archive
+// shards + recent slice) rather than fetched directly, so the build no longer
+// depends on the legacy full-history monolith continuing to be published. The
+// non-sharded companions (accessibility.json, daily-counts.json) are fetched
+// as-is.
+//
 // Resilience: if the origin is unreachable but a local copy already exists
 // (e.g. during local development, or a transient R2 hiccup), we keep the
-// existing file rather than failing the build. If alerts.json is not published
-// yet, seed an empty schema-v2 payload so the shell can deploy before data
+// existing file rather than failing the build. If nothing is published yet,
+// seed an empty schema-v2 payload so the shell can deploy before data
 // publishing is online.
 //
 // Env:
@@ -22,7 +28,8 @@ const ORIGIN = (process.env.DATA_ORIGIN_URL || 'https://data.atlantatransitalert
   '',
 );
 const OUT_DIR = resolve(__dirname, '..', 'public', 'data');
-const FILES = ['alerts.json', 'accessibility.json', 'daily-counts.json'];
+// Non-sharded companions fetched verbatim; alerts.json is reassembled below.
+const FILES = ['accessibility.json', 'daily-counts.json'];
 const EMPTY_ALERTS = {
   schema_version: 2,
   generated_at: Date.now(),
@@ -42,6 +49,67 @@ const EMPTY_ACCESSIBILITY = {
 };
 
 mkdirSync(OUT_DIR, { recursive: true });
+
+async function fetchJson(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Reassemble the full-history alerts.json from the published shards. Every
+// incident with a first_seen lives in exactly one monthly shard (its first_seen
+// month); the recent slice adds any active incident with no first_seen that no
+// month shard holds. De-duped by id and sorted (first_seen DESC, then id) to
+// match the producer's own ordering, so the reassembled file is byte-identical
+// to a directly-published alerts.json from the same export run.
+async function assembleAlerts() {
+  const index = await fetchJson(`${ORIGIN}/alerts-index.json`);
+  const byId = new Map();
+  for (const m of index.months ?? []) {
+    const shard = await fetchJson(`${ORIGIN}/${m.url}`);
+    for (const inc of shard.incidents ?? []) byId.set(inc.id, inc);
+  }
+  const recent = await fetchJson(`${ORIGIN}/alerts-recent.json`);
+  for (const inc of recent.incidents ?? []) if (!byId.has(inc.id)) byId.set(inc.id, inc);
+  const incidents = [...byId.values()].sort(
+    (a, b) =>
+      (b.lifecycle?.first_seen_ts ?? 0) - (a.lifecycle?.first_seen_ts ?? 0) ||
+      String(a.id).localeCompare(String(b.id)),
+  );
+  return {
+    schema_version: index.schema_version ?? 2,
+    generated_at: index.generated_at ?? Date.now(),
+    data_start_ts: index.data_start_ts ?? null,
+    incidents,
+  };
+}
+
+// alerts.json: reassemble from shards, then degrade gracefully — the legacy
+// published monolith (still emitted during the deprecation window), then a
+// local copy, then an empty seed — so the build never hard-fails on data.
+const alertsDest = resolve(OUT_DIR, 'alerts.json');
+try {
+  const out = await assembleAlerts();
+  writeFileSync(alertsDest, `${JSON.stringify(out)}\n`);
+  console.log(
+    `fetch-data: alerts.json reassembled from shards (${out.incidents.length} incidents)`,
+  );
+} catch (err) {
+  console.warn(`fetch-data: shard reassembly failed (${err.message}); trying legacy alerts.json`);
+  try {
+    const res = await fetch(`${ORIGIN}/alerts.json`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = Buffer.from(await res.arrayBuffer());
+    writeFileSync(alertsDest, body);
+    console.log(`fetch-data: alerts.json <- legacy file (${body.length} bytes)`);
+  } catch (err2) {
+    if (existsSync(alertsDest)) {
+      console.warn(`fetch-data: alerts.json fetch failed (${err2.message}); using existing copy`);
+    } else {
+      console.error(`fetch-data: alerts.json unavailable (${err2.message}) and no local copy`);
+    }
+  }
+}
 
 for (const file of FILES) {
   const url = `${ORIGIN}/${file}`;
