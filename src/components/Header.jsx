@@ -99,7 +99,10 @@ export default function Header({
             >
               Atlanta Transit Alerts
             </button>
-            <span className="flex-shrink-0 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-500/15 px-2.5 py-1 text-[10px] leading-none font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/25">
+            {/* Top-aligned (self-start) so the badge tucks beside the first
+                line of the title instead of floating against the vertical
+                middle of a wrapped two/three-line heading on narrow screens. */}
+            <span className="flex-shrink-0 self-start mt-1.5 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-500/15 px-2 py-0.5 text-[10px] leading-none font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300 ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/25">
               Beta
             </span>
           </h1>
