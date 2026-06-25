@@ -51,6 +51,11 @@ export default function SummaryStats({
   // Other pages (line, system) keep it since they have no such header.
   showActive = true,
   agency: _agency = 'all',
+  // The homepage opens on the live status + stat cards, so it drops the
+  // most-affected / quietest line sentences here to stay scannable — those
+  // editorial-leaning callouts still live on the Stats and per-line pages,
+  // where a reader has opted into the detail. Other hosts keep them.
+  showLineCallouts = true,
 }) {
   const trend = useMemo(
     () => (alerts && observations ? buildDailyTrend(alerts, observations) : null),
@@ -209,14 +214,16 @@ export default function SummaryStats({
             ))}
           </div>
         )}
-        <div className="space-y-1">
-          {affectedPhrase && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">{affectedPhrase}</p>
-          )}
-          {quietestPhrase && (
-            <p className="text-sm text-slate-600 dark:text-slate-300">{quietestPhrase}</p>
-          )}
-        </div>
+        {showLineCallouts && (
+          <div className="space-y-1">
+            {affectedPhrase && (
+              <p className="text-sm text-slate-600 dark:text-slate-300">{affectedPhrase}</p>
+            )}
+            {quietestPhrase && (
+              <p className="text-sm text-slate-600 dark:text-slate-300">{quietestPhrase}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Desktop */}
@@ -237,7 +244,7 @@ export default function SummaryStats({
             <TrendSparkline alerts={alerts} observations={observations} trend={trend} />
           </div>
         )}
-        <StatRow>{[affectedPhrase, quietestPhrase]}</StatRow>
+        {showLineCallouts && <StatRow>{[affectedPhrase, quietestPhrase]}</StatRow>}
       </div>
     </div>
   );

@@ -37,6 +37,7 @@ import { normalizeTrainLine, TRAIN_LINES } from '../lib/trainLines.js';
 import ActiveAlerts from './ActiveAlerts.jsx';
 import Breadcrumb from './Breadcrumb.jsx';
 import CancellationDelayStats from './CancellationDelayStats.jsx';
+import CollapsibleSection from './CollapsibleSection.jsx';
 import Footer from './Footer.jsx';
 import Header from './Header.jsx';
 import HourOfWeekHeatmap from './HourOfWeekHeatmap.jsx';
@@ -664,59 +665,71 @@ export default function LinePage({ kind, lineId }) {
 
             {isRail && <AccessibilityOutagesSection outages={lineOutages} />}
 
-            {segments.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                  Recurring trouble segments (90d)
-                </h2>
-                <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border divide-y divide-slate-100 dark:divide-gh-border">
-                  {segments.map((s) => (
-                    <div
-                      key={`${s.fromStation}|${s.toStation}`}
-                      className="flex items-center gap-3 px-4 py-3"
-                    >
-                      <span className="text-sm text-slate-700 dark:text-slate-200 flex-1 min-w-0 truncate">
-                        {s.fromStation} → {s.toStation}
-                      </span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums flex-shrink-0">
-                        ×{s.count}
-                      </span>
+            {/* Retrospective pattern charts, collapsed by default so the line
+                page opens on this line's live status + headline stats + station
+                map instead of a wall of charts — mirrors the homepage's
+                "Trends & history" move. One tap expands the full history. */}
+            {(lineAlerts.length > 0 || lineObservations.length > 0) && (
+              <CollapsibleSection
+                title="Trends & history"
+                subtitle="Segments · 90-day timeline · patterns"
+                className="pt-4 mt-2 border-t border-slate-200 dark:border-gh-border"
+              >
+                {segments.length > 0 && (
+                  <section>
+                    <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                      Recurring trouble segments (90d)
+                    </h2>
+                    <div className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border divide-y divide-slate-100 dark:divide-gh-border">
+                      {segments.map((s) => (
+                        <div
+                          key={`${s.fromStation}|${s.toStation}`}
+                          className="flex items-center gap-3 px-4 py-3"
+                        >
+                          <span className="text-sm text-slate-700 dark:text-slate-200 flex-1 min-w-0 truncate">
+                            {s.fromStation} → {s.toStation}
+                          </span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums flex-shrink-0">
+                            ×{s.count}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">
-                  Cold or held stretches detected on the same segment more than once. Direction-
-                  aware — a segment can show up twice if both directions have trouble.
-                </p>
-              </section>
-            )}
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">
+                      Cold or held stretches detected on the same segment more than once. Direction-
+                      aware — a segment can show up twice if both directions have trouble.
+                    </p>
+                  </section>
+                )}
 
-            <DurationHistogram histogram={durationHistogram} />
+                <DurationHistogram histogram={durationHistogram} />
 
-            <Timeline
-              alerts={lineAlerts}
-              observations={lineObservations}
-              selectedLines={isTrain ? [effectiveLineId] : []}
-              numDays={90}
-              selectedRangeDays={null}
-              dataStartTs={data.data_start_ts ?? null}
-              now={now}
-              onLineClick={() => {}}
-              showBus={!isTrain}
-              selectedBusRoutes={!isTrain ? [lineId] : []}
-              onBusRouteClick={() => {}}
-            />
+                <Timeline
+                  alerts={lineAlerts}
+                  observations={lineObservations}
+                  selectedLines={isTrain ? [effectiveLineId] : []}
+                  numDays={90}
+                  selectedRangeDays={null}
+                  dataStartTs={data.data_start_ts ?? null}
+                  now={now}
+                  onLineClick={() => {}}
+                  showBus={!isTrain}
+                  selectedBusRoutes={!isTrain ? [lineId] : []}
+                  onBusRouteClick={() => {}}
+                />
 
-            <DayOfWeekBars data={dayOfWeek} />
+                <DayOfWeekBars data={dayOfWeek} />
 
-            <HourOfWeekHeatmap alerts={lineAlerts} observations={lineObservations} />
+                <HourOfWeekHeatmap alerts={lineAlerts} observations={lineObservations} />
 
-            {!isTrain && (
-              <SignalBreakdownSingleRoute
-                observations={lineObservations}
-                label={`#${lineId}`}
-                labelColor={headingBg}
-              />
+                {!isTrain && (
+                  <SignalBreakdownSingleRoute
+                    observations={lineObservations}
+                    label={`#${lineId}`}
+                    labelColor={headingBg}
+                  />
+                )}
+              </CollapsibleSection>
             )}
 
             <IncidentList

@@ -56,6 +56,27 @@ function topStations(alerts, observations, now) {
     .slice(0, STATION_LIMIT);
 }
 
+// Bluesky bot accounts that post the underlying alerts/observations. These used
+// to ride a chip row in the page header; they live here now so the header opens
+// straight onto content. Each is a follow target, grouped under "Follow".
+const BOTS = [
+  {
+    label: 'MARTA Alerts',
+    emoji: '⚠️',
+    href: 'https://bsky.app/profile/martaalertinsights.atlantatransitalerts.app',
+  },
+  {
+    label: 'MARTA Trains',
+    emoji: '🚆',
+    href: 'https://bsky.app/profile/martatraininsights.atlantatransitalerts.app',
+  },
+  {
+    label: 'MARTA Buses',
+    emoji: '🚌',
+    href: 'https://bsky.app/profile/martabusinsights.atlantatransitalerts.app',
+  },
+];
+
 const ROW_LINK =
   'flex items-center gap-2 px-2 py-1 rounded text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-gh-border transition-colors';
 const SUB_LABEL =
@@ -238,6 +259,25 @@ export default function BrowseMenu({ alerts, observations, align = 'right' }) {
                 </span>
                 Privacy
               </a>
+
+              <div className="mt-3">
+                <p className={SUB_LABEL}>Follow on Bluesky</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {BOTS.map((bot) => (
+                    <a
+                      key={bot.href}
+                      href={bot.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-gh-subtle text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-gh-border transition-colors"
+                    >
+                      <span aria-hidden="true">{bot.emoji}</span>
+                      {bot.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
             </section>
 
             <section>

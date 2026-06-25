@@ -510,6 +510,7 @@ export default function App() {
                     observations={flat.detectionRecords}
                     showActive={false}
                     agency="all"
+                    showLineCallouts={false}
                   />
                 )}
               </section>
