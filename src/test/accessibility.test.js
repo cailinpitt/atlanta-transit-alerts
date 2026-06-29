@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   currentlyOut,
+  groupOutagesByStation,
   outagesForLine,
   outagesForStation,
   stationReliability,
+  summarizeOutages,
 } from '../lib/accessibility.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -78,6 +80,46 @@ describe('accessibility derivations', () => {
       { now },
     );
     expect(rows.map((r) => r.id)).toEqual(['active', 'restored']);
+  });
+
+  it('summarizes active outages by unit total and distinct station', () => {
+    const rows = [
+      outage({ id: 'a' }),
+      outage({ id: 'b' }),
+      outage({
+        id: 'c',
+        station: { slug: 'five-points-station', name: 'Five Points', lines: ['blue'] },
+      }),
+    ];
+    // 'a' and 'b' share Midtown, so it counts once.
+    expect(summarizeOutages(rows)).toEqual({ total: 3, stations: 2 });
+  });
+
+  it('collapses multiple units at one station into a single group, longest-out first', () => {
+    const rows = currentlyOut(
+      [
+        outage({ id: 'elevator', lifecycle: { first_seen_ts: now - DAY, active: true } }),
+        outage({
+          id: 'escalator',
+          unit_type: 'escalator',
+          lifecycle: { first_seen_ts: now - 3 * DAY, active: true },
+        }),
+        outage({
+          id: 'fivepoints',
+          station: { slug: 'five-points-station', name: 'Five Points', lines: ['blue'] },
+          lifecycle: { first_seen_ts: now - 2 * DAY, active: true },
+        }),
+      ],
+      { now },
+    );
+    const groups = groupOutagesByStation(rows);
+    expect(groups.map((g) => g.key)).toEqual(['midtown-station', 'five-points-station']);
+    expect(groups[0]).toMatchObject({
+      name: 'Midtown',
+      slug: 'midtown-station',
+      lines: ['red', 'gold'],
+    });
+    expect(groups[0].outages.map((o) => o.id)).toEqual(['escalator', 'elevator']);
   });
 
   it('summarizes station reliability inside the requested window', () => {

@@ -28,6 +28,36 @@ export function stationLabel(outage) {
   return outage?.station?.name || 'Unmatched station';
 }
 
+export function summarizeOutages(outages = []) {
+  const stations = new Set();
+  for (const o of outages) {
+    stations.add(o.station?.slug || `unmatched:${stationLabel(o)}`);
+  }
+  return { total: outages.length, stations: stations.size };
+}
+
+// Collapses active outages into one group per station so a stop with several
+// out-of-service units (e.g. an elevator and an escalator) reads as a single
+// card. Stations keep the order of their first outage in the input, so a list
+// pre-sorted by duration surfaces the longest-out station first.
+export function groupOutagesByStation(outages = []) {
+  const groups = new Map();
+  for (const o of outages) {
+    const key = o.station?.slug || `unmatched:${stationLabel(o)}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        name: stationLabel(o),
+        slug: o.station?.slug ?? null,
+        lines: o.station?.lines || [],
+        outages: [],
+      });
+    }
+    groups.get(key).outages.push(o);
+  }
+  return [...groups.values()];
+}
+
 export function outagesForStation(outages = [], slug, { now = Date.now(), limit = 8 } = {}) {
   if (!slug) return [];
   return outages

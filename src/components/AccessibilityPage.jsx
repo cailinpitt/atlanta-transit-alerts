@@ -4,8 +4,10 @@ import { useNow } from '../hooks/useNow.js';
 import {
   currentlyOut,
   fetchAccessibilityData,
+  groupOutagesByStation,
   outageDuration,
   stationReliability,
+  summarizeOutages,
 } from '../lib/accessibility.js';
 import { topLevelTrail } from '../lib/breadcrumbs.js';
 import { formatDate, formatDuration } from '../lib/format.js';
@@ -24,6 +26,81 @@ function StationLink({ outage }) {
     <a href={`/station/${outage.station.slug}`} className="hover:underline">
       {name}
     </a>
+  );
+}
+
+function UnitDetail({ outage }) {
+  return (
+    <>
+      <span className="capitalize">{outage.unit_type}</span>
+      {outage.unit_label ? ` · ${outage.unit_label}` : ''} · out{' '}
+      {formatDuration(outage.durationMs) || 'just now'}
+    </>
+  );
+}
+
+function StationOutageGroup({ group }) {
+  const multi = group.outages.length > 1;
+  return (
+    <div className="px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-semibold text-slate-800 dark:text-slate-100">
+          {group.slug ? (
+            <a href={`/station/${group.slug}`} className="hover:underline">
+              {group.name}
+            </a>
+          ) : (
+            <span>{group.name}</span>
+          )}
+        </span>
+        {group.lines.length > 0 && (
+          <span className="flex flex-wrap items-center gap-1">
+            {group.lines.map((line) => (
+              <LinePill key={line} kind="train" line={line} compact />
+            ))}
+          </span>
+        )}
+        {multi ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+            {group.outages.length} out
+          </span>
+        ) : (
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            · <UnitDetail outage={group.outages[0]} />
+          </span>
+        )}
+      </div>
+      {multi && (
+        <ul className="mt-1 space-y-0.5 text-sm text-slate-500 dark:text-slate-400">
+          {group.outages.map((outage) => (
+            <li key={outage.id}>
+              <UnitDetail outage={outage} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SummaryBar({ summary }) {
+  if (summary.total === 0) {
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
+        No elevators or escalators reported out of service right now.
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+      <span className="font-semibold">
+        {summary.total} {summary.total === 1 ? 'unit' : 'units'} out
+      </span>
+      <span className="text-amber-700/70 dark:text-amber-200/70">·</span>
+      <span>
+        {summary.stations} {summary.stations === 1 ? 'station' : 'stations'}
+      </span>
+    </div>
   );
 }
 
@@ -139,6 +216,8 @@ export default function AccessibilityPage() {
     () => currentlyOut(data?.outages || [], { now, line: selectedLine }),
     [data, now, selectedLine],
   );
+  const activeSummary = useMemo(() => summarizeOutages(activeOutages), [activeOutages]);
+  const activeGroups = useMemo(() => groupOutagesByStation(activeOutages), [activeOutages]);
   const recentOutages = useMemo(
     () =>
       (data?.outages || [])
@@ -197,45 +276,22 @@ export default function AccessibilityPage() {
 
         {data && (
           <>
-            <section className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border">
-              <div className="p-4 border-b border-slate-100 dark:border-gh-border">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Active outages ({activeOutages.length})
-                </h2>
-              </div>
-              {activeOutages.length === 0 ? (
-                <p className="p-4 text-sm text-slate-500 dark:text-slate-400">
-                  No elevators or escalators reported out of service right now.
-                </p>
-              ) : (
+            <SummaryBar summary={activeSummary} />
+
+            {activeOutages.length > 0 && (
+              <section className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-gh-border">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Active outages ({activeOutages.length})
+                  </h2>
+                </div>
                 <div className="divide-y divide-slate-100 dark:divide-gh-border">
-                  {activeOutages.map((outage) => (
-                    <div key={outage.id} className="p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-slate-800 dark:text-slate-100">
-                          <StationLink outage={outage} />
-                        </span>
-                        <span className="flex flex-wrap gap-1">
-                          {(outage.station?.lines || []).map((line) => (
-                            <LinePill key={line} kind="train" line={line} />
-                          ))}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        <span className="capitalize">{outage.unit_type}</span>
-                        {outage.unit_label ? ` · ${outage.unit_label}` : ''} · out{' '}
-                        {formatDuration(outage.durationMs) || 'just now'}
-                      </p>
-                      {outage.headline && (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {outage.headline}
-                        </p>
-                      )}
-                    </div>
+                  {activeGroups.map((group) => (
+                    <StationOutageGroup key={group.key} group={group} />
                   ))}
                 </div>
-              )}
-            </section>
+              </section>
+            )}
 
             <section className="bg-white dark:bg-gh-surface rounded-lg border border-slate-200 dark:border-gh-border">
               <div className="p-4 border-b border-slate-100 dark:border-gh-border">
