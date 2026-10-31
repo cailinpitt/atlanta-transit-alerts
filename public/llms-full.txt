@@ -19,6 +19,7 @@ Every incident has a `kind` of `train` or `bus`. Train routes use MARTA line nam
 - Accessibility outages JSON: https://data.atlantatransitalerts.app/accessibility.json
 - Daily counts JSON: https://data.atlantatransitalerts.app/daily-counts.json
 - Incidents CSV: https://data.atlantatransitalerts.app/alerts.csv
+- Vehicle positions index: https://data.atlantatransitalerts.app/positions/index.json (one gzipped NDJSON file per mode per Atlanta day since 2026-09-28: https://data.atlantatransitalerts.app/positions/<mode>/YYYY/MM/YYYY-MM-DD.ndjson.gz, modes bus, rail, streetcar; fields per mode in the index `schema`)
 - Data changelog: https://atlantatransitalerts.app/data/CHANGELOG.md
 - Atom feed: https://atlantatransitalerts.app/feed.xml
 - Per-line/per-route Atom feeds: `/feed/line/<line>.xml`, `/feed/route/<route>.xml`

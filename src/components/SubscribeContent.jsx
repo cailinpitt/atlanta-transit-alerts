@@ -4,16 +4,58 @@ import { dataUrl } from '../lib/dataSource.js';
 import { TRAIN_LINE_ORDER, TRAIN_LINES } from '../lib/trainLines.js';
 
 const LINK = 'text-blue-500 hover:text-blue-400 hover:underline';
+const H2 = 'text-lg font-semibold text-slate-800 dark:text-slate-100';
+const H3 = 'font-semibold text-slate-700 dark:text-slate-200 pt-2';
+const NOTE = 'text-xs text-slate-500 dark:text-slate-400';
+const FIELD =
+  'flex-1 min-w-0 px-2 py-1.5 text-xs font-mono bg-slate-50 dark:bg-gh-canvas border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200';
+const BUTTON =
+  'px-3 py-1.5 text-xs font-medium rounded border border-slate-200 dark:border-gh-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gh-border transition-colors';
+
 const SITE = 'https://atlantatransitalerts.app';
 const FEED_URL = `${SITE}/feed.xml`;
-const CSV_URL = dataUrl('alerts.csv');
 const RECENT_URL = dataUrl('alerts-recent.json');
-const INDEX_URL = dataUrl('alerts-index.json');
 const LEGACY_JSON_URL = dataUrl('alerts.json');
-const ACCESSIBILITY_URL = dataUrl('accessibility.json');
 const CHANGELOG_URL = 'https://atlantatransitalerts.app/data/CHANGELOG.md';
+const POSITIONS_FILE_PATTERN = dataUrl(
+  'positions/{bus,rail,streetcar}/YYYY/MM/YYYY-MM-DD.ndjson.gz',
+);
 
 const CURL_CMD = `curl -s ${RECENT_URL} | jq '.incidents | length'`;
+const POSITIONS_CMD = `curl -s ${dataUrl('positions/rail/2026/10/2026-10-27.ndjson.gz')} | gunzip | head -3`;
+
+const BLUESKY_ACCOUNTS = [
+  ['martaalertinsights', 'official MARTA alerts plus bot-detected disruption roundups.'],
+  ['martatraininsights', 'MARTA rail speedmaps, bunching, gaps, ghosts, and recaps.'],
+  ['martabusinsights', 'MARTA bus speedmaps, bunching, gaps, ghosts, and recaps.'],
+];
+
+const INCIDENT_FILES = [
+  {
+    name: 'Recent incidents',
+    file: 'alerts-recent.json',
+    desc: 'Active incidents plus the last 93 days. The same data the live site reads, so poll this one.',
+  },
+  {
+    name: 'Archive index',
+    file: 'alerts-index.json',
+    desc: 'Lists the monthly archive files and per-line files. Combine the monthly files for the full history.',
+  },
+  { name: 'CSV', file: 'alerts.csv', desc: 'One row per alert or observation.' },
+  {
+    name: 'Accessibility outages',
+    file: 'accessibility.json',
+    desc: 'Elevator, escalator, and ADA outages, the data behind the accessibility page.',
+  },
+];
+
+const POSITION_FILES = [
+  {
+    name: 'Positions index',
+    file: 'positions/index.json',
+    desc: "Every published day with each file's path, row count, size, and checksum, plus the fields for each mode.",
+  },
+];
 
 // Picker options for the per-line/route feed chooser. Values are the feed path
 // segment after `/feed/` (e.g. `line/red`, `route/66`).
@@ -27,6 +69,7 @@ const ROUTE_FEED_OPTIONS = Object.keys(BUS_ROUTE_NAMES)
     value: `route/${r}`,
     label: BUS_ROUTE_NAMES[r] ? `#${r} ${BUS_ROUTE_NAMES[r]}` : `#${r}`,
   }));
+
 export default function SubscribeContent() {
   const [copied, setCopied] = useState(null);
   const [pickedOfficialFeed, setPickedOfficialFeed] = useState('line/red');
@@ -44,136 +87,94 @@ export default function SubscribeContent() {
       setCopied(key);
     } catch {
       // Clipboard API can fail in older Safari / restrictive contexts; the
-      // text is visible and seleofficialble either way.
+      // text is visible and selectable either way.
     }
   };
 
   return (
     <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200">Follow on Bluesky</h3>
-      <p>
-        The bots that feed this archive post directly to Bluesky in real time. Follow whichever
-        modes you care about:
-      </p>
-      <ul className="list-disc list-outside ml-5 space-y-1">
-        <li>
-          <a
-            className={LINK}
-            href="https://bsky.app/profile/martaalertinsights.atlantatransitalerts.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            @martaalertinsights
-          </a>{' '}
-          — official MARTA alerts plus bot-detected disruption roundups.
-        </li>
-        <li>
-          <a
-            className={LINK}
-            href="https://bsky.app/profile/martatraininsights.atlantatransitalerts.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            @martatraininsights
-          </a>{' '}
-          — MARTA rail speedmaps, bunching, gaps, ghosts, and recaps.
-        </li>
-        <li>
-          <a
-            className={LINK}
-            href="https://bsky.app/profile/martabusinsights.atlantatransitalerts.app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            @martabusinsights
-          </a>{' '}
-          — MARTA bus speedmaps, bunching, gaps, ghosts, and recaps.
-        </li>
-      </ul>
-
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-3">RSS / Atom feed</h3>
-      <p>
-        An Atom feed of the 50 most recent incidents — official MARTA alerts plus bot-detected
-        disruptions, across every line and route. Drop the URL below into any feed reader to follow
-        along.
-      </p>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Capped at 50 entries, which typically covers the last 3–7 days depending on how active the
-        system has been.
+      <p className={NOTE}>
+        Jump to:{' '}
+        <a className={LINK} href="#get-alerts">
+          Get alerts
+        </a>{' '}
+        ·{' '}
+        <a className={LINK} href="#use-the-data">
+          Use the data
+        </a>
       </p>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          readOnly
+      <section id="get-alerts" className="space-y-3 scroll-mt-4">
+        <h2 className={H2}>Get alerts</h2>
+
+        <h3 className={H3}>Follow on Bluesky</h3>
+        <p>The bots post to Bluesky in real time. Follow the ones you care about:</p>
+        <ul className="list-disc list-outside ml-5 space-y-1">
+          {BLUESKY_ACCOUNTS.map(([handle, desc]) => (
+            <li key={handle}>
+              <a
+                className={LINK}
+                href={`https://bsky.app/profile/${handle}.atlantatransitalerts.app`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                @{handle}
+              </a>
+              : {desc}
+            </li>
+          ))}
+        </ul>
+
+        <h3 className={H3}>Your line or route</h3>
+        <p>
+          Pick a MARTA rail line or bus route and add its feed to a feed reader. Every line and
+          route has one, even if it's quiet so far.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <FeedPicker
+            id="marta-feed-picker"
+            label="MARTA line or route"
+            value={pickedOfficialFeed}
+            onChange={setPickedOfficialFeed}
+            url={pickedOfficialFeedUrl}
+            copied={copied === 'official-picked'}
+            onCopy={copy('official-picked', pickedOfficialFeedUrl)}
+          >
+            <optgroup label="Rail Lines">
+              {LINE_FEED_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Bus Routes">
+              {ROUTE_FEED_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
+          </FeedPicker>
+        </div>
+
+        <h3 className={H3}>All alerts</h3>
+        <p>
+          One feed with the 50 most recent incidents across every line and route: official MARTA
+          alerts plus bot-detected disruptions.
+        </p>
+        <CopyField
           value={FEED_URL}
-          onFocus={(e) => e.target.select()}
-          aria-label="Full feed URL"
-          className="flex-1 min-w-0 px-2 py-1.5 text-xs font-mono bg-slate-50 dark:bg-gh-bg border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200"
+          label="Full feed URL"
+          copied={copied === 'feed'}
+          onCopy={copy('feed', FEED_URL)}
         />
-        <button
-          type="button"
-          onClick={copy('feed', FEED_URL)}
-          className="px-3 py-1.5 text-xs font-medium rounded border border-slate-200 dark:border-gh-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gh-border transition-colors"
-        >
-          {copied === 'feed' ? 'Copied' : 'Copy'}
-        </button>
-      </div>
 
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-3">
-        Just one line or route
-      </h3>
-      <p>
-        Only care about your commute? Pick a MARTA rail line, streetcar, or bus route to get its own
-        feed. Every rail line and bus route has one at a prediofficialble URL (
-        <code className="text-xs">/feed/line/:line.xml</code> or{' '}
-        <code className="text-xs">/feed/route/:route.xml</code>):
-      </p>
-      <div className="grid gap-3 md:grid-cols-2">
-        <FeedPicker
-          id="marta-feed-picker"
-          label="MARTA line or route"
-          value={pickedOfficialFeed}
-          onChange={setPickedOfficialFeed}
-          url={pickedOfficialFeedUrl}
-          copied={copied === 'official-picked'}
-          onCopy={copy('official-picked', pickedOfficialFeedUrl)}
-        >
-          <optgroup label="Rail Lines">
-            {LINE_FEED_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Bus Routes">
-            {ROUTE_FEED_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </optgroup>
-        </FeedPicker>
-      </div>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Feeds exist for every MARTA rail line and roster route up front, so you can subscribe to
-        your route today — it just stays quiet until something happens, then fills in automatically.
-        Every line and route page also carries a{' '}
-        <span className="whitespace-nowrap">“🔔 Subscribe (RSS)”</span> link. A JSON Feed version
-        lives at the same path with a <code>.json</code> extension.
-      </p>
-
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">
-        Popular feed readers
-      </h3>
-      <ul className="list-disc list-outside ml-5 space-y-1">
-        <li>
+        <p className={NOTE}>
+          Works in any feed reader, such as{' '}
           <a className={LINK} href="https://feedly.com/" target="_blank" rel="noopener noreferrer">
             Feedly
-          </a>{' '}
-          — web and mobile.
-        </li>
-        <li>
+          </a>
+          ,{' '}
           <a
             className={LINK}
             href="https://www.inoreader.com/"
@@ -181,10 +182,8 @@ export default function SubscribeContent() {
             rel="noopener noreferrer"
           >
             Inoreader
-          </a>{' '}
-          — web and mobile.
-        </li>
-        <li>
+          </a>
+          , or{' '}
           <a
             className={LINK}
             href="https://netnewswire.com/"
@@ -192,84 +191,122 @@ export default function SubscribeContent() {
             rel="noopener noreferrer"
           >
             NetNewsWire
-          </a>{' '}
-          — free, native macOS / iOS.
-        </li>
-      </ul>
+          </a>
+          . When an incident resolves, its entry updates, so most readers show it as unread again.
+          Every feed also comes as JSON Feed: swap <code>.xml</code> for <code>.json</code>.
+        </p>
+      </section>
 
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-2">What you'll get</h3>
-      <p>
-        New entries appear as incidents are detected. Resolved incidents bump their entry so most
-        readers will mark them unread again — a quick way to see when something cleared.
-      </p>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        The feed regenerates when the underlying data changes and the static site rebuilds.
-      </p>
+      <hr className="border-slate-200 dark:border-gh-border !mt-6" />
 
-      <h3 className="font-semibold text-slate-700 dark:text-slate-200 pt-3">Bulk data</h3>
-      <p>
-        Building a dashboard or doing analysis? Incidents are published as bounded JSON files (a
-        unified <code className="text-xs">incidents[]</code> array) so you don't fetch the whole
-        archive on every load, plus a flat CSV (one row per alert or observation). No auth, no
-        rate-limit beyond reasonable polling.
-      </p>
-      <ul className="list-disc list-outside ml-5 space-y-1 text-xs">
-        <li>
-          <a className={LINK} href={RECENT_URL} target="_blank" rel="noopener noreferrer">
-            {RECENT_URL}
+      <section id="use-the-data" className="space-y-3 scroll-mt-4">
+        <h2 className={H2}>Use the data</h2>
+        <p>
+          Everything behind this site is published as open files. No sign-up or API key, just
+          reasonable polling. Format changes are tracked in the{' '}
+          <a className={LINK} href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
+            data changelog
+          </a>
+          .
+        </p>
+
+        <h3 className={H3}>Incidents</h3>
+        <DataFileList items={INCIDENT_FILES} />
+        <Details>
+          <p className={NOTE}>
+            Each JSON file holds a unified <code>incidents[]</code> array, so you never fetch the
+            whole archive at once. The original full-history{' '}
+            <a className={LINK} href={LEGACY_JSON_URL} target="_blank" rel="noopener noreferrer">
+              alerts.json
+            </a>{' '}
+            is <strong>deprecated</strong> and will be retired, so use the files above instead.
+          </p>
+          <CopyField
+            value={CURL_CMD}
+            label="Example command"
+            copied={copied === 'curl'}
+            onCopy={copy('curl', CURL_CMD)}
+            multiline
+          />
+        </Details>
+
+        <h3 className={H3}>Vehicle positions</h3>
+        <p>
+          Every MARTA bus, rail, and streetcar position the bots poll, as one file per mode per day
+          starting September 28, 2026. A new day appears each night.
+        </p>
+        <DataFileList items={POSITION_FILES} />
+        <Details>
+          <p className={NOTE}>
+            Files are gzipped NDJSON (one JSON object per line, in poll order) at{' '}
+            <code className="break-all">{POSITIONS_FILE_PATTERN}</code>. Days run midnight to
+            midnight Atlanta time, positions are polled about every 30 seconds, and a day of bus
+            positions is roughly 14 MB compressed.
+          </p>
+          <CopyField
+            value={POSITIONS_CMD}
+            label="Example command"
+            copied={copied === 'positions'}
+            onCopy={copy('positions', POSITIONS_CMD)}
+            multiline
+          />
+        </Details>
+      </section>
+    </div>
+  );
+}
+
+function Details({ children }) {
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none marker:hidden select-none text-xs text-blue-500 hover:text-blue-400 hover:underline">
+        Details and an example{' '}
+        <span className="inline-block group-open:rotate-180 transition-transform">▾</span>
+      </summary>
+      <div className="space-y-2 pt-2">{children}</div>
+    </details>
+  );
+}
+
+function DataFileList({ items }) {
+  return (
+    <ul className="space-y-2">
+      {items.map(({ name, file, desc }) => (
+        <li key={file}>
+          <a
+            className={`${LINK} font-medium`}
+            href={dataUrl(file)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {name}
           </a>{' '}
-          — recent window (active ∪ last 93 days), the slice the live site polls.
+          <code className={NOTE}>{file}</code>
+          <p className={NOTE}>{desc}</p>
         </li>
-        <li>
-          <a className={LINK} href={INDEX_URL} target="_blank" rel="noopener noreferrer">
-            {INDEX_URL}
-          </a>{' '}
-          — manifest of monthly + per-line archive files. Union the months for the full history.
-        </li>
-        <li>
-          <a className={LINK} href={CSV_URL} target="_blank" rel="noopener noreferrer">
-            {CSV_URL}
-          </a>{' '}
-          — flat CSV, one row per alert or observation.
-        </li>
-        <li>
-          <a className={LINK} href={ACCESSIBILITY_URL} target="_blank" rel="noopener noreferrer">
-            {ACCESSIBILITY_URL}
-          </a>{' '}
-          — elevator, escalator, and ADA outages, the same data behind the{' '}
-          <a className={LINK} href="/accessibility">
-            accessibility
-          </a>{' '}
-          page.
-        </li>
-        <li className="text-slate-500 dark:text-slate-400">
-          <a className={LINK} href={LEGACY_JSON_URL} target="_blank" rel="noopener noreferrer">
-            {LEGACY_JSON_URL}
-          </a>{' '}
-          — <strong>deprecated</strong> full-history file; still published for now, but will be
-          retired. Migrate to the recent + archive files above.
-        </li>
-      </ul>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Format changes are tracked in the{' '}
-        <a className={LINK} href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
-          data changelog
-        </a>{' '}
-        — check it before pinning to the format.
-      </p>
-      <p className="text-xs text-slate-500 dark:text-slate-400">Quick check from a terminal:</p>
-      <div className="flex items-center gap-2">
-        <pre className="flex-1 min-w-0 px-2 py-1.5 text-xs font-mono bg-slate-50 dark:bg-gh-bg border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-all">
-          {CURL_CMD}
-        </pre>
-        <button
-          type="button"
-          onClick={copy('curl', CURL_CMD)}
-          className="px-3 py-1.5 text-xs font-medium rounded border border-slate-200 dark:border-gh-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gh-border transition-colors"
-        >
-          {copied === 'curl' ? 'Copied' : 'Copy'}
-        </button>
-      </div>
+      ))}
+    </ul>
+  );
+}
+
+function CopyField({ value, label, copied, onCopy, multiline = false }) {
+  return (
+    <div className="flex items-center gap-2">
+      {multiline ? (
+        <pre className={`${FIELD} whitespace-pre-wrap break-all`}>{value}</pre>
+      ) : (
+        <input
+          type="text"
+          readOnly
+          value={value}
+          onFocus={(e) => e.target.select()}
+          aria-label={label}
+          className={FIELD}
+        />
+      )}
+      <button type="button" onClick={onCopy} className={BUTTON}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
     </div>
   );
 }
@@ -287,27 +324,11 @@ function FeedPicker({ id, label, value, onChange, url, copied, onCopy, children 
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-gh-bg border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200"
+        className="w-full px-2 py-1.5 text-sm bg-slate-50 dark:bg-gh-canvas border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200"
       >
         {children}
       </select>
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          readOnly
-          value={url}
-          onFocus={(e) => e.target.select()}
-          aria-label={`${label} feed URL`}
-          className="flex-1 min-w-0 px-2 py-1.5 text-xs font-mono bg-slate-50 dark:bg-gh-bg border border-slate-200 dark:border-gh-border rounded text-slate-700 dark:text-slate-200"
-        />
-        <button
-          type="button"
-          onClick={onCopy}
-          className="px-3 py-1.5 text-xs font-medium rounded border border-slate-200 dark:border-gh-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gh-border transition-colors"
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
+      <CopyField value={url} label={`${label} feed URL`} copied={copied} onCopy={onCopy} />
     </div>
   );
 }
