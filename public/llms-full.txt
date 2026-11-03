@@ -19,7 +19,7 @@ Every incident has a `kind` of `train` or `bus`. Train routes use MARTA line nam
 - Accessibility outages JSON: https://data.atlantatransitalerts.app/accessibility.json
 - Daily counts JSON: https://data.atlantatransitalerts.app/daily-counts.json
 - Incidents CSV: https://data.atlantatransitalerts.app/alerts.csv
-- Vehicle positions index: https://data.atlantatransitalerts.app/positions/index.json (one gzipped NDJSON file per mode per Atlanta day since 2026-09-28: https://data.atlantatransitalerts.app/positions/<mode>/YYYY/MM/YYYY-MM-DD.ndjson.gz, modes bus, rail, streetcar; fields per mode in the index `schema`)
+- Vehicle positions index: https://data.atlantatransitalerts.app/positions/index.json (a small pointer: its `path` names the current immutable manifest, https://data.atlantatransitalerts.app/positions/manifests/<sha256>.json. The manifest lists `days` newest first, each with one Parquet file per mode, https://data.atlantatransitalerts.app/positions/<mode>/YYYY/MM/YYYY-MM-DD.<sha256>.parquet, modes bus, rail, streetcar, with `path`, `rows`, `bytes`, `sha256`; fields per mode in `feeds`, plus `coverage` and `known_gaps`. Daily files since 2026-09-28; bus sorted by route, vehicle_id, ts, rail by line, direction, train_id, ts, streetcar by line, vehicle_id, ts. Take file paths from the manifest; they can't be guessed)
 - Data changelog: https://atlantatransitalerts.app/data/CHANGELOG.md
 - Atom feed: https://atlantatransitalerts.app/feed.xml
 - Per-line/per-route Atom feeds: `/feed/line/<line>.xml`, `/feed/route/<route>.xml`

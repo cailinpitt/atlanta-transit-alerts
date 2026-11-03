@@ -2,6 +2,50 @@
 
 This changelog tracks public data-shape changes for the Atlanta Transit Alerts website and API.
 
+## 2026-11-03 — Vehicle positions move to Parquet (`positions/`)
+
+**Breaking.** The daily position archive switches from gzipped NDJSON to
+Parquet, and `positions/index.json` changes shape. Days, fields and rows are
+unchanged; every existing day is converted.
+
+- **`positions/index.json`** — now a small latest pointer (short cache) to an
+  immutable manifest, instead of the list of days:
+
+```json
+{"manifest_version":2,"path":"positions/manifests/<sha256>.json","sha256":"<sha256>","bytes":12345}
+```
+
+- **`positions/manifests/<sha256>.json`** — what `index.json` used to hold:
+  `days` (newest first, each with per-mode `rows` and `files`), `coverage`,
+  `feeds` (fields with type, unit, nullability and caveats), `known_gaps`, plus
+  `format: "parquet"`, `sort_order` (per mode) and `previous_manifest`. Each
+  file has `path`, `rows`, `bytes`, `sha256` and min/max timestamps (`ts`, plus
+  bus `vehicle_ts` or rail/streetcar `event_ts`). Manifests never change; pin
+  one for repeatable analysis.
+- **`positions/{bus,rail,streetcar}/YYYY/MM/YYYY-MM-DD.<sha256>.parquet`** —
+  ZSTD Parquet with typed columns, sorted by `route, vehicle_id, ts` (bus),
+  `line, direction, train_id, ts` (rail) and `line, vehicle_id, ts`
+  (streetcar). Names include the file's checksum, so they can't be guessed: go
+  through `index.json` → manifest → `path`. A correction gets a new path; old
+  ones stay available.
+- About a fifth the size of the gzipped NDJSON for buses (a weekday drops from
+  roughly 13 MB to 2.7 MB), and reads directly in DuckDB, pandas (with pyarrow)
+  or Polars, including just the columns you need.
+- Values are unchanged: bus `vehicle_ts` stays in epoch **seconds**, rail and
+  streetcar `event_ts` in epoch ms, bus `start_date` as `YYYYMMDD`. Days with
+  no rows (rail and streetcar on 2026-10-29) are empty files with the full
+  schema.
+- The `.ndjson.gz` files are no longer produced and will be removed later.
+  Switch to the manifest paths.
+
+```sh
+BASE=https://data.atlantatransitalerts.app
+MANIFEST=$(curl -s $BASE/positions/index.json | jq -r .path)
+FILE=$(curl -s $BASE/$MANIFEST | jq -r '.days[0].files.rail.path')
+curl -so rail.parquet $BASE/$FILE
+duckdb -c "SELECT line, count(*) FROM 'rail.parquet' GROUP BY line"
+```
+
 ## 2026-10-31 — Daily vehicle position archive (`positions/`)
 
 **New dataset, additive.** Every MARTA bus, rail and streetcar position the bots

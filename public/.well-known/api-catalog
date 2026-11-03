@@ -33,7 +33,7 @@
         {
           "href": "https://data.atlantatransitalerts.app/positions/index.json",
           "type": "application/json",
-          "title": "Vehicle positions — index of daily gzipped NDJSON files (bus, rail, streetcar)"
+          "title": "Vehicle positions — latest pointer to the manifest of daily Parquet files (bus, rail, streetcar)"
         },
         {
           "href": "https://atlantatransitalerts.app/data/CHANGELOG.md",
